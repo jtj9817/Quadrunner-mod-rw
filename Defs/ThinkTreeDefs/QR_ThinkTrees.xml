@@ -15,6 +15,8 @@
         <li Class="ThinkNode_Subtree">
           <treeDef>LordDuty</treeDef>
         </li>
+        <!-- Battery low (and until full): the stable or a conduit spot, whichever fills it soonest. -->
+        <li Class="Quadrunner.JobGiver_SeekCharge" />
         <!-- Nothing to do: go home and dock. -->
         <li Class="Quadrunner.JobGiver_Dock" />
         <!-- No stable, or it's unreachable or full. -->

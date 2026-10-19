@@ -71,7 +71,15 @@
       <li>ITab_Pawn_Log</li>
     </inspectorTabs>
     <comps>
-      <li Class="Quadrunner.CompProperties_Robodog" />
+      <!-- Battery tunables (agent defaults, 2026-10-19): 10% lasts 150 cells; a conduit fills an empty dog in 10000
+           ticks (4 h), the stable four times as fast; a full charge from a conduit takes 100 Wd from its batteries. -->
+      <li Class="Quadrunner.CompProperties_Robodog">
+        <drainPerCell>0.000667</drainPerCell>
+        <seekChargeAt>0.1</seekChargeAt>
+        <conduitChargePerTick>0.0001</conduitChargePerTick>
+        <stableChargePerTick>0.0004</stableChargePerTick>
+        <energyPerFullCharge>100</energyPerFullCharge>
+      </li>
     </comps>
   </ThingDef>
 

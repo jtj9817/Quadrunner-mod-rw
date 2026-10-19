@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Battery at 0%: the dog can't move (so it's downed) until it gets power again. A condition, not damage. -->
+  <HediffDef>
+    <defName>QR_PoweredDown</defName>
+    <label>powered down</label>
+    <description>The battery is empty. The robodog can't move until it is recharged at its stable or given a robodog battery.</description>
+    <hediffClass>HediffWithComps</hediffClass>
+    <defaultLabelColor>(0.9, 0.8, 0.3)</defaultLabelColor>
+    <isBad>true</isBad>
+    <everCurableByItem>false</everCurableByItem>
+    <stages>
+      <li>
+        <capMods>
+          <li>
+            <capacity>Moving</capacity>
+            <setMax>0</setMax>
+          </li>
+        </capMods>
+      </li>
+    </stages>
+  </HediffDef>
+
+</Defs>

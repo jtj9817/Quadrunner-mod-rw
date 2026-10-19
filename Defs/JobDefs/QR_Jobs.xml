@@ -8,4 +8,11 @@
     <casualInterruptible>true</casualInterruptible>
   </JobDef>
 
+  <JobDef>
+    <defName>QR_ChargeAtConduit</defName>
+    <driverClass>Quadrunner.JobDriver_ChargeAtConduit</driverClass>
+    <reportString>charging by a conduit.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
 </Defs>
