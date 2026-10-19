@@ -17,7 +17,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T1**, remaining boxes: the Overview battery column (needs T2's battery) and the debug actions for battery, power-down and dispatch (T2–T4). Their systems come first, so go on to **T2** and tick these as they land. Still open in T0: ask the user about one run beside their open game.
+- Next: **T2, half-written and not building** (hand-off `docs/handoff/20261019-1753-t2-battery-wip.md`). T1 remaining boxes: the Overview battery column (needs T2's battery) and the debug actions for battery, power-down and dispatch (T2–T4). Their systems come first, so go on to **T2** and tick these as they land. Still open in T0: ask the user about one run beside their open game.
 - Last run: 2026-10-19 21:49, build `0ab90b9-dirty.20261019T214906Z`, Stable full (16th dog) 1/1 PASS, 0 new errors; full T1 set 3/3 PASS at 21:48.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
