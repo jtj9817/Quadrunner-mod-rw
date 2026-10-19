@@ -31,6 +31,7 @@ namespace Quadrunner
         private readonly int timeoutTicks;
         private readonly List<(string label, Func<bool> done)> steps = new List<(string, Func<bool>)>();
         private readonly List<string> tracked = new List<string>();
+        private readonly List<Action> cleanups = new List<Action>();
         private Func<string> summary;
         private int stepIndex;
         private int startTick;
@@ -45,15 +46,23 @@ namespace Quadrunner
 
         private static int Now => Find.TickManager.TicksGame;
 
-        /// <summary>The spawned thing with this ThingID on the current map, or null.</summary>
+        /// <summary>The spawned thing with this ThingID on the current map, or a pawn held there (docked, carried), or null.</summary>
         public static Thing ById(string thingId) =>
-            Find.CurrentMap?.listerThings.AllThings.FirstOrDefault(t => t.ThingID == thingId);
+            Find.CurrentMap?.listerThings.AllThings.FirstOrDefault(t => t.ThingID == thingId)
+            ?? Find.CurrentMap?.mapPawns.AllPawns.FirstOrDefault(p => p.ThingID == thingId);
 
         /// <summary>Destroyed when the scenario ends, also after a reload.</summary>
         public T Track<T>(T thing) where T : Thing
         {
             tracked.Add(thing.ThingID);
             return thing;
+        }
+
+        /// <summary>Runs when the scenario ends, PASS or FAIL, after the tracked things are destroyed.</summary>
+        public Scenario OnFinish(Action cleanup)
+        {
+            cleanups.Add(cleanup);
+            return this;
         }
 
         /// <summary>Waits until <paramref name="done"/> returns true.</summary>
@@ -190,6 +199,17 @@ namespace Quadrunner
             QR.Log($"SCENARIO {name}: {verdict}{extra}");
             foreach (string id in tracked)
                 ById(id)?.Destroy();
+            foreach (Action cleanup in cleanups)
+            {
+                try
+                {
+                    cleanup();
+                }
+                catch (Exception e)
+                {
+                    QR.Error($"SCENARIO {name}: cleanup failed: {e}");
+                }
+            }
             DebugViewSettings.neverForceNormalSpeed = prevNeverForceNormalSpeed;
             Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
             current = null;

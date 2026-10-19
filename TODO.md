@@ -5,7 +5,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 ## Progress
 
 - [ ] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
-- [ ] **T1**: Dogs and the stable (race, stable, assemble bill, docking, Overview tab, debug actions)
+- [ ] **T1**: Dogs and the stable (4 of 6 boxes; the rest wait for T2–T4) (race, stable, assemble bill, docking, Overview tab, debug actions)
 - [ ] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [ ] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
 - [ ] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
@@ -17,8 +17,8 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T1** (dogs and the stable). T0 has one box left: ask the user whether to try one run beside their open game (`--beside-user-game`) and record the answer.
-- Last run: 2026-10-19 21:27, build `e5bcc76-dirty.20261019T212653Z`, Smoke + Save and reload 2/2 PASS, 0 new errors, restarted in game; then `autotest.py hang` → HANG, watchdog OK.
+- Next: **T1**, remaining boxes: the Overview battery column (needs T2's battery) and the debug actions for battery, power-down and dispatch (T2–T4). Their systems come first, so go on to **T2** and tick these as they land. Still open in T0: ask the user about one run beside their open game.
+- Last run: 2026-10-19 21:49, build `0ab90b9-dirty.20261019T214906Z`, Stable full (16th dog) 1/1 PASS, 0 new errors; full T1 set 3/3 PASS at 21:48.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - Not yet re-run: `tools/selftest.sh` after the 2026-10-19 Xvfb-pid check in `autotest.py stop` (the auto-mode permission check refused to run it in that session).
@@ -63,6 +63,12 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Permission check.** The auto-mode classifier refuses edits to `.claude/settings.json` and refused `tools/selftest.sh` once; don't work around it, ask the user.
 
 ### Game / API
+
+- **A third kind of pawn.** Intelligence `Animal` + a non-organic flesh type makes `RaceProperties.Animal`, `IsMechanoid` and `IsFlesh` all false. Vanilla still gives such a player pawn `playerSettings` and a `training` tracker (`PawnComponentsUtility`), but no needs at all with `foodType None` and `needsRest false`. Disease incidents pick only `IsFlesh` pawns.
+- **Pawns inside a building.** A `Building` that implements `IThingHolder` (here `ThingOwner<Pawn>`, deep-saved) keeps pawns out of the world; `MapPawns.AllPawns` still finds them through `GetChildHolders`, but `listerThings` doesn't, so `Scenario.ById` falls back to `AllPawns`.
+- **Bills need power.** `Building_WorkTable.CurrentlyUsableForBills` wants `PowerOn`; a scenario powers a stable with a conduit under it plus `DebugSettings.unlimitedPower` (a lone consumer has no PowerNet, so the flag alone does nothing).
+- **Forcing a bill in a scenario.** `WorkGiverDef.Worker.JobOnThing(colonist, stable, forced: true)` then `jobs.TryTakeOrderedJob`; also finish the recipe's research first.
+
 
 - **Use the offline wiki.** The mirror at `/mnt/0B8533211952FCF2/rimworld-wiki-local/data/site/pages/` has every Modding Tutorials page as Markdown, so grep it before fetching the web. *(QB)*
 - **Look up vanilla, don't guess.** Use `tools/vanilla.sh grep` / `def`. Grepping `strings` on `Assembly-CSharp.dll` gives false negatives because the metadata heap shares suffixes. If ilspycmd complains about the runtime, set `DOTNET_ROLL_FORWARD=Major`. *(QB)*

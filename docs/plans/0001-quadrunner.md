@@ -36,6 +36,11 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | User's game | The agent notifies the user and waits before any step that needs the user's game closed, and never acts on that game itself (user, 2026-10-19) |
 | Processes and anomalies | The agent signals no process except the test RimWorld (and the Xvfb display the harness started for it, checked by name before it is stopped). Anything out of the ordinary: ping the user and stop development (user, 2026-10-19) |
 | Save backups | Back up the user's profile with `tools/backup-saves.sh` (to `~/RimWorldBackups/`) when the user asks and before anything that could reach it; first backup 2026-10-19 (user, 2026-10-19) |
+| Robodog kind | Intelligence `Animal` on the non-organic `QR_Robotic` flesh type: vanilla sees neither an animal nor a mechanoid (`RaceProperties.Animal`, `IsMechanoid`, `IsFlesh` all false), which gives the T1 immunities for free; body `QR_Robodog` from vanilla mechanoid parts. Proven by **Dock and undock** (agent, 2026-10-19) |
+| Dog ownership | The dog's `CompRobodog.stable` is the only record; a stable counts its dogs from its map's pawns (docked, out, carried), so out-of-stable dogs keep their slot (agent, 2026-10-19) |
+| Full stable | A dog bill doesn't start while all 15 slots are taken (docked or out); a dog finished anyway (slot taken meanwhile) waits beside the stable, unassigned (agent default, 2026-10-19; not in the design) |
+| Stable bills | Colonists do them under **Crafting** (Crafting skill, General labor speed), as Queen Bee's bills; the stable needs power for bills like any vanilla workbench (200 W) (agent default, 2026-10-19) |
+| Placeholder art | Until T9: the dog draws as the vanilla husky tinted steel blue, the stable as the vanilla comms console (3×2) (agent, 2026-10-19) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
 ## Targets
@@ -57,12 +62,12 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T1: Dogs and the stable
 
-- [ ] `QR_Quadrunner` race: own flesh type, no food or rest needs, never rots, immune to disease, psychic drones and animal insanity; can't be tamed, trained, slaughtered or hunted; never spawns wild or in manhunter packs
-- [ ] Stable building (Microelectronics, 150 steel + 4 components): 15 shared slots, docks and undocks dogs, saves its docked dogs
-- [ ] "Assemble Quadrunner" bill at the stable; the finished dog docks straight into it
-- [ ] Overview tab: one row per assigned dog (type, battery, health, current job)
-- [ ] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch
-- [ ] Scenarios pass, each with a save/load step: **Assemble and dock**, **Stable full (16th dog)**
+- [x] `QR_Quadrunner` race: own flesh type, no food or rest needs, never rots, immune to disease, psychic drones and animal insanity; can't be tamed, trained, slaughtered or hunted; never spawns wild or in manhunter packs
+- [x] Stable building (Microelectronics, 150 steel + 4 components): 15 shared slots, docks and undocks dogs, saves its docked dogs
+- [x] "Assemble Quadrunner" bill at the stable; the finished dog docks straight into it
+- [ ] Overview tab: one row per assigned dog (type, battery, health, current job). Done and drawn in a run except the battery column, which shows "—" until T2 adds the battery
+- [ ] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch. Done: spawn docked, undock all; the others come with T2 (battery), T4 (power-down) and T3 (dispatch)
+- [x] Scenarios pass, each with a save/load step: **Assemble and dock**, **Stable full (16th dog)** (also **Dock and undock**; run 2026-10-19 21:48)
 
 ### T2: Battery and charging
 

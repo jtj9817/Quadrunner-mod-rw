@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Every robodog: a player-built machine. Intelligence Animal on a non-organic flesh type, so vanilla sees neither an
+       animal nor a mechanoid: no taming, training, slaughter, hunting, wild spawns or manhunter packs, no food or rest. -->
+  <ThingDef ParentName="BasePawn" Name="QR_RobodogBase" Abstract="True">
+    <soundImpactDefault>BulletImpact_Metal</soundImpactDefault>
+    <tradeability>None</tradeability>
+    <statBases>
+      <MarketValue>600</MarketValue>
+      <Mass>40</Mass>
+      <MoveSpeed>4.8</MoveSpeed>
+      <Flammability>0</Flammability>
+      <PsychicSensitivity>0</PsychicSensitivity>
+      <ToxicResistance>1</ToxicResistance>
+      <ToxicEnvironmentResistance>1</ToxicEnvironmentResistance>
+      <ComfyTemperatureMin>-100</ComfyTemperatureMin>
+      <ComfyTemperatureMax>250</ComfyTemperatureMax>
+      <MeatAmount>0</MeatAmount>
+      <LeatherAmount>0</LeatherAmount>
+      <Wildness>0</Wildness>
+      <ArmorRating_Sharp>0.2</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.1</ArmorRating_Blunt>
+      <ArmorRating_Heat>1</ArmorRating_Heat>
+    </statBases>
+    <tools>
+      <li>
+        <label>head</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>7</power>
+        <cooldownTime>2</cooldownTime>
+        <linkedBodyPartsGroup>HeadAttackTool</linkedBodyPartsGroup>
+        <ensureLinkedBodyPartsGroupAlwaysUsable>true</ensureLinkedBodyPartsGroupAlwaysUsable>
+      </li>
+    </tools>
+    <race>
+      <intelligence>Animal</intelligence>
+      <fleshType>QR_Robotic</fleshType>
+      <body>QR_Robodog</body>
+      <thinkTreeMain>QR_Robodog</thinkTreeMain>
+      <needsRest>false</needsRest>
+      <hasGenders>false</hasGenders>
+      <foodType>None</foodType>
+      <trainability>None</trainability>
+      <petness>0</petness>
+      <manhunterOnDamageChance>0</manhunterOnDamageChance>
+      <manhunterOnTameFailChance>0</manhunterOnTameFailChance>
+      <canBePredatorPrey>false</canBePredatorPrey>
+      <herdAnimal>false</herdAnimal>
+      <lifeExpectancy>2500</lifeExpectancy>
+      <bloodDef>Filth_MachineBits</bloodDef>
+      <nameGenerator>NamerAnimalGenericMale</nameGenerator>
+      <baseBodySize>0.8</baseBodySize>
+      <baseHealthScale>1.2</baseHealthScale>
+      <soundMeleeHitPawn>Pawn_Melee_MechanoidBash_HitPawn</soundMeleeHitPawn>
+      <soundMeleeHitBuilding>Pawn_Melee_MechanoidBash_HitBuilding</soundMeleeHitBuilding>
+      <soundMeleeMiss>Pawn_Melee_MechanoidBash_Miss</soundMeleeMiss>
+      <lifeStageAges>
+        <li>
+          <def>MechanoidFullyFormed</def>
+          <minAge>0</minAge>
+        </li>
+      </lifeStageAges>
+    </race>
+    <inspectorTabs Inherit="False">
+      <li>ITab_Pawn_Health</li>
+      <li>ITab_Pawn_Needs</li>
+      <li>ITab_Pawn_Gear</li>
+      <li>ITab_Pawn_Log</li>
+    </inspectorTabs>
+    <comps>
+      <li Class="Quadrunner.CompProperties_Robodog" />
+    </comps>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_RobodogBase">
+    <defName>QR_Quadrunner</defName>
+    <label>Quadrunner</label>
+    <description>A four-legged utility robot. It docks at a stable, which sends it out to haul, clean and supply construction, and repairs and recharges it between jobs.</description>
+  </ThingDef>
+
+  <PawnKindDef>
+    <defName>QR_Quadrunner</defName>
+    <label>Quadrunner</label>
+    <race>QR_Quadrunner</race>
+    <combatPower>40</combatPower>
+    <canArriveManhunter>false</canArriveManhunter>
+    <!-- Placeholder art: the vanilla husky, tinted steel blue, until the robodog textures exist (T9). -->
+    <lifeStages>
+      <li>
+        <bodyGraphicData>
+          <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
+          <drawSize>1.4</drawSize>
+          <color>(120,135,150)</color>
+          <shaderType>CutoutComplex</shaderType>
+          <shadowData>
+            <volume>(0.25, 0.3, 0.25)</volume>
+            <offset>(0,0,-0.15)</offset>
+          </shadowData>
+        </bodyGraphicData>
+      </li>
+    </lifeStages>
+  </PawnKindDef>
+
+</Defs>

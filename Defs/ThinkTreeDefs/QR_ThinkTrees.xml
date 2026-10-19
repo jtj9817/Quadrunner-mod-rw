@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <ThinkTreeDef>
+    <defName>QR_Robodog</defName>
+    <thinkRoot Class="ThinkNode_Priority">
+      <subNodes>
+        <li Class="ThinkNode_Subtree">
+          <treeDef>Despawned</treeDef>
+        </li>
+        <li Class="ThinkNode_Subtree">
+          <treeDef>Downed</treeDef>
+        </li>
+        <li Class="ThinkNode_QueuedJob" />
+        <li Class="ThinkNode_Subtree">
+          <treeDef>LordDuty</treeDef>
+        </li>
+        <!-- Nothing to do: go home and dock. -->
+        <li Class="Quadrunner.JobGiver_Dock" />
+        <!-- No stable, or it's unreachable or full. -->
+        <li Class="ThinkNode_Tagger">
+          <tagToGive>Idle</tagToGive>
+          <subNodes>
+            <li Class="JobGiver_WanderAnywhere">
+              <maxDanger>Deadly</maxDanger>
+              <ticksBetweenWandersRange>120~240</ticksBetweenWandersRange>
+            </li>
+          </subNodes>
+        </li>
+        <li Class="JobGiver_IdleError" />
+      </subNodes>
+    </thinkRoot>
+  </ThinkTreeDef>
+
+</Defs>

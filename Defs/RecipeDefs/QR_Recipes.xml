@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Dog bills: no item product. Each finished bill makes a dog of the extension's kind and docks it in the stable;
+       "Do until you have X" counts the stable's dogs of that kind. -->
+  <RecipeDef Name="QR_AssembleDogBase" Abstract="True">
+    <workerClass>Quadrunner.RecipeWorker_AssembleDog</workerClass>
+    <workerCounterClass>Quadrunner.RecipeWorkerCounter_Dogs</workerCounterClass>
+    <workSpeedStat>GeneralLaborSpeed</workSpeedStat>
+    <workSkill>Crafting</workSkill>
+    <effectWorking>Smith</effectWorking>
+    <soundWorking>Recipe_Machining</soundWorking>
+    <targetCountAdjustment>1</targetCountAdjustment>
+    <researchPrerequisite>MicroelectronicsBasics</researchPrerequisite>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_AssembleQuadrunner</defName>
+    <label>assemble Quadrunner</label>
+    <description>Assemble a Quadrunner. It docks straight into this stable.</description>
+    <jobString>Assembling Quadrunner.</jobString>
+    <workAmount>3000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>80</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>30</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>1</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>Plasteel</li>
+        <li>ComponentSpacer</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Quadrunner</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
+</Defs>

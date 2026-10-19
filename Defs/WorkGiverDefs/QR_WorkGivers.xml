@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Colonists do stable bills under Crafting (agent default, 2026-10-19). -->
+  <WorkGiverDef>
+    <defName>QR_DoBillsStable</defName>
+    <label>assemble robodogs</label>
+    <giverClass>Quadrunner.WorkGiver_DoBillsStable</giverClass>
+    <workType>Crafting</workType>
+    <priorityInType>50</priorityInType>
+    <fixedBillGiverDefs>
+      <li>QR_Stable</li>
+    </fixedBillGiverDefs>
+    <verb>assemble robodogs at</verb>
+    <gerund>assembling robodogs at</gerund>
+    <requiredCapacities>
+      <li>Manipulation</li>
+    </requiredCapacities>
+    <prioritizeSustains>true</prioritizeSustains>
+  </WorkGiverDef>
+
+</Defs>

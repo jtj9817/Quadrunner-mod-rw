@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- The stable: docks up to 15 robodogs of any type, runs every dog bill, and (later targets) dispatches, repairs and
+       charges them. -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>QR_Stable</defName>
+    <label>Quadrunner stable</label>
+    <description>A docking station for robodogs. Up to 15 Quadrunners, Medirunners and Combatdogs share its slots. Colonists assemble new robodogs here; each finished dog docks straight into the stable.</description>
+    <thingClass>Quadrunner.Building_Stable</thingClass>
+    <tickerType>Normal</tickerType>
+    <!-- Placeholder art: the vanilla comms console, until the stable texture exists (T9). -->
+    <graphicData>
+      <texPath>Things/Building/Misc/CommsConsole</texPath>
+      <graphicClass>Graphic_Multi</graphicClass>
+      <drawSize>(5,4)</drawSize>
+      <damageData>
+        <rect>(0,0,3,1.8)</rect>
+        <cornerBL>Damage/Corner</cornerBL>
+        <cornerBR>Damage/Corner</cornerBR>
+      </damageData>
+      <shadowData>
+        <volume>(3,0.5,2)</volume>
+      </shadowData>
+    </graphicData>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>PassThroughOnly</passability>
+    <pathCost>50</pathCost>
+    <fillPercent>0.5</fillPercent>
+    <canOverlapZones>false</canOverlapZones>
+    <size>(3,2)</size>
+    <defaultPlacingRot>South</defaultPlacingRot>
+    <hasInteractionCell>true</hasInteractionCell>
+    <interactionCellOffset>(0,0,2)</interactionCellOffset>
+    <terrainAffordanceNeeded>Medium</terrainAffordanceNeeded>
+    <minifiedDef>MinifiedThing</minifiedDef>
+    <thingCategories>
+      <li>BuildingsMisc</li>
+    </thingCategories>
+    <statBases>
+      <MaxHitPoints>300</MaxHitPoints>
+      <WorkToBuild>4000</WorkToBuild>
+      <Flammability>0.5</Flammability>
+      <Mass>60</Mass>
+    </statBases>
+    <costList>
+      <Steel>150</Steel>
+      <ComponentIndustrial>4</ComponentIndustrial>
+    </costList>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Big</destroySound>
+    </building>
+    <designationCategory>Misc</designationCategory>
+    <researchPrerequisites>
+      <li>MicroelectronicsBasics</li>
+    </researchPrerequisites>
+    <placeWorkers>
+      <li>PlaceWorker_PreventInteractionSpotOverlap</li>
+    </placeWorkers>
+    <inspectorTabs>
+      <li>Quadrunner.ITab_StableOverview</li>
+      <li>ITab_Bills</li>
+    </inspectorTabs>
+    <recipes>
+      <li>QR_AssembleQuadrunner</li>
+    </recipes>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>200</basePowerConsumption>
+      </li>
+      <li Class="CompProperties_Flickable" />
+    </comps>
+    <modExtensions>
+      <li Class="Quadrunner.StableProps">
+        <capacity>15</capacity>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+</Defs>
