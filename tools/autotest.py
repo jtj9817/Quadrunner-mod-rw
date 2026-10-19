@@ -109,6 +109,13 @@ def comm_running(name):
     return False
 
 
+def proc_comm(pid):
+    try:
+        return Path(f"/proc/{pid}/comm").read_text().strip()
+    except OSError:
+        return None
+
+
 def pid_alive(pid):
     try:
         os.kill(pid, 0)
@@ -580,7 +587,7 @@ def cmd_stop(args):
     if cur:
         archive_log(cur["launch"])
     state = load_state()
-    if pid_alive(state.get("xvfb_pid")):
+    if pid_alive(state.get("xvfb_pid")) and proc_comm(state["xvfb_pid"]) == "Xvfb":   # never a reused pid
         os.kill(state["xvfb_pid"], signal.SIGTERM)
         say(f"stopped Xvfb {state['display']}")
     save_state({})

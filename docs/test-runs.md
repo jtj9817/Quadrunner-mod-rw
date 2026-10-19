@@ -11,3 +11,6 @@ The run's full log stays in `.devlog/runs/<timestamp>/` (local, git-ignored); co
 
 | Run (UTC) | Target | Build | Scenarios | Result | Finding | Next |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-19 21:27 | T0 | e5bcc76-dirty.20261019T212653Z | Smoke, Save and reload | 2/2 PASS, 0 new errors | Second run on a fresh build: "restarted in game in 21 s" via `GenCommandLine.Restart()`, no cold-start fallback; the old process logged a clean Unity shutdown into its moved log | tick in-game restart |
+| 2026-10-19 21:26 | T0 | e5bcc76-dirty.20261019T212551Z | Smoke, Save and reload | 2/2 PASS, 0 new errors | First real launch: Xvfb :90, `-quicktest` map, `ready` in 17 s; save `QR_autotest.rws` written to the test profile, reloaded, steel re-found by ID. User profile mtimes unchanged | tick first launch, Smoke, Save and reload |
+| 2026-10-19 21:24 | T0 | (no Quadrunner) | baseline | 8 signatures | Harmony + Core only, killed after 121 s: FMOD (no audio device), breakpad/libcurl minidump upload, Unity allocator stats; the kill leaves a Steam-sockets assert dump in `/tmp/dumps` | tick baseline |

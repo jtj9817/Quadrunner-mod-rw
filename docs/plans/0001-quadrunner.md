@@ -34,6 +34,8 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Harness language | Python 3 standard library only (no packages, no pip, no Bun packages): the harness is our own code (user, 2026-10-19) |
 | Restart in the loop | The test instance stays up between iterations and restarts itself in game with `GenCommandLine.Restart()`, the restart the Options dialog does after toggling Texture Compression; a cold start is only the fallback (user, 2026-10-19) |
 | User's game | The agent notifies the user and waits before any step that needs the user's game closed, and never acts on that game itself (user, 2026-10-19) |
+| Processes and anomalies | The agent signals no process except the test RimWorld (and the Xvfb display the harness started for it, checked by name before it is stopped). Anything out of the ordinary: ping the user and stop development (user, 2026-10-19) |
+| Save backups | Back up the user's profile with `tools/backup-saves.sh` (to `~/RimWorldBackups/`) when the user asks and before anything that could reach it; first backup 2026-10-19 (user, 2026-10-19) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
 ## Targets
@@ -45,12 +47,12 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 - [x] Tools ported from Queen Bee and registered in AGENTS.md; decompiled source copied from Queen Bee (current for 1.6.4871)
 - [x] `About/About.xml`, `Source/Quadrunner/Quadrunner.csproj`, `QR.cs` (logs `[Quadrunner] loaded build <id>`), `AutoTest.cs`, `Scenario.cs`, `Scenarios.cs`, `DebugActions.cs`; `tools/build.sh` builds with zero warnings
 - [x] Harness self-test: `tools/selftest.sh` passes all 13 cases against the fake game (baseline, cold start, in-game restart on a new build, filters, a failing scenario, baseline-hidden and new errors, hang watchdog, stop)
-- [ ] Error baseline captured from a test-instance run **without** Quadrunner (`tools/autotest.py baseline`)
-- [ ] First real launch: the instance comes up on Xvfb with the test profile, `Mods/Quadrunner` is linked, the quicktest map announces `ready` with the latest build, and the user's profile (`Player.log`, `Config/`, `Saves/`) is untouched
-- [ ] **Scenario: Smoke** passes with zero new errors
-- [ ] **Scenario: Save and reload** passes: save mid-run, load, the tracked steel is found again, ticks resume
-- [ ] In-game restart: after a new build, `autotest.py run` reports "restarted in game" (no cold-start fallback) and the new build is loaded
-- [ ] Watchdog: `autotest.py hang` reports `HANG`, kills the instance and archives its log
+- [x] Error baseline captured from a test-instance run **without** Quadrunner (`tools/autotest.py baseline`)
+- [x] First real launch: the instance comes up on Xvfb with the test profile, `Mods/Quadrunner` is linked, the quicktest map announces `ready` with the latest build, and the user's profile (`Player.log`, `Config/`, `Saves/`) is untouched
+- [x] **Scenario: Smoke** passes with zero new errors
+- [x] **Scenario: Save and reload** passes: save mid-run, load, the tracked steel is found again, ticks resume
+- [x] In-game restart: after a new build, `autotest.py run` reports "restarted in game" (no cold-start fallback) and the new build is loaded
+- [x] Watchdog: `autotest.py hang` reports `HANG`, kills the instance and archives its log
 - [ ] Answered and recorded in Decisions: can the test instance run while the user's game is open?
 
 ### T1: Dogs and the stable
@@ -125,6 +127,6 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 ## Open questions
 
 - [ ] Can the test instance run while the user's game is open (Steam API, Unity, GPU)? Until T0 answers it, the agent asks the user to close their game before every test run.
-- [ ] Does the game render on Xvfb (software GL) fast enough for scenarios? Fallback: a visible window on the user's display, only with the user's OK.
-- [ ] Workshop mods (Harmony) load only while Steam runs; is the test instance started outside Steam picked up by it? `status.sh` should check that Steam runs.
+- [x] Does the game render on Xvfb (software GL) fast enough for scenarios? Yes: ready 17 s after launch, both T0 scenarios in 9 s at Ultrafast (run 2026-10-19 21:26).
+- [x] Workshop mods (Harmony) load only while Steam runs; is the test instance started outside Steam picked up by it? Yes: launched directly (not through Steam) while Steam ran, `SteamAPI_Init` succeeds and `brrainz.harmony` loads (run 2026-10-19 21:24). `status.sh` checks that Steam runs.
 - [x] Identity (packageId, namespace, `QR_` prefix): confirmed by the user as written (2026-10-19).

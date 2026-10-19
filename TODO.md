@@ -17,9 +17,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T0 real runs** (hand-off doc `docs/handoff/20261019-1714-t0-first-real-runs.md`). The harness is built and passes `tools/selftest.sh` against a fake game, but has never launched the real game. Needs the user's game closed: then `tools/autotest.py baseline`, `tools/autotest.py run`, a second `run` after a rebuild (in-game restart), `tools/autotest.py hang`, and finally one run beside the user's game if they agree.
-- Last run: none against the real game.
-- Baseline: none yet.
+- Next: **T1** (dogs and the stable). T0 has one box left: ask the user whether to try one run beside their open game (`--beside-user-game`) and record the answer.
+- Last run: 2026-10-19 21:27, build `e5bcc76-dirty.20261019T212653Z`, Smoke + Save and reload 2/2 PASS, 0 new errors, restarted in game; then `autotest.py hang` → HANG, watchdog OK.
+- Baseline: 8 signatures (2026-10-19, Harmony + Core).
+- User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
+- Not yet re-run: `tools/selftest.sh` after the 2026-10-19 Xvfb-pid check in `autotest.py stop` (the auto-mode permission check refused to run it in that session).
 
 ## Open questions
 
@@ -41,7 +43,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Toolchain.** `dotnet` SDK 10.0.112 builds `net472` through `Microsoft.NETFramework.ReferenceAssemblies`; `inkscape`, `xdotool`, `import` (ImageMagick), `Xvfb`/`xvfb-run` and `python3` are installed. The agent's shell has `DISPLAY=:100`; the user's game ran on `:1` *(QB)*.
 - **Reuse Queen Bee's decompiled source.** `/mnt/0B8533211952FCF2/queen-bee-rw-mod/.tools/decomp/` is current for 1.6.4871; copy it into `.tools/decomp/` (with its `.version`) instead of decompiling again.
 
-### Launching the test instance (from the decompiled 1.6.4871 source, unverified in a run)
+### Launching the test instance (from the decompiled 1.6.4871 source; the restart, quicktest, savedatafolder and Steam points proven in the 2026-10-19 runs)
 
 - **The restart path.** `Dialog_Options` (Texture Compression) calls `GenCommandLine.Restart()`: `Process.Start(args[0], <the other args, each quoted>)`, then `Root.Shutdown()`. The new process gets the same command line and inherits the environment (Xvfb `DISPLAY`, `XDG_*`), so it comes back into a fresh quicktest map with the autotest argument. Argument values must not contain `"` or spaces.
 - **`Root.Shutdown()` empties `Application.temporaryCachePath`**, which on Linux is under `$XDG_CACHE_HOME/unity3d/Ludeon Studios/…`, shared with the user's game unless `XDG_CACHE_HOME` is overridden. The harness overrides it (and `XDG_CONFIG_HOME`, which moves Unity's default `Player.log` and prefs).
@@ -54,6 +56,11 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Steam.** `SteamManager.InitIfNeeded` calls `SteamAPI.RestartAppIfNecessary`; `steam_appid.txt` sits in the game folder, so a direct launch should not relaunch through Steam. Workshop mods are listed only when `SteamAPI.Init()` succeeds, i.e. while Steam runs.
 - **Harmony comes from the workshop.** Item 2009463077 (`brrainz.harmony`, with a `1.6/` folder) under `steamapps/workshop/content/294100/`. Without Steam running it won't load, and neither will we.
 - **Prefs that matter for a headless run** (`PrefsData`): `devMode`, `runInBackground` (keep ticking without focus), `pauseOnError`, `fullscreen`, `screenWidth`/`screenHeight`, `volumeMaster`, `resetModsConfigOnCrash` (default true: a crash could reset the test ModsConfig).
+
+- **Two version strings.** `Version.txt` says `1.6.4871 rev598`, the running game logs `RimWorld 1.6.4871 rev600` (the user's game too). Same build; `status.sh` compares `Version.txt`, so only a change there means an update.
+- **A kill leaves a crash dump.** Killing an instance (baseline, watchdog) makes Steam's socket thread assert and breakpad writes `/tmp/dumps/assert_*.dmp` (upload fails: no libcurl). Harmless; the in-game quit and restart shut down cleanly with no dump.
+- **Other Xvfb displays aren't ours.** `Xvfb :99`–`:110` (started by `xvfb-run`) belong to other shells, `:100` to the agent's own. The harness uses `:90` and up and stops only the pid it recorded, after checking its name is `Xvfb`.
+- **Permission check.** The auto-mode classifier refuses edits to `.claude/settings.json` and refused `tools/selftest.sh` once; don't work around it, ask the user.
 
 ### Game / API
 

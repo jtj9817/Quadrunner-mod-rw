@@ -57,7 +57,7 @@ Every automated run uses a **separate game profile**, never the user's:
 | Watchdog | `HANG` when the watched launch's heartbeat is older than `--hang-after` (120 s), `CRASH` when no instance runs for 30 s, `TIMEOUT` after `--timeout`; the instance is killed and its log archived. `autotest.py hang` proves it |
 | Mod install | `Mods/Quadrunner` is a symlink to this repo, created on first launch; the user's own profile doesn't list the mod, so their game never loads it |
 
-Built in T0 and proven against a fake game that speaks the same protocol (`tools/selftest.sh`: baseline, cold start, in-game restart on a new build, filters, failures, baseline-hidden and new errors, the hang watchdog, stop). **Not yet run against the real game**: correct this section as the first real runs prove or break each piece.
+Built in T0 and proven against a fake game that speaks the same protocol (`tools/selftest.sh`: baseline, cold start, in-game restart on a new build, filters, failures, baseline-hidden and new errors, the hang watchdog, stop). **Proven against the real game on 2026-10-19** (see `docs/test-runs.md`): the baseline (8 signatures, Harmony + Core), the first launch on Xvfb :90 (`ready` 17 s after launch), both scenarios with a real save and load, the in-game restart onto a new build (21 s, no cold-start fallback) and the hang watchdog. Each launch was made directly, not through Steam, while Steam ran; workshop Harmony loaded and the user's profile stayed untouched (same mtimes before and after). Still open: running beside the user's open game.
 
 ## Work loop (per target): develop → test → analyze and note → develop
 
@@ -100,10 +100,10 @@ Every helper script lives in `tools/`. Rules:
 | Tool | Purpose | Status |
 | --- | --- | --- |
 | `tools/env.sh` | Shared paths and helpers, sourced by every shell script | done (T0) |
-| `tools/autotest.py` | The harness. `run [filter]` (build, restart in game or start, run scenarios, diff errors, record the run, print a `docs/test-runs.md` row) / `start` / `restart` / `stop` / `status` / `baseline` (run without Quadrunner, record error signatures) / `errors [log]` / `follow` / `hang` (watchdog self-test). Ports Queen Bee's `qblog` log filter (stack traces kept, `[Ref …]` duplicates resolved, baseline by signature) | done (T0), real-game runs pending |
+| `tools/autotest.py` | The harness. `run [filter]` (build, restart in game or start, run scenarios, diff errors, record the run, print a `docs/test-runs.md` row) / `start` / `restart` / `stop` / `status` / `baseline` (run without Quadrunner, record error signatures) / `errors [log]` / `follow` / `hang` (watchdog self-test). Ports Queen Bee's `qblog` log filter (stack traces kept, `[Ref …]` duplicates resolved, baseline by signature) | done (T0), proven in real runs |
 | `tools/selftest.sh` + `tools/selftest/` | Runs `autotest.py` against `fake_game.py`, a stand-in `RimWorldLinux` that speaks `AutoTest.cs`'s protocol, through every path: baseline, start, restart, filters, failures, errors, hang, stop | done (T0) |
-| `Source/Quadrunner/AutoTest.cs` | The game side of the harness (see [The test instance](#the-test-instance)); also drives `Scenario` every frame | done (T0), real-game runs pending |
-| `Source/Quadrunner/Scenario.cs` + `Scenarios.cs` | Scenario runner ported from Queen Bee: `Do` / `Expect` / `Wait` / `SaveAndReload` steps, things tracked by ThingID across reloads, `SCENARIO <name>: PASS/FAIL` lines, Run all with a filter. Scenarios: Smoke, Save and reload | done (T0), real-game runs pending |
+| `Source/Quadrunner/AutoTest.cs` | The game side of the harness (see [The test instance](#the-test-instance)); also drives `Scenario` every frame | done (T0), proven in real runs |
+| `Source/Quadrunner/Scenario.cs` + `Scenarios.cs` | Scenario runner ported from Queen Bee: `Do` / `Expect` / `Wait` / `SaveAndReload` steps, things tracked by ThingID across reloads, `SCENARIO <name>: PASS/FAIL` lines, Run all with a filter. Scenarios: Smoke, Save and reload | done (T0), proven in real runs |
 | `Source/Quadrunner/DebugActions.cs` | **Debug actions → Quadrunner**: Scenario: Run all, Scenario… (pick one), Toggle scenario speed | done (T0) |
 | `tools/context-guard.py` | The context-limit hook (see [Context limit and hand-off](#context-limit-and-hand-off-this-project-only)): reads the session transcript's latest main-thread usage, blocks with hand-off instructions past `QR_HANDOFF_TOKENS`; per-session state in `.devlog/handoff/` | done |
 | `tools/handoff.sh` | `[--session <id>] [--dry-run] <doc>`: opens a new interactive Claude Code instance (tmux window, or Alacritty on `$QR_HANDOFF_DISPLAY`, default `:1`) that continues from a committed hand-off doc; extra `claude` args from `$QR_HANDOFF_CLAUDE_ARGS` | done |
@@ -113,9 +113,10 @@ Every helper script lives in `tools/`. Rules:
 | `tools/status.sh` | Environment check (game version, toolchain, Steam, Harmony, mod symlink, decomp, baseline), then `autotest.py status` (test instance, its build, the user's game) | done (T0) |
 | `tools/screenshot.sh` | Captures only the test instance's window, on its own Xvfb display, to `.devlog/screens/`; never the user's game or desktop | done (T0), untested |
 | `tools/export-textures.sh` | Exports `Art/**/*.svg` to PNG at the mirrored path via Inkscape; `id="part-<name>"` elements become separate layers | done (from Queen Bee), unused yet |
+| `tools/backup-saves.sh` | Archives the **user's** profile (Saves, Config; logs excluded) to `~/RimWorldBackups/<stamp>.tar.gz`, read-only, and refuses while their game runs. Run it whenever the user asks, and before anything that could reach their profile | done (ported from Queen Bee; first backup 2026-10-19, 44 saves) |
 | `tools/package.sh` | From a clean tree: build, then copy only About/Defs/Textures/1.6 (and Patches/Languages/Sounds) into `dist/Quadrunner` with a `BUILD` stamp, and lint the copy | done (from Queen Bee), unused yet |
 
-Not ported: `backup-saves.sh` and `install.sh release|dev`, because tests never touch the user's profile. Bring them back if the user ever enables Quadrunner in a real colony.
+Not ported: `install.sh release|dev`, because tests never touch the user's profile. Bring it back if the user ever enables Quadrunner in a real colony.
 
 ## Code conventions
 

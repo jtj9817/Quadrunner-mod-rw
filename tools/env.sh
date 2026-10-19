@@ -10,6 +10,8 @@ RW_DIR="${RW_DIR:-$HOME/.steam/debian-installation/steamapps/common/RimWorld}"
 # The TEST INSTANCE's profile (-savedatafolder), never the user's ~/.config/unity3d/... profile.
 RW_DATA="${RW_DATA:-$DEVLOG/rwdata}"
 RW_LOG="$RW_DATA/Player.log"
+# The USER's own profile. Only tools/backup-saves.sh reads it (tar); nothing writes it.
+USER_RW_DATA="${USER_RW_DATA:-$HOME/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios}"
 RW_EXPECTED_VERSION="1.6."    # Version.txt prefix this project is built against
 HARMONY_DIR="${HARMONY_DIR:-$RW_DIR/../../workshop/content/294100/2009463077}"
 
