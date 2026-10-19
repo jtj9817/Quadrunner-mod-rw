@@ -44,7 +44,7 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Battery tunables | `CompProperties_Robodog` on the race: drain 0.000667 per cell walked (10% ≈ 150 cells), seek at ≤ 10% and keep wanting a charge until 100%, power down at 0% (hediff `QR_PoweredDown`: Moving 0, so downed). Conduit 0.0004/tick (empty to full in 2500 ticks), stable 0.0012/tick (3×), so from 10% a conduit wins only when the stable is about 120 cells further; a full conduit charge draws 100 Wd from the net's batteries, fullest first. A jump of more than one cell (teleport) drains nothing (agent default, 2026-10-19) |
 | Charge-spot search | Static per-map cache, never saved, rebuilt when the colony's buildings change (position/def/rotation signature) or after 2500 ticks. Each transmitter (conduit) gives at most one spot per qualifying room (its own, or the four sides of the wall it's under): the nearest standable cell without an edifice within 10 cells, dropped if that cell is within N of a turbine or its wind cells. Checked per dog at query time: room still qualifies, no prison cell, bedroom/barracks only with no occupied bed, stored energy > 0, allowed area, no fire or hostile in the room, cell not reserved. `RegionTraverser` from the dog with its `TraverseParms` (forbidden doors block), first 5 spots, score = straight-line distance + 15 × dogs charging in that room − 10 × min(stored Wd / 1000, 1). Choice vs the stable: straight-line distance × `TicksPerMoveCardinal` + missing / rate; an unpowered stable only when no spot is usable. Turbine distance N is a mod setting, 0–15, default 6 (agent default, 2026-10-19) |
 | Agent defaults | The user accepted the agent defaults recorded above (Robodog kind, Dog ownership, Full stable / 16th dog, Stable bills, Placeholder art) (user, 2026-10-19) |
-| Run beside the user's game | The user allowed one test run while their game is open, to answer T0's last box (user, 2026-10-19). Not run yet: the auto-mode classifier refused `autotest.py --beside-user-game run`; the user must allow it |
+| Run beside the user's game | Test runs go ahead while the user's game is open; `autotest.py` no longer refuses and the `--beside-user-game` flag is gone (user, 2026-10-19, after the proving run 23:20: 11/11 PASS, the user's profile untouched by the test instance) |
 | Usage limit | When the 5-hour usage limit is hit: Claude Code's built-in auto-continue, plus a status line that records the usage (rate-limit) data (user, 2026-10-19). Not set up yet |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
@@ -63,7 +63,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 - [x] **Scenario: Save and reload** passes: save mid-run, load, the tracked steel is found again, ticks resume
 - [x] In-game restart: after a new build, `autotest.py run` reports "restarted in game" (no cold-start fallback) and the new build is loaded
 - [x] Watchdog: `autotest.py hang` reports `HANG`, kills the instance and archives its log
-- [ ] Answered and recorded in Decisions: can the test instance run while the user's game is open?
+- [x] Answered and recorded in Decisions: can the test instance run while the user's game is open? Yes (run 2026-10-19 23:20)
 
 ### T1: Dogs and the stable
 
@@ -136,7 +136,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ## Open questions
 
-- [ ] Can the test instance run while the user's game is open (Steam API, Unity, GPU)? Until T0 answers it, the agent asks the user to close their game before every test run.
+- [x] Can the test instance run while the user's game is open (Steam API, Unity, GPU)? Yes: launched directly beside it (both on Steam, test instance on Xvfb :90), ready in 19 s, Run all 11/11 PASS, 0 new errors; the user's `Config/` and `Saves/` unchanged during the run (run 2026-10-19 23:20).
 - [x] Does the game render on Xvfb (software GL) fast enough for scenarios? Yes: ready 17 s after launch, both T0 scenarios in 9 s at Ultrafast (run 2026-10-19 21:26).
 - [x] Workshop mods (Harmony) load only while Steam runs; is the test instance started outside Steam picked up by it? Yes: launched directly (not through Steam) while Steam ran, `SteamAPI_Init` succeeds and `brrainz.harmony` loads (run 2026-10-19 21:24). `status.sh` checks that Steam runs.
 - [x] Identity (packageId, namespace, `QR_` prefix): confirmed by the user as written (2026-10-19).

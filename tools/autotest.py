@@ -3,7 +3,7 @@
 
   autotest.py run [filter]    one iteration: build, restart the instance in game (or start it), run the scenarios,
                               diff the log against the baseline, record the run. Exit 0 pass, 1 fail, 2 hang/crash,
-                              3 not run (the user's game is open, or the environment is broken)
+                              3 not run (the environment is broken)
   autotest.py start           launch the instance and wait until its quicktest map is ready
   autotest.py restart         in-game restart (GenCommandLine.Restart, as after toggling Texture Compression)
   autotest.py stop            quit the instance (in game, then SIGTERM/SIGKILL) and its Xvfb
@@ -293,7 +293,7 @@ def ensure_mod_link():
         say(f"installed dev symlink {MOD_LINK} -> {REPO}")
 
 
-def preflight(beside_user_game):
+def preflight():
     if not EXE.is_file():
         die(f"no game at {EXE}")
     if not game_version().startswith(RW_EXPECTED_VERSION):
@@ -303,9 +303,9 @@ def preflight(beside_user_game):
     if not (HARMONY_DIR / "About").is_dir():
         die(f"Harmony not found at {HARMONY_DIR}")
     users = user_game_pids()
-    if users and not beside_user_game:
-        die(f"the user's RimWorld is running (pid {users[0]}). Ask the user to close it first, or pass "
-            "--beside-user-game once they agreed to a run next to it")
+    if users:
+        # Proven safe on 2026-10-19: own profile, logs, XDG dirs and display; the user's profile stays untouched.
+        say(f"the user's RimWorld is open (pid {users[0]}); the test instance runs beside it")
     for d in (CTL, RUNS, RW_DATA):
         d.mkdir(parents=True, exist_ok=True)
 
@@ -477,7 +477,7 @@ def new_errors(path, start=0, show_all=False):
 # --- commands --------------------------------------------------------------------------------------------------
 
 def cmd_run(args):
-    preflight(args.beside_user_game)
+    preflight()
     if not args.no_build:
         say("building")
         if subprocess.run([str(REPO / "tools/build.sh")]).returncode != 0:
@@ -546,7 +546,7 @@ def report(cur, result, offset, log_start, seconds, filt):
 
 
 def cmd_start(args):
-    preflight(args.beside_user_game)
+    preflight()
     cur = current()
     if cur:
         say(f"already running: launch {cur['launch']}, build {cur['build']}")
@@ -559,7 +559,7 @@ def cmd_start(args):
 
 
 def cmd_restart(args):
-    preflight(args.beside_user_game)
+    preflight()
     cur = current()
     if not cur:
         die("no ready test instance to restart (autotest.py start)")
@@ -619,7 +619,7 @@ def cmd_status(args):
 
 
 def cmd_baseline(args):
-    preflight(args.beside_user_game)
+    preflight()
     if test_pids():
         die("the test instance is running; autotest.py stop first")
     t0 = time.time()
@@ -691,7 +691,7 @@ def cmd_follow(args):
 
 
 def cmd_hang(args):
-    preflight(args.beside_user_game)
+    preflight()
     cur = current()
     if not cur:
         die("no ready test instance (autotest.py start)")
@@ -709,8 +709,6 @@ def cmd_hang(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--beside-user-game", action="store_true",
-                    help="run even though the user's RimWorld is open (only after the user agreed)")
     ap.add_argument("--ready-timeout", type=int, default=900, help="seconds to wait for the quicktest map")
     ap.add_argument("--timeout", type=int, default=1800, help="seconds to wait for the scenario results")
     ap.add_argument("--hang-after", type=int, default=120, help="heartbeat age (s) that counts as a hang")

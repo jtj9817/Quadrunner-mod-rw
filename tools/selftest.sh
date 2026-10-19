@@ -20,7 +20,7 @@ unset RW_DATA FAKE_FAIL FAKE_STARTUP_ERROR
 echo "selftest.1" > "$QR_DEVLOG/last-build"
 
 # The user's real game may be open; the fake instance doesn't care.
-at() { python3 -I "$HERE/autotest.py" --beside-user-game --ready-timeout 60 --timeout 60 "$@"; }
+at() { python3 -I "$HERE/autotest.py" --ready-timeout 60 --timeout 60 "$@"; }
 failures=0
 # expect <exit code> <text the output must contain> <command...>
 expect() {

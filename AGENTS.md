@@ -17,7 +17,8 @@ A RimWorld 1.6 mod (Core only, Harmony the only dependency). Robot dogs dispatch
 - **The agent** writes code and assets, builds, **runs the tests itself** in an isolated game instance, reads the log, writes the notes and iterates. No in-game step is handed to the user.
 - **The user** settles design questions and plays their own game, often while the agent works. The user's game is off limits:
   - **Never** close, kill, focus, screenshot or send input to the user's game, and never touch their profile (`~/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios`: Saves, Config, Player.log).
-  - **Before any step that needs the user's game closed, notify the user and wait** until they say it is closed. Until T0 proves that a test instance can run beside the user's game, that means before every test run. `tools/status.sh` reports whether the user's game is running, and `tools/autotest.py` refuses to launch (exit 3) while it runs unless given `--beside-user-game`, which only the user's explicit OK allows.
+  - **Test runs go ahead while the user's game is open** (proven on 2026-10-19, run 23:20; the user made it the default). `tools/autotest.py` only notes the open game. `tools/status.sh` reports whether it runs.
+  - **Before any other step that needs the user's game closed** (e.g. `tools/backup-saves.sh`), **notify the user and wait** until they say it is closed.
 
 ## Session start
 
@@ -57,7 +58,7 @@ Every automated run uses a **separate game profile**, never the user's:
 | Watchdog | `HANG` when the watched launch's heartbeat is older than `--hang-after` (120 s), `CRASH` when no instance runs for 30 s, `TIMEOUT` after `--timeout`; the instance is killed and its log archived. `autotest.py hang` proves it |
 | Mod install | `Mods/Quadrunner` is a symlink to this repo, created on first launch; the user's own profile doesn't list the mod, so their game never loads it |
 
-Built in T0 and proven against a fake game that speaks the same protocol (`tools/selftest.sh`: baseline, cold start, in-game restart on a new build, filters, failures, baseline-hidden and new errors, the hang watchdog, stop). **Proven against the real game on 2026-10-19** (see `docs/test-runs.md`): the baseline (8 signatures, Harmony + Core), the first launch on Xvfb :90 (`ready` 17 s after launch), both scenarios with a real save and load, the in-game restart onto a new build (21 s, no cold-start fallback) and the hang watchdog. Each launch was made directly, not through Steam, while Steam ran; workshop Harmony loaded and the user's profile stayed untouched (same mtimes before and after). Still open: running beside the user's open game.
+Built in T0 and proven against a fake game that speaks the same protocol (`tools/selftest.sh`: baseline, cold start, in-game restart on a new build, filters, failures, baseline-hidden and new errors, the hang watchdog, stop). **Proven against the real game on 2026-10-19** (see `docs/test-runs.md`): the baseline (8 signatures, Harmony + Core), the first launch on Xvfb :90 (`ready` 17 s after launch), both scenarios with a real save and load, the in-game restart onto a new build (21 s, no cold-start fallback) and the hang watchdog. Each launch was made directly, not through Steam, while Steam ran; workshop Harmony loaded and the user's profile stayed untouched (same mtimes before and after). **Beside the user's open game** (run 2026-10-19 23:20): Run all 11/11 PASS, `ready` in 19 s, and nothing in the user's `Config/` or `Saves/` changed during the run; the only writes came from their own game, before the launch.
 
 ## Work loop (per target): develop → test → analyze and note → develop
 
@@ -75,7 +76,7 @@ Stop the loop and tell the user when:
 - every acceptance box of the target is ticked (report, then start the next target unless told otherwise),
 - a decision the plan doesn't record is needed (ask; record the answer in the plan's Decisions table in the same commit),
 - the same scenario has failed three runs in a row without new information (report what was tried and the log evidence),
-- a test run needs the user's game closed (see [Roles](#roles)).
+- a step needs the user's game closed (see [Roles](#roles)).
 
 ## Tracking progress
 

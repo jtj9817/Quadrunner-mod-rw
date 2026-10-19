@@ -4,7 +4,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Progress
 
-- [ ] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
+- [x] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
 - [ ] **T1**: Dogs and the stable (5 of 6 boxes; the debug actions box waits for T3–T4) (race, stable, assemble bill, docking, Overview tab, debug actions)
 - [x] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [ ] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
@@ -17,11 +17,12 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T3** (dispatch and work). T2 done: all 5 boxes ticked on run 2026-10-19 22:27 (11/11 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) waits for T4 and T3. Still open in T0: ask the user about one run beside their open game.
-- Last run: 2026-10-19 22:27, build `caa6bdc-dirty.20261019T222217Z`, Run all 11/11 PASS, 0 new errors.
+- Next: **T3** (dispatch and work). T2 done: all 5 boxes ticked on run 2026-10-19 22:27 (11/11 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) waits for T4 and T3. T0 done: test runs now go ahead beside the user's open game (run 2026-10-19 23:20).
+- Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
+- Last run: 2026-10-19 23:20, build `1fd2636.20261019T231506Z`, Run all 11/11 PASS, 0 new errors, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
-- `tools/selftest.sh`: all cases ok (2026-10-19 22:28, after the Xvfb-pid check in `autotest.py stop`); stop the real test instance first, its stop/hang cases kill processes.
+- `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
 
 ## Open questions
 
@@ -60,7 +61,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Two version strings.** `Version.txt` says `1.6.4871 rev598`, the running game logs `RimWorld 1.6.4871 rev600` (the user's game too). Same build; `status.sh` compares `Version.txt`, so only a change there means an update.
 - **A kill leaves a crash dump.** Killing an instance (baseline, watchdog) makes Steam's socket thread assert and breakpad writes `/tmp/dumps/assert_*.dmp` (upload fails: no libcurl). Harmless; the in-game quit and restart shut down cleanly with no dump.
 - **Other Xvfb displays aren't ours.** `Xvfb :99`–`:110` (started by `xvfb-run`) belong to other shells, `:100` to the agent's own. The harness uses `:90` and up and stops only the pid it recorded, after checking its name is `Xvfb`.
-- **Permission check.** The auto-mode classifier refuses edits to `.claude/settings.json` and refused `tools/selftest.sh` once; don't work around it, ask the user.
+- **Permission check.** The auto-mode classifier refuses edits to `.claude/settings.json` and refused `tools/selftest.sh` once and `autotest.py --beside-user-game` (flag since removed); don't work around it, ask the user.
+- **Profile snapshot times.** `ls` prints local time (UTC−4), `find -printf %T@` and `autotest.py` UTC; convert before attributing a changed file to a run.
 
 ### Game / API
 
