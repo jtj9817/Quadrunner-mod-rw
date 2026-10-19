@@ -1,0 +1,29 @@
+# Build output: tools/build.sh installs the DLL into 1.6/Assemblies; tools/package.sh writes dist/
+dist/
+Source/**/bin/
+Source/**/obj/
+1.6/Assemblies/
+
+# Local agent tooling: decompiler and decompiled game source (derived from the game, never committed)
+.tools/
+
+# Local test state: log marks, error baseline, build id, screenshots, and the isolated game profile
+# (-savedatafolder) the automated test runs use, with its own Player.log, Config and throwaway saves
+.devlog/
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc
+*.log
+*.tmp
