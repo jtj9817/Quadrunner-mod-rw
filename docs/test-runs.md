@@ -1,6 +1,6 @@
 # Test runs
 
-The iteration log: one row per automated test run (`tools/autotest.sh`), **newest first**. Workflow in [AGENTS.md](../AGENTS.md#work-loop-per-target-develop--test--analyze-and-note--develop).
+The iteration log: one row per automated test run (`tools/autotest.py run`, which prints a ready-made `row:` line), **newest first**. Workflow in [AGENTS.md](../AGENTS.md#work-loop-per-target-develop--test--analyze-and-note--develop).
 
 - **Build:** the `loaded build` id from the run's log (must match `.devlog/last-build`).
 - **Result:** `n/m PASS`, `HANG` (watchdog killed it) or `CRASH`, plus the count of new errors against the baseline.

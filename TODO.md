@@ -4,7 +4,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Progress
 
-- [ ] **T0**: Scaffold and the automated test loop (tools, About.xml, csproj, test profile, baseline, `autotest.sh`, save/load step, watchdog)
+- [ ] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
 - [ ] **T1**: Dogs and the stable (race, stable, assemble bill, docking, Overview tab, debug actions)
 - [ ] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [ ] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
@@ -17,9 +17,9 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T0**. Docs and repo are in place; no tools, code or test profile yet. Before writing the test harness, tell the user when their game has to be closed (user, 2026-10-19).
-- Last run: none.
-- Baseline: none yet (capture from a test-instance run without Quadrunner).
+- Next: **T0 real runs.** The harness is built and passes `tools/selftest.sh` against a fake game, but has never launched the real game. Needs the user's game closed: then `tools/autotest.py baseline`, `tools/autotest.py run`, a second `run` after a rebuild (in-game restart), `tools/autotest.py hang`, and finally one run beside the user's game if they agree.
+- Last run: none against the real game.
+- Baseline: none yet.
 
 ## Open questions
 
@@ -43,6 +43,10 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 ### Launching the test instance (from the decompiled 1.6.4871 source, unverified in a run)
 
+- **The restart path.** `Dialog_Options` (Texture Compression) calls `GenCommandLine.Restart()`: `Process.Start(args[0], <the other args, each quoted>)`, then `Root.Shutdown()`. The new process gets the same command line and inherits the environment (Xvfb `DISPLAY`, `XDG_*`), so it comes back into a fresh quicktest map with the autotest argument. Argument values must not contain `"` or spaces.
+- **`Root.Shutdown()` empties `Application.temporaryCachePath`**, which on Linux is under `$XDG_CACHE_HOME/unity3d/Ludeon Studios/…`, shared with the user's game unless `XDG_CACHE_HOME` is overridden. The harness overrides it (and `XDG_CONFIG_HOME`, which moves Unity's default `Player.log` and prefs).
+- **Our driver is a MonoBehaviour**, not a `GameComponent`: every `GameComponent` subclass is instantiated into every game (`Game.FillComponents`) and saved, which would break "remove the mod cleanly".
+
 - **`-savedatafolder=<path>`** overrides the whole profile (`GenFilePaths.SaveDataFolderPath`). `GenCommandLine.TryGetCommandLineArg` splits each argument on `=` and needs exactly two parts, so the path must not contain `=`.
 - **`-quicktest`** makes `QuickStarter` load the Play scene directly, and `Root_Play` generates a quicktest map (`SetupForQuickTestPlay`). No menu clicks needed.
 - **Custom launch arguments work.** `GenCommandLine.CommandLineArgPassed("x")` matches `x` or `-x` case-insensitively, so the mod can read its own `-quadrunner-autotest` flag.
@@ -57,7 +61,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Look up vanilla, don't guess.** Use `tools/vanilla.sh grep` / `def`. Grepping `strings` on `Assembly-CSharp.dll` gives false negatives because the metadata heap shares suffixes. If ilspycmd complains about the runtime, set `DOTNET_ROLL_FORWARD=Major`. *(QB)*
 - **Debug Actions live in `LudeonTK`.** `DebugActionAttribute`, `DebugActionType` and `AllowedGameStates` are in that namespace in 1.6, not `Verse`, so add `using LudeonTK;`. *(QB)*
 - **A method named `Log` hides `Verse.Log`.** Inside a class with a `Log` method (our `QR`), write `Verse.Log.Message(...)`. *(QB)*
-- **Dev-mode-only logging.** Log through `QR.Log`, which prints only when `Prefs.DevMode` is on and adds the prefix. The `loaded build` line is the one exception: always print it, `status.sh`/`autotest.sh` compare it with `.devlog/last-build`. *(QB)*
+- **Dev-mode-only logging.** Log through `QR.Log`, which prints only when `Prefs.DevMode` is on and adds the prefix. The `loaded build` line is the one exception: always print it, `autotest.py` compares it with `.devlog/last-build`. *(QB)*
 - **Restart to reload.** Assemblies load once at startup. Hot reload Defs is unreliable (it broke Queen Bee's run under the user's mod list); with the test instance's minimal list a fresh launch is cheap, so always relaunch. *(QB)*
 - **The game reads only some folders.** `About/`, `Defs/`, `Textures/`, `Patches/`, `Languages/`, `Sounds/` and the version folder `1.6/`; `Source/`, `Art/`, `tools/`, `docs/` are ignored. *(QB)*
 - **Case matters on Linux.** Folder names and every `texPath` must match the file case exactly. `About/About.xml` and `LoadFolders.xml` are the only case-insensitive exceptions. *(QB)*
@@ -73,8 +77,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 ### Log
 
-- **No timestamps.** Player.log has none, so use `qrlog.sh mark` / `since-mark` (byte offsets) to tell before from after. *(QB)*
-- **Deduplicated stack traces.** 1.6 prints a repeated stack trace once and later writes `[Ref XXXXXXXX] Duplicate stacktrace, see ref for original`. `qrlog.sh` resolves these; when reading the raw log, search for the first block with the same `[Ref …]`. *(QB)*
+- **No timestamps.** Player.log has none, so `autotest.py` cuts per launch instead: it moves the live log to `.devlog/runs/<launch>/` before every restart, and reads a run's errors from the byte offset at which it sent `run`. *(QB)*
+- **Deduplicated stack traces.** 1.6 prints a repeated stack trace once and later writes `[Ref XXXXXXXX] Duplicate stacktrace, see ref for original`. `autotest.py` resolves these; when reading the raw log, search for the first block with the same `[Ref …]`. *(QB)*
 - **Baseline per mod list.** Signatures are the first 60 characters of the error line with digits replaced by `N`. The test instance's list is fixed (Core + Harmony + Quadrunner), so one baseline from a run without Quadrunner lasts until the game updates. *(QB)*
 - **Line numbers in traces.** With `DebugType embedded`, Unity's Mono prints `File.cs:line` for our frames, so trust those line numbers. *(QB)*
 - **Filtered views can miss things.** When a result surprises you, read the raw `Player.log` of that run. *(QB)*

@@ -30,6 +30,8 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Testing | **Fully automated, driven by the agent**: develop → test → analyze the log and write notes → develop. The design's manual checklist phase is dropped (user, 2026-10-19) |
 | Test instance | A separate game profile (`-savedatafolder` under `.devlog/`, Core + Harmony + Quadrunner only, Dev mode on), started with `-quicktest` on a private Xvfb display, driven by a launch argument that runs the scenarios and quits. Never the user's profile, saves or window (agent, 2026-10-19, from the user's "never touch my game") |
 | Test scenarios | Each scenario builds its own setup in code on the quicktest map (like Queen Bee's `Scenario.cs`) instead of loading one saved colony per scenario as the design proposed, because a hand-built colony would need manual play. Pass = every step passes, zero new red errors, and a save/load step partway through comes back clean (agent default, 2026-10-19; design's pass criteria) |
+| Harness language | Python 3 standard library only (no packages, no pip, no Bun packages): the harness is our own code (user, 2026-10-19) |
+| Restart in the loop | The test instance stays up between iterations and restarts itself in game with `GenCommandLine.Restart()`, the restart the Options dialog does after toggling Texture Compression; a cold start is only the fallback (user, 2026-10-19) |
 | User's game | The agent notifies the user and waits before any step that needs the user's game closed, and never acts on that game itself (user, 2026-10-19) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
@@ -39,12 +41,15 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T0: Scaffold and the automated test loop
 
-- [ ] Tools ported from Queen Bee and registered in AGENTS.md (`env.sh`, `qrlog.*`, `vanilla.sh`, `rwdefs.py`, `build.sh`, `status.sh`, `screenshot.sh`); `tools/vanilla.sh init` done; `tools/status.sh` environment check passes
-- [ ] `About/About.xml`, `Source/Quadrunner/Quadrunner.csproj`, `QR.cs` logging `[Quadrunner] loaded build <id>`; `Mods/Quadrunner` symlinked to the repo
-- [ ] Test profile created by `tools/autotest.sh`; error baseline captured from a test-instance run **without** Quadrunner
-- [ ] `tools/autotest.sh` launches the test instance on Xvfb, reaches the quicktest map, runs **Scenario: Smoke** (spawn a pawn, wait, despawn) to PASS, logs the summary and quits by itself; the run's log lands in `.devlog/runs/<timestamp>/`
-- [ ] Save/load step: a scenario saves mid-run, reloads, and continues to PASS
-- [ ] Watchdog: a scenario that never finishes is killed and reported as `HANG` (exit 2)
+- [x] Tools ported from Queen Bee and registered in AGENTS.md; decompiled source copied from Queen Bee (current for 1.6.4871)
+- [x] `About/About.xml`, `Source/Quadrunner/Quadrunner.csproj`, `QR.cs` (logs `[Quadrunner] loaded build <id>`), `AutoTest.cs`, `Scenario.cs`, `Scenarios.cs`, `DebugActions.cs`; `tools/build.sh` builds with zero warnings
+- [x] Harness self-test: `tools/selftest.sh` passes all 13 cases against the fake game (baseline, cold start, in-game restart on a new build, filters, a failing scenario, baseline-hidden and new errors, hang watchdog, stop)
+- [ ] Error baseline captured from a test-instance run **without** Quadrunner (`tools/autotest.py baseline`)
+- [ ] First real launch: the instance comes up on Xvfb with the test profile, `Mods/Quadrunner` is linked, the quicktest map announces `ready` with the latest build, and the user's profile (`Player.log`, `Config/`, `Saves/`) is untouched
+- [ ] **Scenario: Smoke** passes with zero new errors
+- [ ] **Scenario: Save and reload** passes: save mid-run, load, the tracked steel is found again, ticks resume
+- [ ] In-game restart: after a new build, `autotest.py run` reports "restarted in game" (no cold-start fallback) and the new build is loaded
+- [ ] Watchdog: `autotest.py hang` reports `HANG`, kills the instance and archives its log
 - [ ] Answered and recorded in Decisions: can the test instance run while the user's game is open?
 
 ### T1: Dogs and the stable

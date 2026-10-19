@@ -17,7 +17,7 @@ A RimWorld 1.6 mod (Core only, Harmony the only dependency). Robot dogs dispatch
 - **The agent** writes code and assets, builds, **runs the tests itself** in an isolated game instance, reads the log, writes the notes and iterates. No in-game step is handed to the user.
 - **The user** settles design questions and plays their own game, often while the agent works. The user's game is off limits:
   - **Never** close, kill, focus, screenshot or send input to the user's game, and never touch their profile (`~/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios`: Saves, Config, Player.log).
-  - **Before any step that needs the user's game closed, notify the user and wait** until they say it is closed. Until T0 proves that a test instance can run beside the user's game, that means before every test run. `tools/status.sh` reports whether the user's game is running.
+  - **Before any step that needs the user's game closed, notify the user and wait** until they say it is closed. Until T0 proves that a test instance can run beside the user's game, that means before every test run. `tools/status.sh` reports whether the user's game is running, and `tools/autotest.py` refuses to launch (exit 3) while it runs unless given `--beside-user-game`, which only the user's explicit OK allows.
 
 ## Session start
 
@@ -28,7 +28,7 @@ A RimWorld 1.6 mod (Core only, Harmony the only dependency). Robot dogs dispatch
 
 ## How RimWorld loads a mod (why the loop looks like this)
 
-At startup the game loads assemblies, then parses, inherits, patches and resolves Defs, then loads textures, then runs `[StaticConstructorOnStartup]` classes (see the wiki's *Application Startup* page). **Assemblies never reload while the game runs**, so every test run is a fresh launch of the test instance. Launches are cheap here: the test instance loads only Core, Harmony and Quadrunner, and `-quicktest` skips the main menu and generates a small map. They still cost a minute or more each, so batch every change for a run, and lint and build them all first.
+At startup the game loads assemblies, then parses, inherits, patches and resolves Defs, then loads textures, then runs `[StaticConstructorOnStartup]` classes (see the wiki's *Application Startup* page). **Assemblies never reload while the game runs**, so every new build needs a new game process. The test instance stays up between iterations and is **restarted from inside the game** with `GenCommandLine.Restart()`, the same call the Options dialog makes after Texture Compression is toggled: it relaunches the game with the same command line, then shuts the old process down. Restarts are cheap here: the instance loads only Core, Harmony and Quadrunner, and `-quicktest` skips the main menu and generates a small map. They still cost time, so batch every change for a run, and lint and build them all first.
 
 ## The test instance
 
@@ -36,23 +36,25 @@ Every automated run uses a **separate game profile**, never the user's:
 
 | Piece | How |
 | --- | --- |
-| Profile | `-savedatafolder=<repo>/.devlog/rwdata` (git-ignored): its own `Config/ModsConfig.xml` (Core, Harmony, Quadrunner only), `Config/Prefs.xml` (Dev mode on, sound off, windowed), saves and `Player.log` |
-| Map | `-quicktest`: straight into a freshly generated small map, no menu |
-| Display | A private Xvfb display by default, so the run never takes the user's screen or input |
-| Driver | A custom launch argument (`-quadrunner-autotest`, optionally `=<scenario filter>`) makes the mod's scenario runner start every scenario once the map is ready, log one `SCENARIO <name>: PASS/FAIL` line each and a summary, then quit the game |
-| Watchdog | `tools/autotest.sh` kills the test instance after a wall-clock timeout and records the run as a hang |
-| Mod install | `Mods/Quadrunner` is a symlink to this repo (dev mode); the user's own profile doesn't list the mod, so their game never loads it |
+| Profile | `-savedatafolder=.devlog/rwdata` with `Config/ModsConfig.xml` (Harmony, Core, Quadrunner) and `Config/Prefs.xml` (Dev mode on, sound off, 1280×720 windowed, no autosave, no auto-pause, `runInBackground`), both rewritten on every launch; its own saves |
+| Isolation | `-logFile .devlog/rwdata/Player.log`, plus `XDG_CONFIG_HOME`/`XDG_CACHE_HOME` under `.devlog/xdg/`, so Unity's prefs, cache and temp folder (which `Root.Shutdown` empties) are never the user's |
+| Map | `-quicktest`: straight into a freshly generated 250×250 Crashlanded map, no menu |
+| Display | A private Xvfb display (`:90` and up), so the instance never takes the user's screen or input |
+| Control | Launch argument `-quadrunner-autotest=.devlog/autotest`. `AutoTest.cs` (a MonoBehaviour, so never in a save) touches `heartbeat` every second, appends JSON lines to `events.jsonl` (`launched`, `ready`, `scenario`, `result`, `restarting`, `quitting`, `closed_window`), and runs one command at a time from the `command` file: `run [filter]`, `restart`, `quit`, `ping`, `hang`. It also closes any window that would pause the game |
+| Restart | `autotest.py` moves the live log to `.devlog/runs/<launch>/Player.log` (the old process keeps writing into the moved file), then sends `restart`; the game calls `GenCommandLine.Restart()` and the new process logs to a fresh file. If no new instance comes up, it kills and cold-starts |
+| Watchdog | `HANG` when the watched launch's heartbeat is older than `--hang-after` (120 s), `CRASH` when no instance runs for 30 s, `TIMEOUT` after `--timeout`; the instance is killed and its log archived. `autotest.py hang` proves it |
+| Mod install | `Mods/Quadrunner` is a symlink to this repo, created on first launch; the user's own profile doesn't list the mod, so their game never loads it |
 
-The whole harness is target T0 in the plan and is **not built yet**. Its flags and file names above are the plan, not facts; correct this section as T0 verifies each piece.
+Built in T0 and proven against a fake game that speaks the same protocol (`tools/selftest.sh`: baseline, cold start, in-game restart on a new build, filters, failures, baseline-hidden and new errors, the hang watchdog, stop). **Not yet run against the real game**: correct this section as the first real runs prove or break each piece.
 
 ## Work loop (per target): develop → test → analyze and note → develop
 
 The agent runs this loop on its own, without waiting on the user between iterations:
 
-1. **Develop** the smallest slice that moves an acceptance box. Add or extend the scenario that proves it (in `Scenario` runs, inside **Run all**) in the same slice.
-2. **Build:** `tools/build.sh` (lint plus build; zero warnings, the csproj treats warnings as errors; zero lint failures). Never deploy with a bare `dotnet build`, which only writes to `Source/Quadrunner/bin/`.
-3. **Test:** `tools/autotest.sh [filter]` launches the test instance, waits for the summary line, quits it, and keeps the run's log in `.devlog/runs/<timestamp>/`. Check that its `loaded build` id matches `.devlog/last-build` before trusting any result.
-4. **Analyze:** read the run's `SCENARIO` lines and `tools/qrlog.sh errors` (red errors diffed against the baseline of a vanilla run without Quadrunner). Every scenario must pass with **zero new errors**, and every save/load step must come back clean. When a result surprises you, read the raw `Player.log` of that run, not only the filtered view. `tools/screenshot.sh` captures the test instance's window when a visual needs checking (draw offsets, sirens, overlays).
+1. **Develop** the smallest slice that moves an acceptance box. Add or extend the scenario that proves it (`Source/Quadrunner/Scenarios.cs`, in **Run all** order) in the same slice.
+2. **Build and test in one command:** `tools/autotest.py run [filter]`. It runs `tools/build.sh` (lint plus build; zero warnings, the csproj treats warnings as errors), restarts the test instance in game when the loaded build is stale (or starts it), sends `run`, waits under the watchdog, and refuses to report results from a build other than `.devlog/last-build`. `filter` is comma-separated parts of scenario names. Never deploy with a bare `dotnet build`, which only writes to `Source/Quadrunner/bin/`.
+3. **Analyze:** the output lists each `SCENARIO` verdict, every new error block (red errors diffed against the baseline of a run without Quadrunner; any `[Quadrunner] ERROR` always counts), and a `RESULT:` line. Exit `0` means every scenario passed with **zero new errors**; `1` a failure, `2` hang/crash (instance killed), `3` not run. When a result surprises you, read the raw log (`.devlog/rwdata/Player.log` while the launch lives, `.devlog/runs/<launch>/Player.log` after), not only the filtered view. `tools/screenshot.sh` captures the test instance's window when a visual needs checking (draw offsets, sirens, overlays).
+4. **Leave the instance running** between iterations; the next `run` restarts it in game. `tools/autotest.py stop` at the end of a session.
 5. **Note:** add one row to [`docs/test-runs.md`](docs/test-runs.md) (newest first): build id, scenarios run, result, what the log showed, what changes next. Anything that took more than one attempt also becomes a one- or two-line gotcha in `TODO.md`.
 6. Tick the acceptance boxes the run proved, update `TODO.md` (progress + current state) and **commit** (see [Commits](#commits)). Then back to 1.
 
@@ -74,27 +76,30 @@ Stop the loop and tell the user when:
 
 Every helper script lives in `tools/`. Rules:
 
-- Bash, `#!/usr/bin/env bash` + `set -euo pipefail`, executable. `-h` prints usage; scripts with subcommands also print it when run without one. Use Python 3 (stdlib only, run with `python3 -I`) only for parsing XML or binary files.
-- Source `tools/env.sh` for every shared path and helper (`REPO`, `RW_DIR`, `RW_DATA`, `RW_LOG`, `DEVLOG`, `git_`, `die`). Never redefine them in a script.
+- Shell tools: Bash, `#!/usr/bin/env bash` + `set -euo pipefail`, executable. `-h` prints usage; scripts with subcommands also print it when run without one.
+- Python: the harness and parsers (XML, binary, logs). Python 3 **standard library only**, run with `python3 -I`; no third-party packages, no pip, no Bun packages: write the code yourself (user, 2026-10-19).
+- Source `tools/env.sh` for every shared path and helper (`REPO`, `RW_DIR`, `RW_DATA`, `RW_LOG`, `DEVLOG`, `git_`, `test_pid`, `user_game_pid`, `die`). Never redefine them in a script. `tools/autotest.py` reads the same variables with the same defaults (`QR_DEVLOG`, `RW_DIR`, `RW_DATA`, `HARMONY_DIR`); change both together.
 - `RW_DATA` and `RW_LOG` point at the **test instance's** profile (`.devlog/rwdata`), never the user's.
-- Prefer plain pipes and files over daemons. A marker file is the only shared state between log commands.
-- Generated or local state goes in `.devlog/` (runs, marks, baseline, test profile, screenshots) or `.tools/` (decompiler, decompiled source). Both are git-ignored.
+- Prefer plain files over daemons and sockets: the harness and the game share only the files in `.devlog/autotest/`.
+- Generated or local state goes in `.devlog/` (runs, baseline, test profile, screenshots, selftest) or `.tools/` (decompiler, decompiled source). Both are git-ignored.
+- After changing `tools/autotest.py` or `AutoTest.cs`'s protocol, run `tools/selftest.sh` (and extend `tools/selftest/fake_game.py` to match).
 - **Register every tool in the table below in the same commit that adds it.**
-
-Ported from Queen Bee (`tools/qblog.*` becomes `qrlog.*`) and adapted to the test instance in T0; nothing is in `tools/` yet:
 
 | Tool | Purpose | Status |
 | --- | --- | --- |
-| `tools/env.sh` | Shared paths and helpers, sourced by every script | planned (T0) |
-| `tools/qrlog.sh` + `tools/qrlog.awk` | `follow` / `mark <label>` / `since-mark` / `baseline` / `errors` on the test instance's Player.log, with whole stack traces and `[Ref …]` duplicates resolved. `QRLOG_ALL=1` shows baseline noise too | planned (T0) |
-| `tools/vanilla.sh` | `init` (decompile Assembly-CSharp once into `.tools/decomp/`) / `grep <regex>` (code + Core Defs) / `def <defName>` (vanilla def plus its ParentName chain) | planned (T0) |
-| `tools/rwdefs.py` | Python behind `vanilla.sh def` and the lint step of `build.sh`: XML parsing, def references, `Quadrunner/` texture paths (exact case), PNG sizes, preview size | planned (T0) |
-| `tools/build.sh` | Lint, then `dotnet build` stamped with a build id, installed into `1.6/Assemblies` with an atomic rename. The id goes to `.devlog/last-build` | planned (T0) |
-| `tools/status.sh` | Environment check (game version, toolchain, Steam, Harmony, mod symlink, decomp, baseline) plus live state (user's game running?, test instance running?, last build, last run) | planned (T0) |
-| `tools/autotest.sh` | New. Prepares the test profile, launches the test instance on Xvfb with `-quicktest` and the autotest argument, waits for the summary or the timeout, quits or kills it, saves the run to `.devlog/runs/<timestamp>/`, prints the `SCENARIO` lines and new errors. Exit `0` all pass, `1` a failure, `2` hang or crash | planned (T0) |
-| `tools/screenshot.sh` | Captures only the test instance's window to `.devlog/screens/`; never the user's game or desktop | planned (T0) |
-| `tools/export-textures.sh` | Exports `Art/**/*.svg` to PNG at the mirrored path via Inkscape; `id="part-<name>"` elements become separate layers | planned (when art starts) |
-| `tools/package.sh` | From a clean tree: build, then copy only About/Defs/Textures/1.6 (and Patches/Languages/Sounds) into `dist/Quadrunner` with a `BUILD` stamp, and lint the copy | planned (release) |
+| `tools/env.sh` | Shared paths and helpers, sourced by every shell script | done (T0) |
+| `tools/autotest.py` | The harness. `run [filter]` (build, restart in game or start, run scenarios, diff errors, record the run, print a `docs/test-runs.md` row) / `start` / `restart` / `stop` / `status` / `baseline` (run without Quadrunner, record error signatures) / `errors [log]` / `follow` / `hang` (watchdog self-test). Ports Queen Bee's `qblog` log filter (stack traces kept, `[Ref …]` duplicates resolved, baseline by signature) | done (T0), real-game runs pending |
+| `tools/selftest.sh` + `tools/selftest/` | Runs `autotest.py` against `fake_game.py`, a stand-in `RimWorldLinux` that speaks `AutoTest.cs`'s protocol, through every path: baseline, start, restart, filters, failures, errors, hang, stop | done (T0) |
+| `Source/Quadrunner/AutoTest.cs` | The game side of the harness (see [The test instance](#the-test-instance)); also drives `Scenario` every frame | done (T0), real-game runs pending |
+| `Source/Quadrunner/Scenario.cs` + `Scenarios.cs` | Scenario runner ported from Queen Bee: `Do` / `Expect` / `Wait` / `SaveAndReload` steps, things tracked by ThingID across reloads, `SCENARIO <name>: PASS/FAIL` lines, Run all with a filter. Scenarios: Smoke, Save and reload | done (T0), real-game runs pending |
+| `Source/Quadrunner/DebugActions.cs` | **Debug actions → Quadrunner**: Scenario: Run all, Scenario… (pick one), Toggle scenario speed | done (T0) |
+| `tools/vanilla.sh` | `init` (decompile Assembly-CSharp once into `.tools/decomp/`) / `grep <regex>` (code + Core Defs) / `def <defName>` (vanilla def plus its ParentName chain) | done (T0, from Queen Bee) |
+| `tools/rwdefs.py` | Python behind `vanilla.sh def` and the lint step of `build.sh`: XML parsing, def references, `Quadrunner/` texture paths (exact case), PNG sizes, preview size | done (T0, from Queen Bee) |
+| `tools/build.sh` | Lint, then `dotnet build` stamped with a build id, installed into `1.6/Assemblies` with an atomic rename. The id goes to `.devlog/last-build` | done (T0) |
+| `tools/status.sh` | Environment check (game version, toolchain, Steam, Harmony, mod symlink, decomp, baseline), then `autotest.py status` (test instance, its build, the user's game) | done (T0) |
+| `tools/screenshot.sh` | Captures only the test instance's window, on its own Xvfb display, to `.devlog/screens/`; never the user's game or desktop | done (T0), untested |
+| `tools/export-textures.sh` | Exports `Art/**/*.svg` to PNG at the mirrored path via Inkscape; `id="part-<name>"` elements become separate layers | done (from Queen Bee), unused yet |
+| `tools/package.sh` | From a clean tree: build, then copy only About/Defs/Textures/1.6 (and Patches/Languages/Sounds) into `dist/Quadrunner` with a `BUILD` stamp, and lint the copy | done (from Queen Bee), unused yet |
 
 Not ported: `backup-saves.sh` and `install.sh release|dev`, because tests never touch the user's profile. Bring them back if the user ever enables Quadrunner in a real colony.
 
