@@ -17,7 +17,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T0 real runs.** The harness is built and passes `tools/selftest.sh` against a fake game, but has never launched the real game. Needs the user's game closed: then `tools/autotest.py baseline`, `tools/autotest.py run`, a second `run` after a rebuild (in-game restart), `tools/autotest.py hang`, and finally one run beside the user's game if they agree.
+- Next: **T0 real runs** (hand-off doc `docs/handoff/20261019-1714-t0-first-real-runs.md`). The harness is built and passes `tools/selftest.sh` against a fake game, but has never launched the real game. Needs the user's game closed: then `tools/autotest.py baseline`, `tools/autotest.py run`, a second `run` after a rebuild (in-game restart), `tools/autotest.py hang`, and finally one run beside the user's game if they agree.
 - Last run: none against the real game.
 - Baseline: none yet.
 
