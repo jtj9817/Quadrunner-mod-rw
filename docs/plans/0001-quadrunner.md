@@ -41,6 +41,8 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Full stable | A dog bill doesn't start while all 15 slots are taken (docked or out); a dog finished anyway (slot taken meanwhile) waits beside the stable, unassigned (agent default, 2026-10-19; not in the design) |
 | Stable bills | Colonists do them under **Crafting** (Crafting skill, General labor speed), as Queen Bee's bills; the stable needs power for bills like any vanilla workbench (200 W) (agent default, 2026-10-19) |
 | Placeholder art | Until T9: the dog draws as the vanilla husky tinted steel blue, the stable as the vanilla comms console (3×2) (agent, 2026-10-19) |
+| Battery tunables | `CompProperties_Robodog` on the race: drain 0.000667 per cell walked (10% ≈ 150 cells), seek at ≤ 10% and keep wanting a charge until 100%, power down at 0% (hediff `QR_PoweredDown`: Moving 0, so downed). Conduit 0.0004/tick (empty to full in 2500 ticks), stable 0.0012/tick (3×), so from 10% a conduit wins only when the stable is about 120 cells further; a full conduit charge draws 100 Wd from the net's batteries, fullest first. A jump of more than one cell (teleport) drains nothing (agent default, 2026-10-19) |
+| Charge-spot search | Static per-map cache, never saved, rebuilt when the colony's buildings change (position/def/rotation signature) or after 2500 ticks. Each transmitter (conduit) gives at most one spot per qualifying room (its own, or the four sides of the wall it's under): the nearest standable cell without an edifice within 10 cells, dropped if that cell is within N of a turbine or its wind cells. Checked per dog at query time: room still qualifies, no prison cell, bedroom/barracks only with no occupied bed, stored energy > 0, allowed area, no fire or hostile in the room, cell not reserved. `RegionTraverser` from the dog with its `TraverseParms` (forbidden doors block), first 5 spots, score = straight-line distance + 15 × dogs charging in that room − 10 × min(stored Wd / 1000, 1). Choice vs the stable: straight-line distance × `TicksPerMoveCardinal` + missing / rate; an unpowered stable only when no spot is usable. Turbine distance N is a mod setting, 0–15, default 6 (agent default, 2026-10-19) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
 ## Targets
@@ -65,17 +67,17 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 - [x] `QR_Quadrunner` race: own flesh type, no food or rest needs, never rots, immune to disease, psychic drones and animal insanity; can't be tamed, trained, slaughtered or hunted; never spawns wild or in manhunter packs
 - [x] Stable building (Microelectronics, 150 steel + 4 components): 15 shared slots, docks and undocks dogs, saves its docked dogs
 - [x] "Assemble Quadrunner" bill at the stable; the finished dog docks straight into it
-- [ ] Overview tab: one row per assigned dog (type, battery, health, current job). Done and drawn in a run except the battery column, which shows "—" until T2 adds the battery
-- [ ] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch. Done: spawn docked, undock all; the others come with T2 (battery), T4 (power-down) and T3 (dispatch)
+- [x] Overview tab: one row per assigned dog (type, battery, health, current job); battery column checked in **Stable full (16th dog)** (run 2026-10-19 22:27)
+- [ ] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch. Done: spawn docked, undock all, set battery % (T2; 0% powers a dog down); a dedicated power-down action and dispatch come with T4 and T3
 - [x] Scenarios pass, each with a save/load step: **Assemble and dock**, **Stable full (16th dog)** (also **Dock and undock**; run 2026-10-19 21:48)
 
 ### T2: Battery and charging
 
-- [ ] Battery drain per cell (about 150 cells for 10%), seek at 10%, power down at 0%
-- [ ] Charge-spot search with all five rules and the scoring, cached per map and rebuilt on conduit, turbine or room changes; debug actions highlight valid spots and dump the cache
-- [ ] Stable charging much faster than a conduit; a low dog picks whichever fills it soonest, travel included
-- [ ] Edge cases: no valid spot (go to the stable), batteries empty mid-charge (search again), room stops qualifying (get up, search again), prisons never, bedrooms only when unused, freezers allowed, allowed areas respected
-- [ ] Scenarios pass: **Charging maze** (no spot, spot behind a forbidden door, turbine beside a qualifying wall), **Batteries drain mid-charge**
+- [x] Battery drain per cell (about 150 cells for 10%), seek at 10%, power down at 0% (**Battery drain and power-down**, run 2026-10-19 22:27)
+- [x] Charge-spot search with all five rules and the scoring, cached per map and rebuilt on conduit, turbine or room changes; debug actions highlight valid spots and dump the cache (**Conduit charging**, **Charging maze**; room changes without a building change are checked per query, see Decisions)
+- [x] Stable charging much faster than a conduit; a low dog picks whichever fills it soonest, travel included (**Stable or conduit**: 3×, stable at 10%, conduit at 97%)
+- [x] Edge cases: no valid spot (go to the stable), batteries empty mid-charge (search again), room stops qualifying (get up, search again), prisons never, bedrooms only when unused, freezers allowed, allowed areas respected (**Charging maze**, **Batteries drain mid-charge**, **Charging room rules**)
+- [x] Scenarios pass: **Charging maze** (no spot, spot behind a forbidden door, turbine beside a qualifying wall), **Batteries drain mid-charge** (run 2026-10-19 22:27, each with a save/load step)
 
 ### T3: Dispatch and work
 

@@ -30,6 +30,9 @@ namespace Quadrunner
 
         public bool HasFreeSlot => Dogs().Count < Capacity;
 
+        /// <summary>Docked dogs charge only while the stable has power.</summary>
+        public bool CanCharge => this.TryGetComp<CompPowerTrader>()?.PowerOn ?? true;
+
         /// <summary>Docks <paramref name="dog"/>, assigning it to this stable first if it isn't yet.</summary>
         public bool TryDock(Pawn dog)
         {
@@ -77,6 +80,19 @@ namespace Quadrunner
                 QR.Log($"{dog} made at a full {this}; waits unassigned");
             }
             return dog;
+        }
+
+        protected override void Tick()
+        {
+            base.Tick();
+            if (docked.Count == 0 || !CanCharge)
+                return;
+            foreach (Pawn dog in docked.InnerListForReading)
+            {
+                CompRobodog comp = CompRobodog.Of(dog);
+                if (comp != null && comp.Battery < 1f)
+                    comp.Charge(comp.Props.stableChargePerTick);
+            }
         }
 
         public ThingOwner GetDirectlyHeldThings() => docked;

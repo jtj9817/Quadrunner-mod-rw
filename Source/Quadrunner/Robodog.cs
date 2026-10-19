@@ -8,8 +8,8 @@ namespace Quadrunner
     {
         public float drainPerCell = 0.000667f;
         public float seekChargeAt = 0.1f;
-        public float conduitChargePerTick = 0.0001f;
-        public float stableChargePerTick = 0.0004f;
+        public float conduitChargePerTick = 0.0004f;
+        public float stableChargePerTick = 0.0012f;
         public float energyPerFullCharge = 100f;
 
         public CompProperties_Robodog() => compClass = typeof(CompRobodog);
@@ -45,6 +45,8 @@ namespace Quadrunner
         public void SetBattery(float level)
         {
             battery = Mathf.Clamp01(level);
+            if (battery >= 0.9999f)
+                battery = 1f;
             if (battery <= Props.seekChargeAt)
                 wantsCharge = true;
             if (battery >= 1f)
@@ -73,8 +75,10 @@ namespace Quadrunner
                 return;
             }
             IntVec3 cell = parent.Position;
-            if (lastCell.IsValid && cell != lastCell && battery > 0f)
-                SetBattery(battery - Props.drainPerCell * cell.DistanceTo(lastCell));
+            // One step at a time is walking; a longer jump is a teleport (dev tools, scenarios) and costs nothing.
+            float moved = lastCell.IsValid ? cell.DistanceTo(lastCell) : 0f;
+            if (moved > 0f && moved < 1.5f && battery > 0f)
+                SetBattery(battery - Props.drainPerCell * moved);
             lastCell = cell;
         }
 

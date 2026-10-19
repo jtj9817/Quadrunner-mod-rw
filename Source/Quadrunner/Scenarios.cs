@@ -8,7 +8,7 @@ using Verse.AI;
 namespace Quadrunner
 {
     /// <summary>Every scenario, in Run all order. Each setup builds what it needs on the current (quicktest) map.</summary>
-    public static class Scenarios
+    public static partial class Scenarios
     {
         public static readonly List<(string name, Action setUp)> All = new List<(string, Action)>
         {
@@ -17,6 +17,12 @@ namespace Quadrunner
             ("Dock and undock", DockAndUndock),
             ("Assemble and dock", AssembleAndDock),
             ("Stable full (16th dog)", StableFull),
+            ("Battery drain and power-down", DrainAndPowerDown),
+            ("Conduit charging", ConduitCharging),
+            ("Charging maze", ChargingMaze),
+            ("Charging room rules", ChargingRoomRules),
+            ("Batteries drain mid-charge", BatteriesDrainMidCharge),
+            ("Stable or conduit", StableOrConduit),
         };
 
         /// <summary>
@@ -58,25 +64,28 @@ namespace Quadrunner
 
         /// <summary>
         /// A player stable on clear, unroofed ground near the map center, tracked first so that its docked dogs come
-        /// out before they are destroyed. Powered: a conduit under it, with dev unlimited power for the scenario.
+        /// out before they are destroyed. Powered: a conduit under it, with dev unlimited power for the scenario or, with
+        /// <paramref name="battery"/>, its own full battery.
         /// </summary>
-        private static Building_Stable SpawnStable(Scenario s, bool powered)
+        private static Building_Stable SpawnStable(Scenario s, bool powered, bool battery = false)
         {
             Map map = Find.CurrentMap;
-            IntVec2 size = QR_DefOf.QR_Stable.size;
-            if (!CellFinder.TryFindRandomCellNear(map.Center, map, 40, c => GenAdj.OccupiedRect(c, Rot4.South, size)
-                        .ExpandedBy(4).Cells.All(x => x.InBounds(map) && x.Standable(map) && !x.Fogged(map)
-                            && x.GetFirstItem(map) == null && x.GetFirstBuilding(map) == null && x.GetFirstPawn(map) == null),
-                    out IntVec3 cell))
-                throw new InvalidOperationException("no clear spot for a stable near the map center");
+            IntVec3 cell = FindClearArea(map, map.Center, 40f,
+                c => GenAdj.OccupiedRect(c, Rot4.South, QR_DefOf.QR_Stable.size).ExpandedBy(4));
             var stable = (Building_Stable)ThingMaker.MakeThing(QR_DefOf.QR_Stable);
             stable.SetFaction(Faction.OfPlayer);
             s.Track(GenSpawn.Spawn(stable, cell, map, Rot4.South));
             if (powered)
             {
-                Thing conduit = ThingMaker.MakeThing(ThingDefOf.PowerConduit);
-                conduit.SetFaction(Faction.OfPlayer);
-                s.Track(GenSpawn.Spawn(conduit, cell, map));
+                if (battery)
+                {
+                    // Its own full battery instead of dev unlimited power, which would also refill every other battery:
+                    // a conduit just west of the stable (which connects to it) and the battery touching that conduit.
+                    SpawnBuilding(s, ThingDefOf.PowerConduit, null, cell + new IntVec3(-2, 0, 0), Rot4.North);
+                    SpawnBattery(s, map, cell + new IntVec3(-3, 0, 0), 1f);
+                    return stable;
+                }
+                SpawnBuilding(s, ThingDefOf.PowerConduit, null, cell, Rot4.North);
                 bool prev = DebugSettings.unlimitedPower;
                 DebugSettings.unlimitedPower = true;
                 s.OnFinish(() => DebugSettings.unlimitedPower = prev);
@@ -222,7 +231,7 @@ namespace Quadrunner
                 {
                     var rows = ITab_StableOverview.Rows(Stable());
                     return rows.Count == 15 && rows.Count(r => r.cells[4] == "Docked") == 14
-                        && rows.All(r => r.cells[1] == "Quadrunner" && r.cells[3] == "100%");
+                        && rows.All(r => r.cells[1] == "Quadrunner" && r.cells[2] == "100%" && r.cells[3] == "100%");
                 })
                 .Do("select the stable, open its Overview tab", () =>
                 {

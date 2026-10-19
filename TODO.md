@@ -5,8 +5,8 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 ## Progress
 
 - [ ] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
-- [ ] **T1**: Dogs and the stable (4 of 6 boxes; the rest wait for T2–T4) (race, stable, assemble bill, docking, Overview tab, debug actions)
-- [ ] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
+- [ ] **T1**: Dogs and the stable (5 of 6 boxes; the debug actions box waits for T3–T4) (race, stable, assemble bill, docking, Overview tab, debug actions)
+- [x] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [ ] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
 - [ ] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
 - [ ] **T5**: Medirunner (rescue order, triage)
@@ -17,8 +17,8 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T2, half-written and not building** (hand-off `docs/handoff/20261019-1753-t2-battery-wip.md`). T1 remaining boxes: the Overview battery column (needs T2's battery) and the debug actions for battery, power-down and dispatch (T2–T4). Their systems come first, so go on to **T2** and tick these as they land. Still open in T0: ask the user about one run beside their open game.
-- Last run: 2026-10-19 21:49, build `0ab90b9-dirty.20261019T214906Z`, Stable full (16th dog) 1/1 PASS, 0 new errors; full T1 set 3/3 PASS at 21:48.
+- Next: **T3** (dispatch and work). T2 done: all 5 boxes ticked on run 2026-10-19 22:27 (11/11 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) waits for T4 and T3. Still open in T0: ask the user about one run beside their open game.
+- Last run: 2026-10-19 22:27, build `caa6bdc-dirty.20261019T222217Z`, Run all 11/11 PASS, 0 new errors.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - Not yet re-run: `tools/selftest.sh` after the 2026-10-19 Xvfb-pid check in `autotest.py stop` (the auto-mode permission check refused to run it in that session).
@@ -67,6 +67,10 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **A third kind of pawn.** Intelligence `Animal` + a non-organic flesh type makes `RaceProperties.Animal`, `IsMechanoid` and `IsFlesh` all false. Vanilla still gives such a player pawn `playerSettings` and a `training` tracker (`PawnComponentsUtility`), but no needs at all with `foodType None` and `needsRest false`. Disease incidents pick only `IsFlesh` pawns.
 - **Pawns inside a building.** A `Building` that implements `IThingHolder` (here `ThingOwner<Pawn>`, deep-saved) keeps pawns out of the world; `MapPawns.AllPawns` still finds them through `GetChildHolders`, but `listerThings` doesn't, so `Scenario.ById` falls back to `AllPawns`.
 - **Bills need power.** `Building_WorkTable.CurrentlyUsableForBills` wants `PowerOn`; a scenario powers a stable with a conduit under it plus `DebugSettings.unlimitedPower` (a lone consumer has no PowerNet, so the flag alone does nothing).
+- **Prison rooms.** `Room.IsPrisonCell` is only recomputed when the room's shape changes; switching a bed to prisoners only dirties the role, so check `Role == PrisonCell/PrisonBarracks` too. Setting `ForPrisoners = false` logs a vanilla error: set `ForOwnerType` instead.
+- **Batteries are transmitters.** A vanilla `Battery` (`transmitsPower`) joins a net only through a conduit it touches; the 6-cell connect radius is for consumers like the stable. A battery two cells from a conduit is its own net.
+- **`DebugSettings.unlimitedPower` refills batteries.** It makes every net's gain rate 100000, so any battery on a net fills each tick; scenarios that measure battery energy power the stable from its own battery instead.
+- **Batteries self-discharge 5 W** (`CompPowerBattery.CompTick`); negligible in a scenario, but expect it in energy sums.
 - **Forcing a bill in a scenario.** `WorkGiverDef.Worker.JobOnThing(colonist, stable, forced: true)` then `jobs.TryTakeOrderedJob`; also finish the recipe's research first.
 
 
@@ -100,6 +104,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 - **Scenario runner design that worked** *(QB)*: static, never-saved scenario state; `Expect(label, Func<bool>)` / `Do` / `Wait(ticks)` steps checked every tick; `SCENARIO <name>: start …` and `PASS/FAIL` lines with tick counts; **Run all** queues every scenario and logs one `n/m PASS` summary. Starting a scenario removes the previous one's things.
 - **Static state survives a reload.** Assemblies don't reload when a save loads, so a static scenario runner can save, reload and keep checking its steps. Re-find things by ID after the load; references from before it are stale.
+- **Quicktest maps differ per launch.** Each launch generates a new map (trees, chunks, crashlanded items near the center); setups must find clear ground with `Walkable` (trees aren't `Standable`) and clear plants and items themselves. Scenarios turn the storyteller off while they run (a random event once left a colonist's relation to an unsaved pawn: 2 red errors on save/load).
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*
 - **One defend point clusters pawns.** A single `LordJob_DefendPoint` for several pawns gathers them at one spot. Give each hostile its own lord. *(QB)*
 - **Screenshots: one window only.** Capture by exact window class `RimWorldLinux` on the instance's own `DISPLAY` (read from `/proc/<pid>/environ`); a title match also hits browser tabs about RimWorld. Never `import -window root`. *(QB)*

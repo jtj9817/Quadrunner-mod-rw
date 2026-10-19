@@ -45,6 +45,48 @@ namespace Quadrunner
                     stable.TryUndock(dog);
         }
 
+        /// <summary>The dogs on the clicked cell, or docked in the stable there.</summary>
+        private static List<Pawn> DogsAt(IntVec3 cell) =>
+            StableAt(cell)?.Docked.ToList()
+            ?? cell.GetThingList(Find.CurrentMap).OfType<Pawn>().Where(CompRobodog.IsRobodog).ToList();
+
+        [DebugAction(Category, "Set battery %...", actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        private static void SetBattery()
+        {
+            List<Pawn> dogs = DogsAt(UI.MouseCell());
+            if (dogs.Count == 0)
+                return;
+            Find.WindowStack.Add(new FloatMenu(new[] { 0f, 0.05f, 0.1f, 0.5f, 1f }.Select(level =>
+                new FloatMenuOption(level.ToStringPercent(), () =>
+                {
+                    foreach (Pawn dog in dogs)
+                    {
+                        CompRobodog.Of(dog).SetBattery(level);
+                        if (dog.Spawned)
+                            dog.jobs?.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
+                    }
+                })).ToList()));
+        }
+
+        [DebugAction(Category, "Highlight charge spots", allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void HighlightSpots()
+        {
+            // Green: batteries on the spot's net hold energy; red: they're empty (the spot doesn't count now).
+            foreach (ChargeSpot spot in ChargeSpots.All(Find.CurrentMap))
+                Find.CurrentMap.debugDrawer.FlashCell(spot.cell, spot.StoredEnergy > 0f ? 0.5f : 0f,
+                    $"{spot.StoredEnergy:F0}", 600);
+        }
+
+        [DebugAction(Category, "Dump charge-spot cache", allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        internal static void DumpSpots()
+        {
+            List<ChargeSpot> spots = ChargeSpots.All(Find.CurrentMap);
+            Verse.Log.Message($"[Quadrunner] {spots.Count} charge spots on {Find.CurrentMap}:\n" + string.Join("\n",
+                spots.Select(s => $"  {s}, room {s.cell.GetRoom(Find.CurrentMap)?.ID} ({s.cell.GetRoom(Find.CurrentMap)?.Role?.label}), " +
+                    $"stored {s.StoredEnergy:F0} Wd")));
+        }
+
         [DebugAction(Category, "Toggle scenario speed", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         private static void ToggleSpeed()
         {

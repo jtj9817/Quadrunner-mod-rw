@@ -37,6 +37,7 @@ namespace Quadrunner
         private int startTick;
         private int stepStartTick;
         private bool prevNeverForceNormalSpeed;
+        private bool prevStoryteller;
 
         public Scenario(string name, int timeoutTicks)
         {
@@ -155,6 +156,10 @@ namespace Quadrunner
             // Hostiles make vanilla force normal speed; this dev setting turns that off for the run.
             prevNeverForceNormalSpeed = DebugViewSettings.neverForceNormalSpeed;
             DebugViewSettings.neverForceNormalSpeed = true;
+            // No incidents during a run: scenarios stage their own events, and a random one (a short circuit, a quest
+            // whose pawns get discarded) would make results depend on luck.
+            prevStoryteller = DebugSettings.enableStoryteller;
+            DebugSettings.enableStoryteller = false;
             Resume();
             QR.Log($"SCENARIO {name}: start ({(fast ? "Ultrafast" : "normal speed")}), {steps.Count} steps, timeout {timeoutTicks} ticks");
         }
@@ -211,6 +216,7 @@ namespace Quadrunner
                 }
             }
             DebugViewSettings.neverForceNormalSpeed = prevNeverForceNormalSpeed;
+            DebugSettings.enableStoryteller = prevStoryteller;
             Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
             current = null;
             bool pass = verdict.StartsWith("PASS");

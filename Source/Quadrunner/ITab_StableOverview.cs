@@ -36,7 +36,7 @@ namespace Quadrunner
                 {
                     d.LabelShortCap,
                     d.kindDef.LabelCap.ToString(),
-                    "—", // battery: T2
+                    CompRobodog.Of(d).Battery.ToStringPercent(),
                     d.health.summaryHealth.SummaryHealthPercent.ToStringPercent(),
                     stable.Docked.Contains(d) ? "Docked" : d.jobs?.curDriver?.GetReport().CapitalizeFirst() ?? "Idle",
                 }))
