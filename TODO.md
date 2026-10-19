@@ -21,7 +21,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Last run: 2026-10-19 22:27, build `caa6bdc-dirty.20261019T222217Z`, Run all 11/11 PASS, 0 new errors.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
-- Not yet re-run: `tools/selftest.sh` after the 2026-10-19 Xvfb-pid check in `autotest.py stop` (the auto-mode permission check refused to run it in that session).
+- `tools/selftest.sh`: all cases ok (2026-10-19 22:28, after the Xvfb-pid check in `autotest.py stop`); stop the real test instance first, its stop/hang cases kill processes.
 
 ## Open questions
 
