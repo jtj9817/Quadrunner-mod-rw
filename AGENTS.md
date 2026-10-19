@@ -21,10 +21,22 @@ A RimWorld 1.6 mod (Core only, Harmony the only dependency). Robot dogs dispatch
 
 ## Session start
 
-1. Read [`TODO.md`](TODO.md): progress, current state, open questions, and **agent notes / gotchas**.
-2. Read the plan's section for the current target, and the newest entries in [`docs/test-runs.md`](docs/test-runs.md).
-3. Run `git -c safe.directory="$PWD" log --oneline -10` to see where the last session stopped.
-4. Run `tools/status.sh` and stop to tell the user if the environment check fails, above all if the game version changed.
+1. If you were started from a hand-off doc (`docs/handoff/`), read it first.
+2. Read [`TODO.md`](TODO.md): progress, current state, open questions, and **agent notes / gotchas**.
+3. Read the plan's section for the current target, and the newest entries in [`docs/test-runs.md`](docs/test-runs.md).
+4. Run `git -c safe.directory="$PWD" log --oneline -10` to see where the last session stopped.
+5. Run `tools/status.sh` and stop to tell the user if the environment check fails, above all if the game version changed.
+
+## Context limit and hand-off (this project only)
+
+At **250k tokens of context** a session stops working and hands off to a fresh one (user, 2026-10-19). It is enforced by the project hooks in `.claude/settings.json`, which run `tools/context-guard.py` after every tool call, at every Stop and on every prompt:
+
+1. Past the limit, the hook tells the session to stop at the next safe point (start nothing new; end a running test with `tools/autotest.py stop` if needed).
+2. Commit finished work, then write `docs/handoff/YYYYMMDD-HHMM-<slug>.md` from [`docs/handoff/TEMPLATE.md`](docs/handoff/TEMPLATE.md), complete enough for an instance that remembers nothing, and commit it.
+3. Run `tools/handoff.sh --session <session id> docs/handoff/<file>` (the hook's message gives the id). It opens a **new interactive** Claude Code instance on the doc: a new window in the current tmux session, or an Alacritty window on the user's display when not in tmux.
+4. End the turn with one line saying where the new instance runs. The hook keeps the old session from ending its turn before step 3 and tells it to stop once the hand-off is launched.
+
+A session started from a hand-off doc reads that doc first, then does [Session start](#session-start). Limit and switches: `QR_HANDOFF_TOKENS` (default 250000), `QR_HANDOFF_DISABLE=1` or the file `.devlog/handoff/disabled`.
 
 ## How RimWorld loads a mod (why the loop looks like this)
 
@@ -93,6 +105,8 @@ Every helper script lives in `tools/`. Rules:
 | `Source/Quadrunner/AutoTest.cs` | The game side of the harness (see [The test instance](#the-test-instance)); also drives `Scenario` every frame | done (T0), real-game runs pending |
 | `Source/Quadrunner/Scenario.cs` + `Scenarios.cs` | Scenario runner ported from Queen Bee: `Do` / `Expect` / `Wait` / `SaveAndReload` steps, things tracked by ThingID across reloads, `SCENARIO <name>: PASS/FAIL` lines, Run all with a filter. Scenarios: Smoke, Save and reload | done (T0), real-game runs pending |
 | `Source/Quadrunner/DebugActions.cs` | **Debug actions → Quadrunner**: Scenario: Run all, Scenario… (pick one), Toggle scenario speed | done (T0) |
+| `tools/context-guard.py` | The context-limit hook (see [Context limit and hand-off](#context-limit-and-hand-off-this-project-only)): reads the session transcript's latest main-thread usage, blocks with hand-off instructions past `QR_HANDOFF_TOKENS`; per-session state in `.devlog/handoff/` | done |
+| `tools/handoff.sh` | `[--session <id>] [--dry-run] <doc>`: opens a new interactive Claude Code instance (tmux window, or Alacritty on `$QR_HANDOFF_DISPLAY`, default `:1`) that continues from a committed hand-off doc; extra `claude` args from `$QR_HANDOFF_CLAUDE_ARGS` | done |
 | `tools/vanilla.sh` | `init` (decompile Assembly-CSharp once into `.tools/decomp/`) / `grep <regex>` (code + Core Defs) / `def <defName>` (vanilla def plus its ParentName chain) | done (T0, from Queen Bee) |
 | `tools/rwdefs.py` | Python behind `vanilla.sh def` and the lint step of `build.sh`: XML parsing, def references, `Quadrunner/` texture paths (exact case), PNG sizes, preview size | done (T0, from Queen Bee) |
 | `tools/build.sh` | Lint, then `dotnet build` stamped with a build id, installed into `1.6/Assemblies` with an atomic rename. The id goes to `.devlog/last-build` | done (T0) |
