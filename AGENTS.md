@@ -18,7 +18,8 @@ A RimWorld 1.6 mod (Core only, Harmony the only dependency). Robot dogs dispatch
 - **The user** settles design questions and plays their own game, often while the agent works. The user's game is off limits:
   - **Never** close, kill, focus, screenshot or send input to the user's game, and never touch their profile (`~/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios`: Saves, Config, Player.log).
   - **Test runs go ahead while the user's game is open** (proven on 2026-10-19, run 23:20; the user made it the default). `tools/autotest.py` only notes the open game. `tools/status.sh` reports whether it runs.
-  - **Before any other step that needs the user's game closed** (e.g. `tools/backup-saves.sh`), **notify the user and wait** until they say it is closed.
+  - **Before any other step that needs the user's game closed** (e.g. `tools/backup-saves.sh`), **notify the user and wait** until they say it is closed. Say it in one plain line; when they may be away, also send whatever notification your tool offers.
+- **Commands only the user can run** (a global git config change, an interactive login): ask them to run it and show the exact command; never work around it.
 
 ## Session start
 
@@ -37,7 +38,7 @@ At **250k tokens of context** a session stops working and hands off to a fresh o
 3. Run `tools/handoff.sh --session <session id> docs/handoff/<file>` (the hook's message gives the id). It arranges a **new interactive** Claude Code instance on the doc. In tmux it **replaces the old session in the same pane**: once the old session ends its turn, the hook runs `tmux respawn-pane -k`, which terminates it and starts the new instance there (user, 2026-10-20). Not in tmux: an Alacritty window on the user's display, and the hook closes the old session at its Stop.
 4. End the turn with one line saying where the new instance runs. The hook keeps the old session from ending its turn before step 3, tells it to stop once the hand-off is launched, and ends it at that turn's Stop.
 
-A session started from a hand-off doc reads that doc first, then does [Session start](#session-start). Limit and switches: `QR_HANDOFF_TOKENS` (default 250000), `QR_HANDOFF_DISABLE=1` or the file `.devlog/handoff/disabled`.
+A hand-off doc is also written when the user asks for one (see [Work loop](#work-loop-per-target-develop--test--analyze-and-note--develop)); then the session stays open and nothing is launched. A session started from a hand-off doc reads that doc first, then does [Session start](#session-start). Limit and switches: `QR_HANDOFF_TOKENS` (default 250000), `QR_HANDOFF_DISABLE=1` or the file `.devlog/handoff/disabled`.
 
 ## How RimWorld loads a mod (why the loop looks like this)
 
@@ -66,6 +67,8 @@ The agent runs this loop on its own, without waiting on the user between iterati
 
 1. **Develop** the smallest slice that moves an acceptance box. Add or extend the scenario that proves it (`Source/Quadrunner/Scenarios.cs`, in **Run all** order) in the same slice.
 2. **Build and test in one command:** `tools/autotest.py run [filter]`. It runs `tools/build.sh` (lint plus build; zero warnings, the csproj treats warnings as errors), restarts the test instance in game when the loaded build is stale (or starts it), sends `run`, waits under the watchdog, and refuses to report results from a build other than `.devlog/last-build`. `filter` is comma-separated parts of scenario names. Never deploy with a bare `dotnet build`, which only writes to `Source/Quadrunner/bin/`.
+   - **Run only the scenarios the change can affect** (one target's code → that target's scenarios; a scenario-only change → that scenario). The test instance shares the CPU with the user's game, and the user called rerunning everything after an unrelated change a waste (2026-10-20). **Run all** only when shared code changed (runner, dispatch, the stable tick, combat, races) or when ticking a target's last boxes needs proof that its scenarios pass in sequence; say why in one line. Options go before the subcommand: `tools/autotest.py --timeout 3600 run`.
+   - A run takes from seconds to several minutes: start it in the background if your tool allows, and wait for it to exit instead of polling its output.
 3. **Analyze:** the output lists each `SCENARIO` verdict, every new error block (red errors diffed against the baseline of a run without Quadrunner; any `[Quadrunner] ERROR` always counts), and a `RESULT:` line. Exit `0` means every scenario passed with **zero new errors**; `1` a failure, `2` hang/crash (instance killed), `3` not run. When a result surprises you, read the raw log (`.devlog/rwdata/Player.log` while the launch lives, `.devlog/runs/<launch>/Player.log` after), not only the filtered view. `tools/screenshot.sh` captures the test instance's window when a visual needs checking (draw offsets, sirens, overlays).
 4. **Leave the instance running** between iterations; the next `run` restarts it in game. `tools/autotest.py stop` at the end of a session.
 5. **Note:** add one row to [`docs/test-runs.md`](docs/test-runs.md) (newest first): build id, scenarios run, result, what the log showed, what changes next. Anything that took more than one attempt also becomes a one- or two-line gotcha in `TODO.md`.
@@ -76,7 +79,8 @@ Stop the loop and tell the user when:
 - every acceptance box of the target is ticked (report, then start the next target unless told otherwise),
 - a decision the plan doesn't record is needed (ask; record the answer in the plan's Decisions table in the same commit),
 - the same scenario has failed three runs in a row without new information (report what was tried and the log evidence),
-- a step needs the user's game closed (see [Roles](#roles)).
+- a step needs the user's game closed (see [Roles](#roles)),
+- the user asked you to stand by after the current task: finish and verify it, commit, write a hand-off doc from [`docs/handoff/TEMPLATE.md`](docs/handoff/TEMPLATE.md) and commit it, run `tools/autotest.py stop`, then wait for orders. Start nothing else, not even the next target, and don't run `tools/handoff.sh` unless they ask.
 
 ## Tracking progress
 

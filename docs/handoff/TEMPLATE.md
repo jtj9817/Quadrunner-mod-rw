@@ -1,6 +1,6 @@
 # Hand-off: <one-line summary of where the work stands>
 
-<!-- Copy to docs/handoff/YYYYMMDD-HHMM-<slug>.md when a session hits the context limit (tools/context-guard.py).
+<!-- Copy to docs/handoff/YYYYMMDD-HHMM-<slug>.md when a session hits the context limit (tools/context-guard.py) or the user asks for one.
      Write for a fresh instance that remembers nothing of the conversation: every fact it needs is here or in a file
      this doc names. Facts only; mark anything unverified as such. Delete these comments. -->
 
