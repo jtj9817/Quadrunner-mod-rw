@@ -1,12 +1,16 @@
 # Quadrunner
 
-A RimWorld 1.6 mod (Core only, requires Harmony): robot dogs dispatched from a stable haul, clean, supply construction, carry riders, rescue the downed (Medirunner) and defend the colony (Combatdogs, tiers 1–4). They charge at conduits or their stable, power down instead of dying when empty, and are carried home.
+Robot dogs for RimWorld: **Quadrunners** haul, clean, supply construction and carry riders; **Medirunners** rescue the downed; **Combatdogs** defend the colony across four upgrade tiers.
 
-Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled configurations have not been verified. Progress and exact verification runs are recorded in [TODO.md](TODO.md) and [docs/test-runs.md](docs/test-runs.md).
+**Author:** [jtj9817](https://github.com/jtj9817) · **Game:** RimWorld 1.6 · **Requirements:** Core + [Harmony](https://steamcommunity.com/sharedfiles/filedetails/?id=2009463077)
 
-The local release is `dist/Quadrunner`, build `63f0858.20261020T194142Z`, including the 3,500-cell battery range, Hearthline lore/tooltips and the live in-game Scenario runner. The actual package passed automated **Run all 39/39 with zero new errors** on 2026-10-20. Separately, its source-equivalent development build passed live **Run all 38/38** without replacing the Game, map or process; both native picker paths were verified too.
+![Quadrunner — haul, ride, rescue and defend](About/Preview.png)
 
-The original T9 release also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for these separate builds and checks.
+Complete for personal use, including the post-T9 lore, liveries, walking, rescue and combat animations, and weapon demonstrations. This is a private source backup and personal mod, not a community project or Workshop release. Issues, pull requests, discussions, projects and the wiki are disabled; no contributions or public support are solicited.
+
+No DLC is required. DLC-enabled configurations and arbitrary mod combinations have not been verified. The saved-game package ID remains `josh9817.quadrunner`; the author name does not change that identity.
+
+Verification history, including packaged scenario runs and an independent save-removal check without the mod assembly, is recorded in [docs/test-runs.md](docs/test-runs.md). Historical results apply to the builds named there, not every later build.
 
 ## Hearthline Robotics
 
@@ -20,7 +24,7 @@ In **Overview**, hover the robodog-count heading for the stable's lore, a dog's 
 
 ## Install and play
 
-1. Put the packaged `Quadrunner` folder in RimWorld's `Mods/` directory. Enable **Harmony**, **Core**, then **Quadrunner**, and restart the game.
+1. Put the packaged `Quadrunner` folder from `dist/Quadrunner` in RimWorld's `Mods/` directory. Enable **Harmony**, **Core**, then **Quadrunner**, and restart the game. A source checkout or GitHub source ZIP is not a ready-to-play package: compiled assemblies and `dist/` are deliberately excluded from Git.
 2. Research **Microelectronics**, then build a **Quadrunner stable** from **Misc** and connect its 200 W power supply. Its 15 slots include dogs currently working away from home.
 3. Add **Assemble Quadrunner**, **Assemble Medirunner** or **Assemble Combatdog** bills at the stable. Colonists do the work under Crafting. The **Overview** tab shows each dog's battery, health and current activity.
 
@@ -43,6 +47,10 @@ In **Overview**, hover the robodog-count heading for the stable's lore, a dog's 
 If preparation reports failure, **keep Quadrunner enabled and reload the backup**. No successful clean export is claimed. Bring any off-map robodog cargo without a surviving caravan carrier onto a map before retrying.
 
 ## Development
+
+The repository is [jtj9817/Quadrunner-mod-rw](https://github.com/jtj9817/Quadrunner-mod-rw). Source, original artwork and exported textures are tracked; compiled assemblies, packages, decompiled game code, logs and private test profiles are not. No open-source license is granted.
+
+For a local build, install the .NET SDK and Python 3, with RimWorld 1.6 and Harmony available at the paths configured by `tools/env.sh`. `tools/build.sh` lints, builds and installs the assembly into `1.6/Assemblies`; `tools/package.sh` requires a clean committed tree and produces the installable `dist/Quadrunner` folder. Its `BUILD` file identifies the packaged build. The private-game test tools additionally require Steam, Xvfb, xdotool and ImageMagick; texture export requires Inkscape.
 
 Original SVG sources live in `Art/`; `tools/export-textures.sh` exports the committed PNGs. Preview sources before integration and inspect actual private-game screenshots afterwards.
 

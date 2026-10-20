@@ -6,6 +6,7 @@
     <RootNamespace>Quadrunner</RootNamespace>
     <AssemblyName>Quadrunner</AssemblyName>
     <Version>0.1.0</Version>
+    <Authors>jtj9817</Authors>
     <DebugType>embedded</DebugType>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>Quadrunner</name>
-  <author>Joshtrazyn</author>
+  <author>jtj9817</author>
   <modVersion>0.1.0</modVersion>
   <packageId>josh9817.quadrunner</packageId>
   <supportedVersions>
@@ -18,6 +18,7 @@
   <loadAfter>
     <li>brrainz.harmony</li>
   </loadAfter>
+  <url>https://github.com/jtj9817/Quadrunner-mod-rw</url>
   <description>Sci-fi robot dogs dispatched from a powered stable: Quadrunners haul, clean, supply construction and carry riders; Medirunners rescue the downed; Combatdogs defend the colony and upgrade through four tiers.
 
 Research Microelectronics, build a stable under Misc, and assemble dogs through its bills. Charge and repair at the stable, maintain field batteries and repair kits, and keep wrecks for rebuilding.
