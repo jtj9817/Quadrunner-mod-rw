@@ -24,7 +24,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 07:44, build `5e5683c-dirty.20261020T074357Z`: Stable full and Artwork **2/2 PASS**, 0 new errors; actual Overview inspected after removing incidental frame-counter/wording checks. Expanded removal and independent no-Quadrunner reload also PASS at 07:41. Next: rebuild package and Run all.
+- Last run: 2026-10-20 07:58, build `dd9ce4d-dirty.20261020T075656Z`: Ping chain and Prepare removal **2/2 PASS**, 0 new errors. Strict return/third-ping turnaround retained; the removal save is genuinely mid-ride across reload. Next: rebuild package and Run all.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
@@ -162,6 +162,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **"Gone" in a summary can mean dead:** a killed pawn's corpse has another ThingID, so `ById` finds nothing. Robodog deaths are logged (`killed by <instigator> (<damage>, <weapon>, <part>)`).
 - **At Ultrafast one frame is ~20 ticks:** a state that lasts a tick or two (docked at 100% before the stable dispatches it, a short walk home from a nearby bed, a retreat that ends docked) can fall between two checks. Latch flags across frames, use thresholds (battery ≥ 98%), or accept the end state.
 - **Exact-haul fixtures need separated piles.** Vanilla hauling opportunistically collects duplicate stacks within 8 cells inside one job. Space intended first/second deliveries at least 12 cells apart; do not weaken exact quantities or infer docking from the cargo count.
+- **Observe short transitions at normal speed.** At ultrafast, an entire Combatdog return can fit between frame-level scenario checks; Ping chain now observes captures/return at normal speed, retaining QR_Dock → third-ping turnaround rather than accepting an already-docked dog.
+- **Stage the saved ride last.** Prepare removal's other setup jobs can outlast a 40–60-cell ride in Run all. Keep the rider drafted until they are ready, then order the ride and pause while mounted before saving.
 
 ### Assets
 

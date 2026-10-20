@@ -33,7 +33,7 @@ namespace Quadrunner
             Pawn RideDog() => (Pawn)Scenario.ById(rideDogId);
             Pawn DownDog() => (Pawn)Scenario.ById(downDogId);
             Pawn WalkDog() => (Pawn)Scenario.ById(walkDogId);
-            s.Do("a powered stable with bills, docked dogs, a powered-down dog, items and a mid-ride colonist", () =>
+            s.Do("a powered stable with bills, docked dogs, a powered-down dog and items", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
@@ -78,18 +78,15 @@ namespace Quadrunner
                     CompRobodog.Of(downDog).SetBattery(0f);
                     SpawnStack(s, QR_DefOf.QR_RobodogBattery, 1, downAt);
                     SpawnStack(s, QR_DefOf.QR_RobodogRepairKit, 1, downAt);
-                    // A colonist mid-ride on a fresh Quadrunner, far enough to still be riding at the save.
+                    // Prepare the rider, but start the ride only after the other setup jobs are observed.
                     Pawn rideDog = stable.AddNewDog(QR_DefOf.QR_Quadrunner);
                     rideDogId = s.Track(rideDog).ThingID;
                     Pawn rider = map.mapPawns.FreeColonistsSpawned
                         .FirstOrDefault(p => p != crafter && !p.Downed && p.drafter != null)
                         ?? SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer, stable.InteractionCell);
-                    rider.drafter.Drafted = false;
+                    rider.drafter.Drafted = true;
                     Teleport(rider, OpenCell(map, stable.InteractionCell, 3f, 8f));
                     riderId = rider.ThingID;
-                    IntVec3 dest = OpenCell(map, stable.InteractionCell, 40f, 60f);
-                    if (!Riding.Ride(rider, rideDog, stable, dest))
-                        throw new InvalidOperationException("the ride order failed");
                 })
                 .Expect("a colonist takes the bill after the power net connects", () =>
                 {
@@ -97,10 +94,18 @@ namespace Quadrunner
                     Job job = BillJob(crafter, Stable());
                     return job != null && crafter.jobs.TryTakeOrderedJob(job);
                 })
-                .Expect("the rider is mounted, mid-ride", () => Riding.MountOf(Rider()) == RideDog())
                 .Expect("the walked-out dog heads home to dock", () => WalkDog().CurJobDef == QR_DefOf.QR_Dock)
                 .Expect("the powered-down dog is downed with the hediff", () =>
                     DownDog().Downed && DownDog().health.hediffSet.GetFirstHediffOfDef(QR_DefOf.QR_PoweredDown) != null)
+                .Do("order the ride after the other setup jobs are observed", () =>
+                {
+                    Rider().drafter.Drafted = false;
+                    IntVec3 dest = OpenCell(Find.CurrentMap, Stable().InteractionCell, 40f, 60f);
+                    if (!Riding.Ride(Rider(), RideDog(), Stable(), dest))
+                        throw new InvalidOperationException("the ride order failed");
+                })
+                .Expect("the rider is mounted, mid-ride", () => Riding.MountOf(Rider()) == RideDog())
+                .Do("pause with the rider still mounted", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Paused)
                 .Do("save the raw pre-removal colony", () =>
                     GameDataSaveLoader.SaveGame("QR_removal_raw"))
                 .SaveAndReload()
@@ -181,7 +186,8 @@ namespace Quadrunner
                         && !Find.CurrentMap.mapPawns.AllPawns.Any(p =>
                             p.jobs?.AllJobs().Any(j => j.def.defName.StartsWith("QR_", StringComparison.Ordinal)) == true);
                 })
-                .Summary(() => backup == null ? "removal preparation not reached; no clean export claimed"
+                .Summary(() => backup == null
+                    ? $"removal preparation not reached; no clean export claimed; rider job {Rider()?.CurJobDef?.defName}, last dismount {Riding.lastDismount.why}"
                     : $"export {RemovalSaveName}, backup {backup}; rider {riderId}, patient {patientId}, cargo {cargoId}/{dockCargoId}/{worldCargoId}")
                 .Start();
         }

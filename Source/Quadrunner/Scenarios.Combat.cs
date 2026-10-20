@@ -128,6 +128,10 @@ namespace Quadrunner
                 .Expect("it runs beyond the 40-cell service radius", () =>
                     Combatdog().Position.DistanceTo(Stable().Position) > 40f)
                 .SaveAndReload()
+                // At ultrafast speed a whole return trip can fit between two frame-level checks.
+                // Observe the actual QR_Dock transition rather than accepting an already-docked dog.
+                .Do("observe the captures and return at normal speed", () =>
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal)
                 .Expect("the near raider: dead or a prisoner in bed", () => DealtWith(nearId))
                 .Expect("then the far one", () => DealtWith(farId) || Attacking(Combatdog(), ById(farId)))
                 .Expect("the far raider: dead or a prisoner in bed", () => DealtWith(farId))
@@ -140,6 +144,7 @@ namespace Quadrunner
                     thirdId = third.ThingID;
                     Raid.Recheck(map);
                     Hit(quad, third);
+                    Scenario.Resume();
                 })
                 .Expect("the Combatdog turns round for it", () => Attacking(Combatdog(), ById(thirdId)))
                 .Expect("the third raider: dead or a prisoner in bed", () => DealtWith(thirdId))
