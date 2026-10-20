@@ -31,6 +31,8 @@ namespace Quadrunner
         private float battery = 1f;
         private bool wantsCharge;
         private IntVec3 lastCell = IntVec3.Invalid;
+        /// <summary>Combatdogs: patrol waypoints reached so far; the next one is this modulo the stable's count.</summary>
+        public int waypointsReached;
 
         public CompProperties_Robodog Props => (CompProperties_Robodog)props;
 
@@ -131,8 +133,11 @@ namespace Quadrunner
                 return;
             Vector3 pos = Dog.DrawPos + new Vector3(0f, 0f, 0.35f);
             pos.y = AltitudeLayer.MetaOverlays.AltitudeFor();
-            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(0.9f, 1f, 0.9f)),
-                Siren.Material, 0);
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(0.5f, 1f, 0.5f)),
+                Siren.Core, 0);
+            pos.y += 0.01f;
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(1.2f, 1f, 1.2f)),
+                Siren.Glow, 0);
         }
 
         public override void PostExposeData()
@@ -141,6 +146,7 @@ namespace Quadrunner
             Scribe_References.Look(ref stable, "stable");
             Scribe_Values.Look(ref battery, "battery", 1f);
             Scribe_Values.Look(ref wantsCharge, "wantsCharge");
+            Scribe_Values.Look(ref waypointsReached, "waypointsReached");
         }
 
         public override string CompInspectStringExtra() =>
@@ -148,11 +154,15 @@ namespace Quadrunner
             (stable == null ? "No stable" : $"Stable: {stable.LabelCap}");
     }
 
-    /// <summary>The retreat siren's light: vanilla's lightning glow, tinted yellow.</summary>
+    /// <summary>
+    /// The retreat siren's light: a yellow lamp (<c>Quadrunner/Things/Siren</c>, with alpha) under vanilla's lightning
+    /// glow tinted yellow, drawn additive around it (the glow alone hardly shows on bright ground).
+    /// </summary>
     [StaticConstructorOnStartup]
     public static class Siren
     {
-        public static readonly Material Material =
+        public static readonly Material Core = MaterialPool.MatFrom("Quadrunner/Things/Siren", ShaderDatabase.Transparent);
+        public static readonly Material Glow =
             MaterialPool.MatFrom("Things/Mote/LightningGlow", ShaderDatabase.MoteGlow, new Color(1f, 0.85f, 0.1f));
     }
 }

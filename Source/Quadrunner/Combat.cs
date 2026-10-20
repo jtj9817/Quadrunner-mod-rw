@@ -11,8 +11,9 @@ namespace Quadrunner
     /// the target goes down), and a downed one captured: vanilla Capture to a free prisoner bed, else carried to the
     /// nearest empty room that isn't a bedroom, barracks or prison (<see cref="JobDriver_CarryToRoom"/>) and left there;
     /// the dead drop out of the queue. Hostiles a Combatdog sees within its engage range join the queue. With nothing
-    /// to do during a raid it guards its stable; once the raid is over and the queue empty it docks. Jobs expire after
-    /// <see cref="RecheckTicks"/>, so the queue is re-sorted about once a second.
+    /// to fight while a raid is on or targets remain, it walks its stable's patrol waypoints in order, in a loop (without
+    /// waypoints it guards the stable during a raid); once the raid is over and the queue empty it docks. Jobs expire
+    /// after <see cref="RecheckTicks"/>, so the queue is re-sorted about once a second.
     /// </summary>
     public static class Combat
     {
@@ -29,7 +30,8 @@ namespace Quadrunner
         public static Job JobFor(Pawn dog, Building_Stable stable)
         {
             Spot(dog, stable);
-            foreach (Pawn target in stable.Targets(dog.Position))
+            List<Pawn> targets = stable.Targets(dog.Position);
+            foreach (Pawn target in targets)
             {
                 // Carried by someone: not ours to take now.
                 if (!target.Spawned)
@@ -38,7 +40,9 @@ namespace Quadrunner
                 if (job != null)
                     return job;
             }
-            return Raid.Active(dog.Map) ? GuardJob(dog, stable) : null;
+            bool raid = Raid.Active(dog.Map);
+            Job patrol = raid || targets.Count > 0 ? PatrolJob(dog, stable) : null;
+            return patrol ?? (raid ? GuardJob(dog, stable) : null);
         }
 
         /// <summary>Standing hostiles in sight within the engage range join the queue.</summary>
@@ -98,7 +102,34 @@ namespace Quadrunner
             JobGiver_WaitInRoom.Qualifies(room) && !room.Map.mapPawns.FreeColonistsSpawned.Any(c => c.GetRoom() == room);
 
         /// <summary>
-        /// Raid on, nothing to fight: wait by the stable (agent default, 2026-10-20, until patrol waypoints exist),
+        /// To the next of the stable's waypoints (user, 2026-10-20: patrol in a loop while a raid is on or targets remain);
+        /// one reached or out of reach counts as passed. Null without waypoints or with none reachable. The job expires
+        /// like the others so the dog keeps looking; vanilla keeps the same Goto running rather than repathing.
+        /// </summary>
+        private static Job PatrolJob(Pawn dog, Building_Stable stable)
+        {
+            IReadOnlyList<IntVec3> points = stable.Waypoints;
+            CompRobodog comp = CompRobodog.Of(dog);
+            for (int tries = 0; tries < points.Count; tries++)
+            {
+                int i = comp.waypointsReached % points.Count;
+                IntVec3 cell = points[i];
+                if (dog.Position.InHorDistOf(cell, 1.5f) || !dog.CanReach(cell, PathEndMode.OnCell, Danger.Deadly))
+                {
+                    QR.Log($"{dog} {(dog.Position.InHorDistOf(cell, 1.5f) ? "reached" : "can't reach")} patrol waypoint {i + 1} at {cell}");
+                    comp.waypointsReached++;
+                    continue;
+                }
+                Job job = JobMaker.MakeJob(JobDefOf.Goto, cell);
+                job.expiryInterval = RecheckTicks;
+                job.checkOverrideOnExpire = true;
+                return job;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Raid on, nothing to fight, no patrol: wait by the stable (agent default, 2026-10-20),
         /// looking again every <see cref="RecheckTicks"/>.
         /// </summary>
         private static Job GuardJob(Pawn dog, Building_Stable stable)

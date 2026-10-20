@@ -129,16 +129,20 @@ namespace Quadrunner
         /// <summary>
         /// Captures: four raiders hit a Quadrunner; three go down, one dies. The Combatdog takes one downed raider to the
         /// only prisoner bed and carries the other two to the nearest empty room, past a nearer bedroom, leaving them
-        /// downed and not prisoners; the dead one is skipped. Reload while it carries one.
+        /// downed and not prisoners; the dead one is skipped. Reload while it carries one. Then the patrol: three
+        /// waypoints, a raider walled in out of sight keeps the raid on, another stands past waypoint 2. The Combatdog
+        /// reaches waypoint 1, spots the raider on its way to waypoint 2 and fights it, then walks 2, 3 and 1 again
+        /// (reload in between); with the walled-in raider dead it docks.
         /// </summary>
         private static void CombatdogSweep()
         {
             var s = new Scenario("Combatdog sweep", 30000);
-            string stableId = null, combatId = null, deadId = null;
+            string stableId = null, combatId = null, deadId = null, walledId = null, roamerId = null;
             var downIds = new List<string>();
             TestRoom emptyRoom = null, bedroom = null;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
+            Pawn ById(string id) => (Pawn)Scenario.ById(id);
             List<Pawn> Down() => downIds.Select(id => (Pawn)Scenario.ById(id)).ToList();
             bool InRoom(Pawn p, TestRoom room) => p != null && p.Spawned && room.Contains(p.Position);
             s.Do("a stable with a docked Combatdog and a one-bed prison cell; a field 20–30 cells out, a bedroom near it and an empty room farther; a Quadrunner and four unarmed raiders in the field", () =>
@@ -189,7 +193,56 @@ namespace Quadrunner
                         throw new InvalidOperationException("a raider was left in the bedroom");
                     return Stable().Docked.Contains(Combatdog()) && Stable().Targets(Stable().InteractionCell).Count == 0;
                 })
-                .Summary(() => "raiders " + string.Join(", ", downIds.Select(Fate)) + $"; dead one {Fate(deadId)}")
+                .Do("three patrol waypoints; a raider walled in out of sight; another 8–12 cells past waypoint 2, out of sight of waypoint 1 and the stable", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    Building_Stable stable = Stable();
+                    IntVec3 home = stable.InteractionCell;
+                    IntVec3 wp1 = OpenCell(map, home, 8f, 12f);
+                    IntVec3 wp2 = OpenCell(map, wp1, 25f, 30f, c => c.DistanceTo(home) > 25f);
+                    IntVec3 wp3 = OpenCell(map, home, 8f, 12f, c => c.DistanceTo(wp1) > 8f && c.DistanceTo(wp2) > 20f);
+                    foreach (IntVec3 c in new[] { wp1, wp2, wp3 })
+                        stable.AddWaypoint(c);
+                    roamerId = SpawnRaider(s, OpenCell(map, wp2, 8f, 12f,
+                        c => c.DistanceTo(wp1) > 20f && c.DistanceTo(home) > 20f && c.DistanceTo(wp3) > 20f)).ThingID;
+                    CellRect cage = ClearRect(map, home, 3, 1, 25f, 50f, r => r.CenterCell.DistanceTo(wp2) > 20f);
+                    foreach (IntVec3 c in cage.EdgeCells)
+                        SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel, c, Rot4.North);
+                    walledId = SpawnRaider(s, cage.CenterCell).ThingID;
+                    CompRobodog.Of(Combatdog()).waypointsReached = 0;
+                    Raid.Recheck(map);
+                })
+                .Expect("the Combatdog deploys and reaches waypoint 1 before it sees the raider", () =>
+                {
+                    if (Stable().Queued(ById(roamerId)) && CompRobodog.Of(Combatdog()).waypointsReached == 0)
+                        throw new InvalidOperationException("spotted the raider before waypoint 1");
+                    return CompRobodog.Of(Combatdog()).waypointsReached >= 1;
+                })
+                .Expect("on its way to waypoint 2 it spots the raider and fights it", () =>
+                {
+                    if (CompRobodog.Of(Combatdog()).waypointsReached > 2)
+                        throw new InvalidOperationException("walked past waypoint 2 without seeing the raider");
+                    return Attacking(Combatdog(), ById(roamerId)) || Stable().Queued(ById(roamerId)) && ById(roamerId).Downed;
+                })
+                .Expect("the raider dead or down and dealt with", () =>
+                    !(ById(roamerId) is Pawn p) || p.Dead || p.Downed && !Stable().Queued(p))
+                .SaveAndReload()
+                .Expect("the raid still on, it walks waypoints 2, 3 and 1 again", () =>
+                {
+                    if (Stable().Docked.Contains(Combatdog()))
+                        throw new InvalidOperationException("docked while the walled-in raider keeps the raid on");
+                    return CompRobodog.Of(Combatdog()).waypointsReached >= 4;
+                })
+                .Do("the walled-in raider dies: raid over", () =>
+                {
+                    Pawn walled = ById(walledId);
+                    walled.Kill(null);
+                    s.Track(walled.Corpse);
+                    Raid.Recheck(Find.CurrentMap);
+                })
+                .Expect("the Combatdog docks", () => Stable().Docked.Contains(Combatdog()))
+                .Summary(() => "raiders " + string.Join(", ", downIds.Select(Fate)) + $"; dead one {Fate(deadId)}; "
+                    + $"roamer {Fate(roamerId)}, walled-in {Fate(walledId)}; waypoints reached {CompRobodog.Of(Combatdog())?.waypointsReached}")
                 .Start();
         }
 
@@ -222,6 +275,7 @@ namespace Quadrunner
                     firstId = first.ThingID;
                     Raid.Recheck(map);
                     Hit(quad, first);
+                    QR.Log($"first raider {first} ({firstId}) at {first.Position}, {first.Position.DistanceTo(stable.Position):F0} cells from the stable");
                 })
                 .Expect("the Combatdog reaches the raider and fights", () =>
                     Attacking(Combatdog(), ById(firstId)) && Combatdog().Position.InHorDistOf(ById(firstId).Position, 1.5f))
@@ -246,18 +300,22 @@ namespace Quadrunner
                     frames++;
                     if (frames == 3 && AutoTest.Dir != null)
                     {
+                        QR.Log($"siren capture: retreating {CompRobodog.Of(Combatdog()).Retreating}, lit {CompRobodog.SirenPhaseLit}, " +
+                            $"moving {Combatdog().pather.Moving}, job {Combatdog().CurJob?.ToStringSafe()}");
                         string dir = Path.GetFullPath(Path.Combine(AutoTest.Dir, "..", "screens"));
                         Directory.CreateDirectory(dir);
                         ScreenCapture.CaptureScreenshot(Path.Combine(dir, "siren.png"));
                     }
                     return frames >= 6;
                 })
-                .Do("resume; a second raider hits the Quadrunner", () =>
+                .Do("resume; a second raider by the first hits the Quadrunner", () =>
                 {
                     Scenario.Resume();
                     Pawn quad = ById(quadId);
-                    Pawn second = SpawnRaider(s, OpenCell(Find.CurrentMap, quad.Position, 2f, 5f));
+                    // By the first raider, far out: the Quadrunner has gone home by now, where drafted colonists would shoot it.
+                    Pawn second = SpawnRaider(s, OpenCell(Find.CurrentMap, ById(firstId).Position, 2f, 5f));
                     secondId = second.ThingID;
+                    QR.Log($"second raider {second} ({secondId}) at {second.Position}; first {Fate(firstId)}");
                     Raid.Recheck(Find.CurrentMap);
                     Hit(quad, second);
                     retreatTick = Find.TickManager.TicksGame;

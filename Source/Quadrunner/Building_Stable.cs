@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using Verse.AI;
 
@@ -22,12 +23,16 @@ namespace Quadrunner
     /// Docks robodogs (despawned into <see cref="docked"/>), sends them out to work, repairs and charges them while
     /// powered, and runs the dog bills. A dog belongs to the stable its <see cref="CompRobodog.stable"/> names, whether
     /// docked or out; all of them share <see cref="Capacity"/> slots. Its Combatdogs work its target queue
-    /// (<see cref="Combat"/>): hostiles that hit one of its dogs (a ping) or that a Combatdog sees.
+    /// (<see cref="Combat"/>): hostiles that hit one of its dogs (a ping) or that a Combatdog sees, and walk its patrol
+    /// waypoints, placed with a gizmo.
     /// </summary>
     public class Building_Stable : Building_WorkTable, IThingHolder
     {
         private ThingOwner<Pawn> docked;
         private List<Pawn> targets = new List<Pawn>();
+        private List<IntVec3> waypoints = new List<IntVec3>();
+        // Set by a click while placing waypoints, so the targeter starts again once vanilla stops it after the click.
+        private bool placingMore;
         // Not saved: after a load the stable just checks again.
         private int nextDispatchTick;
         private bool destroying;
@@ -147,6 +152,69 @@ namespace Quadrunner
                 return false;
             targets.Add(hostile);
             return true;
+        }
+
+        /// <summary>The patrol route its deployed Combatdogs walk in this order, looping.</summary>
+        public IReadOnlyList<IntVec3> Waypoints => waypoints;
+
+        public void AddWaypoint(IntVec3 cell)
+        {
+            waypoints.Add(cell);
+            QR.Log($"{this}: patrol waypoint {waypoints.Count} at {cell}");
+        }
+
+        public void ClearWaypoints() => waypoints.Clear();
+
+        /// <summary>Waypoints are placed one click after another until right-click or Escape.</summary>
+        private void PlaceWaypoints()
+        {
+            var parms = new TargetingParameters { canTargetLocations = true, canTargetPawns = false, canTargetBuildings = false,
+                validator = t => t.Cell.InBounds(Map) && t.Cell.Standable(Map) };
+            Find.Targeter.BeginTargeting(parms, t =>
+                {
+                    AddWaypoint(t.Cell);
+                    placingMore = true;
+                }, actionWhenFinished: () =>
+                {
+                    if (placingMore && Spawned)
+                    {
+                        placingMore = false;
+                        PlaceWaypoints();
+                    }
+                }, requiresCastedSelected: false);
+        }
+
+        public override IEnumerable<Gizmo> GetGizmos()
+        {
+            foreach (Gizmo g in base.GetGizmos())
+                yield return g;
+            yield return new Command_Action
+            {
+                defaultLabel = "Add patrol waypoints",
+                defaultDesc = "Click to place waypoints one after another; right-click to stop. Deployed Combatdogs walk "
+                    + "them in order, in a loop, while a raid is on or targets remain.",
+                icon = TexCommand.SquadAttack,
+                action = PlaceWaypoints,
+            };
+            if (waypoints.Count > 0)
+                yield return new Command_Action
+                {
+                    defaultLabel = "Clear patrol",
+                    defaultDesc = $"Remove all {waypoints.Count} patrol waypoints.",
+                    icon = TexCommand.ClearPrioritizedWork,
+                    action = ClearWaypoints,
+                };
+        }
+
+        public override void DrawExtraSelectionOverlays()
+        {
+            base.DrawExtraSelectionOverlays();
+            if (waypoints.Count == 0)
+                return;
+            GenDraw.DrawFieldEdges(waypoints, Color.yellow);
+            for (int i = 0; i < waypoints.Count; i++)
+                GenDraw.DrawLineBetween(waypoints[i].ToVector3Shifted(), waypoints[(i + 1) % waypoints.Count].ToVector3Shifted(),
+                    SimpleColor.Yellow);
         }
 
         /// <summary>Done with a target: captured, or left downed in a room.</summary>
@@ -279,8 +347,12 @@ namespace Quadrunner
             if (Scribe.mode == LoadSaveMode.Saving)
                 targets.RemoveAll(p => p == null || p.Destroyed);
             Scribe_Collections.Look(ref targets, "targets", LookMode.Reference);
+            Scribe_Collections.Look(ref waypoints, "waypoints", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
                 targets = targets?.Where(p => p != null).ToList() ?? new List<Pawn>();
+                waypoints = waypoints ?? new List<IntVec3>();
+            }
         }
     }
 }

@@ -73,7 +73,9 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Combatdog: race | `QR_Combatdog`, intelligence ToolUser; claws on the front paws (cut and scratch, 13 power, 1.5 s, about a warg's) plus a weak head butt; 200% move speed whenever it is out of its stable (`deployedSpeedFactor` on `RobodogWork`, through the existing move-speed stat part). Rebuild Combatdog: the wreck + 50 steel + 25 plasteel, no components, as for the other dogs (agent, 2026-10-20) |
 | Combatdog: queue and pings | Each stable keeps a saved queue of hostile pawns, filled only by pings (a hostile pawn damaging any of its dogs) and by what its Combatdogs see within the engage range; a raid alone deploys Combatdogs but queues nobody. A ping for an attacker not yet queued sends one Combatdog: one already out without a target (heading home or guarding) first, else a docked one; an attacker already queued sends none. Combatdogs waiting for a charge never answer. While targets are queued and none of the stable's Combatdogs is out, the stable sends one at its next dispatch check. Jobs expire every 60 ticks, so the queue is re-sorted about once a second (agent, 2026-10-20) |
 | Combatdog: capture | A downed queued humanlike goes to a free prisoner bed (vanilla `Capture`); with none, or for a non-humanlike, it is carried to the nearest room (by regions from where it lies) that passes the stable-gone wait rule (indoors, not a bedroom, barracks or prison) with no colonist in it, and left there downed; it then leaves the queue. One already lying in such a room is left there. Without such a room it stays queued (agent, 2026-10-20) |
-| Combatdog: guard | During a raid with nothing in the queue, a deployed Combatdog waits within 4 cells of its stable's interaction cell, looking again every 60 ticks, until patrol waypoints exist (agent, 2026-10-20) |
+| Combatdog: guard | During a raid with nothing in the queue and no patrol waypoints set, a deployed Combatdog waits within 4 cells of its stable's interaction cell, looking again every 60 ticks (agent, 2026-10-20) |
+| Combatdog: patrol | The stable's **Add patrol waypoints** gizmo places one waypoint per click until right-click or Escape; **Clear patrol** removes them; the route is drawn in yellow while the stable is selected. With nothing to fight while a raid is on or targets remain, each deployed Combatdog walks to the next waypoint (saved count per dog, looping); one within 1.5 cells or out of reach counts as passed. Goto jobs expire every 60 ticks like the others, so it keeps spotting hostiles within the engage range (agent, 2026-10-20) |
+| Combatdog: siren | The retreat light is a yellow lamp texture (`Quadrunner/Things/Siren`, with alpha) under vanilla's lightning glow tinted yellow, flashing at 2 Hz in real time over a retreating Combatdog; the glow alone hardly showed on bright ground (agent, 2026-10-20) |
 | Test instance idle | Between scenarios the test instance renders at 5 frames a second (`Application.targetFrameRate`), restored while a scenario runs: software rendering used ~370% CPU while idle (agent, told the user, 2026-10-20) |
 | Test map size | The test instance's quicktest map is 200×200 instead of vanilla's fixed 250 (a postfix on `Root_Play.SetupForQuickTestPlay`, active only with the `-quadrunner-autotest` launch argument, so outside the gameplay patch budget); three scenarios ran in 64 s instead of 122 s (user's suggestion, size by measurement, 2026-10-20) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
@@ -144,11 +146,11 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T7: Combatdog Tier 1, pings and patrols
 
-- [ ] Combatdog T1 recipe and race: claws (cut, scratch), 200% move speed while deployed, tool-user intelligence
-- [ ] Any dog hit by a hostile pings its stable; the stable sends a docked or returning Combatdog regardless of radius; queue nearest first, retarget each tick, redirect while heading home, not while retreating
-- [ ] Capture downed targets to a free prisoner bed, else the nearest empty non-bedroom room; skip the dead
-- [ ] Stable patrol waypoints walked in order while deployed
-- [ ] Low battery mid-fight: retreat with the yellow siren light, ignore pings until charged
+- [x] Combatdog T1 recipe and race: claws (cut, scratch), 200% move speed while deployed, tool-user intelligence (**Assemble Combatdog**, run 2026-10-20 04:51, 0 new errors)
+- [x] Any dog hit by a hostile pings its stable; the stable sends a docked or returning Combatdog regardless of radius; queue nearest first, retarget each tick, redirect while heading home, not while retreating (**Ping chain** and **Low-battery retreat**, run 2026-10-20 05:08, 0 new errors)
+- [x] Capture downed targets to a free prisoner bed, else the nearest empty non-bedroom room; skip the dead (**Combatdog sweep**, runs 2026-10-20 04:51 and 05:09, 0 new errors)
+- [x] Stable patrol waypoints walked in order while deployed (**Combatdog sweep**, run 2026-10-20 05:09: waypoints 1, 2, 3, 1 across a reload, 0 new errors)
+- [x] Low battery mid-fight: retreat with the yellow siren light, ignore pings until charged (**Low-battery retreat**, run 2026-10-20 05:08; siren seen in `.devlog/screens/siren.png` from run 05:05, 0 new errors)
 - [ ] Draftable with priority targets (Harmony)
 - [ ] Scenarios pass: **Ping chain**, **Combatdog sweep** (captures with and without a free bed, patrol), **Low-battery retreat**, **Drafted priority target**
 

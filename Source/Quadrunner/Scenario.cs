@@ -94,7 +94,7 @@ namespace Quadrunner
                     GameDataSaveLoader.LoadGame(SaveName);
                 })
                 .Expect("loaded", () => Current.Game != before && AutoTest.MapReady)
-                .Do("resume", Resume);
+                .Expect("resumed", Resume);
         }
 
         /// <summary>Appended to the PASS/FAIL line.</summary>
@@ -188,7 +188,16 @@ namespace Quadrunner
             }
         }
 
-        public static void Resume() => Find.TickManager.CurTimeSpeed = fast ? TimeSpeed.Ultrafast : TimeSpeed.Normal;
+        /// <summary>
+        /// Sets the scenario speed; false while the game ignores it: the setter drops any value while
+        /// <c>Game.PlayerHasControl</c> is false, as during a loaded game's fade-in, which left reloaded scenarios at Normal.
+        /// </summary>
+        public static bool Resume()
+        {
+            TimeSpeed speed = fast ? TimeSpeed.Ultrafast : TimeSpeed.Normal;
+            Find.TickManager.CurTimeSpeed = speed;
+            return Find.TickManager.CurTimeSpeed == speed;
+        }
 
         /// <summary>Called every frame by <see cref="AutoTest"/>; steps only run while a map is up.</summary>
         public static void Update()

@@ -17,10 +17,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T7** (Combatdog T1, pings, patrols): T5 and T6 done (run 2026-10-20 04:07). First cut the test instance's CPU use (software rendering), then ask T7's design questions.
+- Next: **T7** last slice, **drafting with priority targets** (Harmony) and the **Drafted priority target** scenario; then Run all and tick box 7. Boxes 1–5 ticked (runs 2026-10-20 04:51–05:09): race, pings, capture, patrol waypoints (stable gizmo), low-battery retreat with the siren lamp.
+- Drafting research: a drafter needs a postfix on `PawnComponentsUtility.AddAndRemoveDynamicComponents` (vanilla gives one only to humanlikes, colony mechs and mutants); right-click move orders need `Pawn.CanTakeOrder` (getter); vanilla's melee option is blocked separately in `FloatMenuUtility.GetMeleeAttackAction` (`IsColonistPlayerControlled`), so priority targets need a third patch or our own gizmo; the draft toggle can come from `CompRobodog.CompGetGizmosExtra` (`Pawn.GetGizmos` includes comps); the think tree `QR_Robodog` needs a drafted branch (XML). Three gameplay patches so far (construction, kidnap, draw offset) of about six.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 04:07, build `cc7ec0e-dirty.20261020T035232Z`, Run all 25/29 PASS (T2/T4 setup FAILs, fixed since but not rerun), 0 new errors, map 200, beside the user's open game.
+- Last run: 2026-10-20 05:09, build `dc08c02-dirty.20261020T050850Z`, Combatdog sweep 1/1 PASS (and 05:08: Ping chain, Low-battery retreat PASS), 0 new errors, map 200.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
@@ -131,6 +132,15 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Screenshots from a scenario.** `ScreenCapture.CaptureScreenshot` works on Xvfb; pause, `CameraDriver.SetRootPosAndSize`, then count frames (the runner checks steps once per frame, and no ticks pass while paused). Files land in `.devlog/screens/`.
 - **Test map size.** `SetupForQuickTestPlay` hard-codes 250; `-quadrunner-mapsize` (`QR_MAP_SIZE`, default 200) overrides it, and each scenario's result line ends with its wall time and ticks/s. Changing it needs `autotest.py stop` first.
 - **Software rendering is the CPU cost.** The instance renders with llvmpipe; at 1280×720 with a thread per core it used ~1800% CPU. 640×360 with `LP_NUM_THREADS=4` ran as fast at ~400%; fewer threads or a bigger window at 4 threads halved the tick rate. Check `ps -o times,etimes` when changing either.
+- **Reloaded games ran at Normal speed.** A loaded game fades in, and `TickManager.CurTimeSpeed`'s setter drops any value while `Game.PlayerHasControl` is false (`ScreenFader.IsFading`), so the reload's "resume" step silently did nothing; `Scenario.Resume` now returns whether it stuck and the step retries (~30 ticks). Every hostile scenario that reloaded had run at ~60 ticks/s.
+- **Vanilla defend-point raiders chase.** `LordJob_DefendPoint` defaults to a 28-cell defend radius and a flee toil; scenario raiders that hit a dog chased it home. `SpawnRaider` passes `wanderRadius 2, defendRadius 3, addFleeToil false`.
+- **Unarmed pirates die to Combatdog claws** rather than going down, so capture tests down their targets with `DownBleeding` instead of relying on the fight.
+- **A docked pawn's job reads "Carried"** (`JobGiver_Carried` from the Despawned think tree): not a bug in a summary.
+- **Dead pawns aren't found by ThingID.** `Scenario.ById` misses a killed pawn (its corpse has another ID), so `Fate` prints "gone", and a step that kills a pawn must keep the reference (`p.Kill(null); s.Track(p.Corpse)`).
+- **Ping order vs nearest first:** the first ping sends a docked Combatdog at once after that attacker; a nearer one pinged in the same tick is taken at the next re-sort (60-tick expiry with `checkOverrideOnExpire`).
+- **Dogs in the field go home.** A Quadrunner placed out with nothing to do walks back to its stable; spawn later hostiles relative to something that stays put, or they appear by the stable and the drafted colonists shoot them.
+- **Glow textures have no alpha.** `Things/Mote/LightningGlow` is meant for the additive `MoteGlow` shader; with `Transparent` it draws a dark square, and additive alone hardly shows on bright ground. The siren uses its own lamp texture with alpha.
+- **Targeter re-arming.** `Targeter` calls `StopTargeting()` after the click action, so begin the next targeting from `actionWhenFinished` (guarded by a flag set in the action, since right-click also calls it).
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*
 - **One defend point clusters pawns.** A single `LordJob_DefendPoint` for several pawns gathers them at one spot. Give each hostile its own lord. *(QB)*
 - **Screenshots: one window only.** Capture by exact window class `RimWorldLinux` on the instance's own `DISPLAY` (read from `/proc/<pid>/environ`); a title match also hits browser tabs about RimWorld. Never `import -window root`. *(QB)*
