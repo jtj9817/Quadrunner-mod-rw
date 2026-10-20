@@ -146,6 +146,12 @@ namespace Quadrunner
                 stable.Ping(attacker, Dog);
         }
 
+        public override void Notify_Killed(Map prevMap, DamageInfo? dinfo = null)
+        {
+            base.Notify_Killed(prevMap, dinfo);
+            QR.Log($"{Dog} killed by {dinfo?.Instigator.ToStringSafe()} ({dinfo?.Def?.defName}, {dinfo?.Weapon?.defName})");
+        }
+
         public override IEnumerable<Gizmo> CompGetGizmosExtra()
         {
             foreach (Gizmo g in base.CompGetGizmosExtra())
