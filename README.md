@@ -4,7 +4,7 @@ A RimWorld 1.6 mod (Core only, requires Harmony): robot dogs dispatched from a s
 
 Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled configurations have not been verified. Progress and exact verification runs are recorded in [TODO.md](TODO.md) and [docs/test-runs.md](docs/test-runs.md).
 
-The local release is `dist/Quadrunner`, build `4137037.20261020T174523Z`. Its packaged **Run all passed 39/39 with zero new errors** on 2026-10-20 after the 3,500-cell battery-range update. The original T9 release also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for the separate range-update and removal evidence.
+The local release is `dist/Quadrunner`, build `a5ca72e.20261020T183812Z`, including the 3,500-cell battery range and Hearthline lore/tooltips. Its five affected packaged scenarios passed **5/5 with zero new errors**, and native cards/tooltips were visually checked on 2026-10-20. The preceding battery-range package (`4137037.20261020T174523Z`) passed **Run all 39/39**; the original T9 release also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for these separate builds and checks.
 
 ## Hearthline Robotics
 

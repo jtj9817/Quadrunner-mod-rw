@@ -32,9 +32,11 @@ Introduce the approved manufacturer, **Hearthline Robotics**, in the Quadrunner 
 ### T2 — Verified local release
 
 - [x] Relevant scenarios pass with zero new errors; actual game screenshots of the changed surfaces are inspected.
-- [ ] The rebuilt `dist/Quadrunner` package is exercised, release documentation and the test log are updated, and the verified work is committed.
+- [x] The rebuilt `dist/Quadrunner` package is exercised, release documentation and the test log are updated, and the verified work is committed.
 
 Development evidence: focused scenarios **5/5 PASS** at 18:25 UTC; gallery-only follow-up **1/1 PASS** at 18:33 UTC on 2026-10-20, both with zero new errors. All 25 native information cards were inspected, and 14 Overview hover targets were reached with observed pointer-coordinate checks on the private 1280x900 display. The resulting tooltips were inspected; see [the run log](../test-runs.md).
+
+Package evidence: `a5ca72e.20261020T183812Z` cold-launched from the actual `dist/Quadrunner` root at 18:40 UTC on 2026-10-20: **5/5 affected scenarios PASS**, zero new errors, 125 s. All 14 native hover targets were reached with observed pointer coordinates; representative packaged cards and all changed tooltip control types were visually inspected. The private game/Xvfb were stopped and the development symlink restored.
 
 ## Open questions
 
