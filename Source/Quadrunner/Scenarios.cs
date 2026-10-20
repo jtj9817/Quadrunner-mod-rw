@@ -15,7 +15,8 @@ namespace Quadrunner
             ("Smoke", Smoke),
             ("Save and reload", SaveAndReload),
             ("Dock and undock", DockAndUndock),
-            ("Assemble and dock", AssembleAndDock),
+            ("Assemble and dock", () => AssembleAndDock("Assemble and dock", QR_DefOf.QR_AssembleQuadrunner)),
+            ("Assemble Medirunner", () => AssembleAndDock("Assemble Medirunner", QR_DefOf.QR_AssembleMedirunner)),
             ("Stable full (16th dog)", StableFull),
             ("Battery drain and power-down", DrainAndPowerDown),
             ("Conduit charging", ConduitCharging),
@@ -35,6 +36,8 @@ namespace Quadrunner
             ("Retrieval under fire", RetrievalUnderFire),
             ("Raider carries off a dog", RaiderCarriesOffDog),
             ("Wreck rebuilt", WreckRebuilt),
+            ("Mass-casualty raid", MassCasualtyRaid),
+            ("Rescue order", RescueOrder),
         };
 
         /// <summary>
@@ -116,11 +119,11 @@ namespace Quadrunner
         private static Job BillJob(Pawn crafter, Building_Stable stable) =>
             QR_DefOf.QR_DoBillsStable.Worker is WorkGiver_Scanner w ? w.JobOnThing(crafter, stable, forced: true) : null;
 
-        private static void SpawnAssembleMaterials(Scenario s, Building_Stable stable)
+        /// <summary>The ingredients of <paramref name="recipe"/>, by the stable.</summary>
+        private static void SpawnAssembleMaterials(Scenario s, Building_Stable stable, RecipeDef recipe)
         {
-            SpawnStack(s, ThingDefOf.Steel, 80, stable.InteractionCell);
-            SpawnStack(s, ThingDefOf.Plasteel, 30, stable.InteractionCell);
-            SpawnStack(s, ThingDefOf.ComponentSpacer, 1, stable.InteractionCell);
+            foreach (IngredientCount ingredient in recipe.ingredients)
+                SpawnStack(s, ingredient.filter.AnyAllowedDef, (int)ingredient.GetBaseCount(), stable.InteractionCell);
         }
 
         /// <summary>The race's guarantees, a docked dog undocking and walking home to dock, across two reloads.</summary>
@@ -182,10 +185,11 @@ namespace Quadrunner
                 .Start();
         }
 
-        /// <summary>A colonist works the "Assemble Quadrunner" bill; the finished dog docks straight into the stable.</summary>
-        private static void AssembleAndDock()
+        /// <summary>A colonist works a dog bill (<paramref name="recipe"/>); the finished dog, of its kind, docks straight into the stable.</summary>
+        private static void AssembleAndDock(string name, RecipeDef recipe)
         {
-            var s = new Scenario("Assemble and dock", 20000);
+            PawnKindDef kind = recipe.GetModExtension<AssembleProps>().kind;
+            var s = new Scenario(name, 20000);
             string stableId = null, dogId = null;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             s.Do("spawn a powered stable, materials and a bill", () =>
@@ -193,8 +197,8 @@ namespace Quadrunner
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     Find.ResearchManager.FinishProject(QR_DefOf.MicroelectronicsBasics);
-                    SpawnAssembleMaterials(s, stable);
-                    stable.BillStack.AddBill(QR_DefOf.QR_AssembleQuadrunner.MakeNewBill());
+                    SpawnAssembleMaterials(s, stable, recipe);
+                    stable.BillStack.AddBill(recipe.MakeNewBill());
                 })
                 .Expect("a colonist takes the bill", () =>
                 {
@@ -202,7 +206,7 @@ namespace Quadrunner
                     Job job = BillJob(crafter, Stable());
                     return job != null && crafter.jobs.TryTakeOrderedJob(job);
                 })
-                .Expect("a Quadrunner docks into the stable", () => Stable().Docked.Count == 1)
+                .Expect($"a {kind.label} docks into the stable", () => Stable().Docked.Count == 1 && Stable().Docked[0].kindDef == kind)
                 .Do("note the dog", () => dogId = s.Track(Stable().Docked[0]).ThingID)
                 .Expect("the bill is done", () => Stable().BillStack.Count == 0 || !Stable().BillStack[0].ShouldDoNow())
                 .SaveAndReload()
@@ -227,7 +231,7 @@ namespace Quadrunner
                     for (int i = 0; i < 14; i++)
                         s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
                     Find.ResearchManager.FinishProject(QR_DefOf.MicroelectronicsBasics);
-                    SpawnAssembleMaterials(s, stable);
+                    SpawnAssembleMaterials(s, stable, QR_DefOf.QR_AssembleQuadrunner);
                     stable.BillStack.AddBill(QR_DefOf.QR_AssembleQuadrunner.MakeNewBill());
                 })
                 .Expect("with a free slot, the bill is doable", () => Stable().HasFreeSlot && BillJob(Crafter(), Stable()) != null)

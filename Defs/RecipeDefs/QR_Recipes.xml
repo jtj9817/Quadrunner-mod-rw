@@ -39,6 +39,31 @@
     </modExtensions>
   </RecipeDef>
 
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_AssembleMedirunner</defName>
+    <label>assemble Medirunner</label>
+    <description>Assemble a Medirunner, a rescue robot. It docks straight into this stable.</description>
+    <jobString>Assembling Medirunner.</jobString>
+    <workAmount>3500</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>80</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>50</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>2</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>Plasteel</li>
+        <li>ComponentSpacer</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Medirunner</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
   <!-- A destroyed dog leaves its corpse as the wreck; rebuilding it costs about half the recipe and brings the same dog
        back (agent default, 2026-10-20: half the steel and plasteel, no component). -->
   <RecipeDef ParentName="QR_AssembleDogBase">
@@ -63,6 +88,32 @@
     <modExtensions>
       <li Class="Quadrunner.AssembleProps">
         <kind>QR_Quadrunner</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_RebuildMedirunner</defName>
+    <label>rebuild Medirunner</label>
+    <description>Rebuild a destroyed Medirunner from its wreck. The same dog docks straight into this stable.</description>
+    <jobString>Rebuilding Medirunner.</jobString>
+    <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
+    <workAmount>1750</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Corpse_QR_Medirunner</li></thingDefs></filter><count>1</count></li>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>40</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>25</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Corpse_QR_Medirunner</li>
+        <li>Steel</li>
+        <li>Plasteel</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Medirunner</kind>
       </li>
     </modExtensions>
   </RecipeDef>

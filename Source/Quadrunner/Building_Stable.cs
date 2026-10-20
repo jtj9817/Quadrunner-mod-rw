@@ -49,11 +49,12 @@ namespace Quadrunner
         /// <summary>Within the service radius (construction delivery ignores it).</summary>
         public bool Covers(IntVec3 cell) => cell.InHorDistOf(Position, Props.serviceRadius);
 
-        /// <summary>A docked dog that could be sent out now: a worker, not waiting for a charge.</summary>
-        public bool HasIdleDog => IdleDog() != null;
+        /// <summary>A docked worker (not a medic) that could be sent out now, not waiting for a charge.</summary>
+        public bool HasIdleDog => IdleDog(medic: false) != null;
 
-        private Pawn IdleDog() => docked.InnerListForReading
-            .Where(d => RobodogWork.Of(d) != null && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
+        private Pawn IdleDog(bool medic) => docked.InnerListForReading
+            .Where(d => RobodogWork.Of(d) is RobodogWork w && w.rescue == medic
+                && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
             .OrderByDescending(d => CompRobodog.Of(d).Battery)
             .FirstOrDefault();
 
@@ -116,26 +117,37 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// Sends out one idle dog if there is work for it. The work search needs a spawned dog, so the dog steps out
-        /// and, if it finds nothing, docks again in the same tick; the stable then waits <see cref="StableProps.idleBackoff"/>.
+        /// Sends out one idle dog if there is work for it: a medic while someone is down (raid or not), else a worker
+        /// (never during a raid). The work search needs a spawned dog, so the dog steps out and, if it finds nothing,
+        /// docks again in the same tick; once a dog tried and found nothing, the stable waits <see cref="StableProps.idleBackoff"/>.
         /// </summary>
         public void TryDispatch(bool force = false)
         {
             int now = Find.TickManager.TicksGame;
-            if (!force && now < nextDispatchTick || Raid.Active(Map))
+            if (!force && now < nextDispatchTick)
                 return;
-            Pawn dog = IdleDog();
+            bool tried = false;
+            if (Rescue.AnyPatient(Map) && TrySend(IdleDog(medic: true), ref tried)
+                || !Raid.Active(Map) && TrySend(IdleDog(medic: false), ref tried))
+                return;
+            if (tried)
+                nextDispatchTick = now + Props.idleBackoff;
+        }
+
+        private bool TrySend(Pawn dog, ref bool tried)
+        {
             if (dog == null || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
-                return;
+                return false;
+            tried = true;
             Job job = DogWork.FindJob(dog);
             if (job == null)
             {
                 TryDock(dog, log: false);
-                nextDispatchTick = now + Props.idleBackoff;
-                return;
+                return false;
             }
             dog.jobs.StartJob(job, JobCondition.InterruptForced);
             QR.Log($"{this} dispatched {dog} ({CompRobodog.Of(dog).Battery:P0}): {job.def.defName} {job.targetA}");
+            return true;
         }
 
         protected override void Tick()

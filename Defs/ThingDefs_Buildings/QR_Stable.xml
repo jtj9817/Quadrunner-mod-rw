@@ -64,6 +64,8 @@
     <recipes>
       <li>QR_AssembleQuadrunner</li>
       <li>QR_RebuildQuadrunner</li>
+      <li>QR_AssembleMedirunner</li>
+      <li>QR_RebuildMedirunner</li>
       <li>QR_MakeRobodogBattery</li>
       <li>QR_MakeRobodogRepairKit</li>
     </recipes>

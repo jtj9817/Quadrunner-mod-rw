@@ -17,7 +17,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T5** (Medirunner: recipe and race, rescue order, triage; scenario **Mass-casualty raid**). T4 done: all 6 boxes ticked on run 2026-10-20 01:12 (Run all 23/23 PASS, 0 new errors); T1's debug-actions box with it. T3 done (run 2026-10-20 00:21), T2 done (run 2026-10-19 22:27), T0 done (run 2026-10-19 23:20).
+- Next: **T5** (Medirunner): code and 3 scenarios written (commit "T5 WIP"); Mass-casualty raid and Rescue order PASS (run 2026-10-20 01:40); Assemble Medirunner and a full Run all (26) on the final build not run yet; see the newest hand-off doc. T4 done (run 2026-10-20 01:12, Run all 23/23), T1 done with it; T3, T2, T0 done.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
 - Last run: 2026-10-20 01:12, build `8c69a2c-dirty.20261020T005934Z`, Run all 23/23 PASS, 0 new errors, beside the user's open game.

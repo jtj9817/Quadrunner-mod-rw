@@ -119,6 +119,20 @@
     </modExtensions>
   </ThingDef>
 
+  <ThingDef ParentName="QR_RobodogBase">
+    <defName>QR_Medirunner</defName>
+    <label>Medirunner</label>
+    <description>A four-legged rescue robot. It docks at a stable, which sends it out whenever someone is down, raid or not, to carry them to a bed: colonists first, then guests, prisoners and colony animals, the fastest-bleeding first. It does no other work.</description>
+    <modExtensions>
+      <!-- Medic only (user, 2026-10-20): rescues, map-wide and under fire, nothing else; no raid speed or drain change. -->
+      <li Class="Quadrunner.RobodogWork">
+        <rescue>true</rescue>
+        <raidSpeedFactor>1</raidSpeedFactor>
+        <raidDrainFactor>1</raidDrainFactor>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
   <PawnKindDef>
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
@@ -132,6 +146,29 @@
           <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
           <drawSize>1.4</drawSize>
           <color>(120,135,150)</color>
+          <shaderType>CutoutComplex</shaderType>
+          <shadowData>
+            <volume>(0.25, 0.3, 0.25)</volume>
+            <offset>(0,0,-0.15)</offset>
+          </shadowData>
+        </bodyGraphicData>
+      </li>
+    </lifeStages>
+  </PawnKindDef>
+
+  <PawnKindDef>
+    <defName>QR_Medirunner</defName>
+    <label>Medirunner</label>
+    <race>QR_Medirunner</race>
+    <combatPower>40</combatPower>
+    <canArriveManhunter>false</canArriveManhunter>
+    <!-- Placeholder art: the vanilla husky, tinted white with a red hint, until the robodog textures exist (T9). -->
+    <lifeStages>
+      <li>
+        <bodyGraphicData>
+          <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
+          <drawSize>1.4</drawSize>
+          <color>(225,215,215)</color>
           <shaderType>CutoutComplex</shaderType>
           <shadowData>
             <volume>(0.25, 0.3, 0.25)</volume>

@@ -10,6 +10,8 @@ namespace Quadrunner
     /// <summary>On a dog race that works: which vanilla work givers it runs, and how a raid changes it.</summary>
     public class RobodogWork : DefModExtension
     {
+        /// <summary>A medic (Medirunner): it only rescues the downed (<see cref="Rescue"/>), raid or not.</summary>
+        public bool rescue;
         public List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
         public List<WorkGiverDef> mapWide = new List<WorkGiverDef>();
         public List<JobDef> jobs = new List<JobDef>();
@@ -23,7 +25,7 @@ namespace Quadrunner
     /// Finds work for a dog of a stable: the first work giver (in <see cref="RobodogWork.workGivers"/> order) with a
     /// target in the stable's service radius (or anywhere, for <see cref="RobodogWork.mapWide"/> ones), closest to the
     /// dog first, after carrying powered-down dogs home (<see cref="Retrieval"/>). A target closer to another stable that
-    /// has an idle dog is left to that stable. None during a raid.
+    /// has an idle dog is left to that stable. None during a raid. A medic only rescues, raid or not.
     /// </summary>
     public static class DogWork
     {
@@ -33,7 +35,11 @@ namespace Quadrunner
             CompRobodog comp = CompRobodog.Of(dog);
             Building_Stable stable = comp?.stable;
             if (work == null || stable == null || !stable.Spawned || stable.Map != dog.Map || !dog.Spawned
-                || comp.WantsCharge || comp.PoweredDown || Raid.Active(dog.Map))
+                || comp.WantsCharge || comp.PoweredDown)
+                return null;
+            if (work.rescue)
+                return Rescue.JobFor(dog);
+            if (Raid.Active(dog.Map))
                 return null;
             List<Building_Stable> others = dog.Map.listerBuildings.AllBuildingsColonistOfClass<Building_Stable>()
                 .Where(s => s != stable && s.HasIdleDog).ToList();
