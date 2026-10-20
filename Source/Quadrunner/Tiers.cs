@@ -83,6 +83,20 @@ namespace Quadrunner
         }
     }
 
+    /// <summary>
+    /// On the built-in guns: once one leaves its dog (switched, or destroyed on a drop), a warmup or cooldown that uses
+    /// its verb ends too. Vanilla keeps a cooldown, which then references a verb nothing saves.
+    /// </summary>
+    public class CompBuiltInGun : ThingComp
+    {
+        public override void Notify_Unequipped(Pawn pawn)
+        {
+            base.Notify_Unequipped(pawn);
+            if (pawn.stances?.curStance is Stance_Busy busy && busy.verb?.EquipmentSource == parent)
+                pawn.stances.CancelBusyStanceHard();
+        }
+    }
+
     /// <summary>A Combatdog upgrade for one dog; done only while that dog is docked in this stable.</summary>
     public class Bill_UpgradeDog : Bill_Production
     {

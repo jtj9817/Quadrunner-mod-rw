@@ -127,6 +127,9 @@ def cmd_lint(rw_dir, repo):
             else:
                 refs = []
             errors += [f"{rel}: <{el.tag}> references unknown def '{r}'" for r in refs if r not in known]
+            name = el.findtext("defName", "").strip() if el.tag == "ThingDef" else ""
+            if name[-1:].isdigit():
+                errors.append(f"{rel}: ThingDef '{name}' ends in a digit (thing IDs won't resolve on load)")
             if el.tag in TEX_TAGS and el.text and el.text.strip().startswith(OUR_TEX_PREFIX):
                 if not texture_exists(tex_root, el.text.strip()):
                     errors.append(f"{rel}: <{el.tag}> '{el.text.strip()}' has no PNG under Textures/ (case-sensitive)")

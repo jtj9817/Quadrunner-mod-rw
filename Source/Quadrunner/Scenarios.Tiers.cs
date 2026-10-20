@@ -15,6 +15,10 @@ namespace Quadrunner
         private static int LooseGuns() => Find.CurrentMap.listerThings.AllThings
             .Count(t => t.def.IsWeapon && t.def.destroyOnDrop && t.def.defName.StartsWith("QR_Gun"));
 
+        /// <summary>A warmup or cooldown that uses a gun the dog no longer holds (its verb would be saved unresolvable).</summary>
+        private static bool StaleStance(Pawn dog) =>
+            dog.stances.curStance is Stance_Busy busy && busy.verb?.EquipmentSource is Thing gun && gun != dog.equipment.Primary;
+
         private static bool Shooting(Pawn dog, Thing target, ThingDef gun) =>
             dog.Spawned && dog.CurJobDef == JobDefOf.AttackStatic && dog.CurJob.targetA.Thing == target && Held(dog) == gun;
 
@@ -99,7 +103,8 @@ namespace Quadrunner
                         Stable().TryUndock(Dog());
                     CompRobodog.Of(Dog()).SetBattery(0f);
                 })
-                .Expect("downed, it dropped no gun; none lies anywhere", () => Dog().Downed && LooseGuns() == 0)
+                .Expect("downed, it dropped no gun; none lies anywhere; no stance on a gone gun", () =>
+                    Dog().Downed && LooseGuns() == 0 && !StaleStance(Dog()))
                 .Summary(() => $"dog {Dog()?.def.defName} {Dog()?.LabelShort} ({name}) holding {Held(Dog())?.defName}, "
                     + $"{Dog()?.CurJob.ToStringSafe()}; raider {Fate(raiderId)}; loose guns {LooseGuns()}")
                 .Start();
@@ -193,7 +198,8 @@ namespace Quadrunner
                 })
                 .Expect("the minigun costs 0.25 cells/s, doubled while deployed", () => Math.Abs(speed3 - speed4 - 0.5f) < 0.01f)
                 .Do("power it down", () => CompRobodog.Of(Dog()).SetBattery(0f))
-                .Expect("downed, it dropped no gun", () => Dog().Downed && LooseGuns() == 0)
+                .Expect("downed, it dropped no gun; no stance on a gone gun", () =>
+                    Dog().Downed && LooseGuns() == 0 && !StaleStance(Dog()))
                 .Summary(() => $"speed T3 {speed3:F2}, T4 {speed4:F2}; far raider {Fate(farId)}, near raider {Fate(nearId)}; "
                     + $"dog {Dog()?.def.defName} holding {Held(Dog())?.defName}; loose guns {LooseGuns()}")
                 .Start();

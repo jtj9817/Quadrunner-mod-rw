@@ -12,6 +12,11 @@
     <smeltable>false</smeltable>
     <techLevel>Spacer</techLevel>
     <soundInteract>Interact_Rifle</soundInteract>
+    <comps>
+      <li>
+        <compClass>Quadrunner.CompBuiltInGun</compClass>
+      </li>
+    </comps>
     <tools>
       <li>
         <label>barrel</label>
