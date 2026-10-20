@@ -6,6 +6,16 @@ Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled con
 
 The local release is `dist/Quadrunner`, build `4137037.20261020T174523Z`. Its packaged **Run all passed 39/39 with zero new errors** on 2026-10-20 after the 3,500-cell battery-range update. The original T9 release also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for the separate range-update and removal evidence.
 
+## Hearthline Robotics
+
+*“A good dog for a bad world.”*
+
+Hearthline supplies remote settlements with locally serviceable utility, rescue and security robodogs. Its armed range is marketed as “settlement assurance.”
+
+The **stable's information card** introduces the company. All six dog models, both field consumables and all four built-in weapons have distinct flavor text followed by practical instructions; assembly, rebuild and upgrade bills have accompanying descriptions too.
+
+In **Overview**, hover the robodog-count heading for the stable's lore, a dog's **name or type** for its model description, or the **battery and repair-kit icons** for field-item information. Hover fitted weapons and individual choices in the weapon picker for their descriptions. Upgrade hovers still show the action and material cost.
+
 ## Install and play
 
 1. Put the packaged `Quadrunner` folder in RimWorld's `Mods/` directory. Enable **Harmony**, **Core**, then **Quadrunner**, and restart the game.
@@ -47,7 +57,10 @@ tools/autotest.py stop
 
 Automated quicktest starts use flat, low-swampiness, inland temperate forest without rivers, retaining a random world seed. Scenarios build their own rooms and obstacles; this supplies a consistent building-space prerequisite, not a claim of coverage for every biome. Ordinary games are unaffected.
 
+For native hover checks, cold-start the private display with `QR_SCREEN=1280x900` after `tools/autotest.py stop`. Changing the game window's resolution alone does not enlarge Xvfb's pointer bounds. Artwork captures are evidence only after the actual cards/tooltips have been visually inspected.
+
 - Design snapshot: [docs/design.md](docs/design.md)
 - Plan and decisions: [docs/plans/0001-quadrunner.md](docs/plans/0001-quadrunner.md)
+- Hearthline lore and tooltip plan: [docs/plans/0002-hearthline-lore.md](docs/plans/0002-hearthline-lore.md)
 - Automated work loop and tool reference: [AGENTS.md](AGENTS.md)
 - Verification evidence: [docs/test-runs.md](docs/test-runs.md)

@@ -17,7 +17,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_AssembleQuadrunner</defName>
     <label>assemble Quadrunner</label>
-    <description>Assemble a Quadrunner. It docks straight into this stable.</description>
+    <description>Hearthline's original answer to an understaffed settlement.\n\nAssemble a Quadrunner for hauling, cleaning, construction supply and riding. The finished dog docks straight into this stable.</description>
     <jobString>Assembling Quadrunner.</jobString>
     <workAmount>3000</workAmount>
     <ingredients>
@@ -42,7 +42,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_AssembleMedirunner</defName>
     <label>assemble Medirunner</label>
-    <description>Assemble a Medirunner, a rescue robot. It docks straight into this stable.</description>
+    <description>A Hearthline rescue chassis: an ambulance, not a doctor.\n\nAssemble a Medirunner to carry the downed to beds, including during raids. It does no utility work or medical treatment. The finished dog docks straight into this stable.</description>
     <jobString>Assembling Medirunner.</jobString>
     <workAmount>3500</workAmount>
     <ingredients>
@@ -69,7 +69,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_RebuildQuadrunner</defName>
     <label>rebuild Quadrunner</label>
-    <description>Rebuild a destroyed Quadrunner from its wreck. The same dog docks straight into this stable.</description>
+    <description>Hearthline built the chassis to outlast the warranty.\n\nRebuild a destroyed Quadrunner from its wreck. The same dog docks straight into this stable.</description>
     <jobString>Rebuilding Quadrunner.</jobString>
     <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
     <workAmount>1500</workAmount>
@@ -95,7 +95,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_RebuildMedirunner</defName>
     <label>rebuild Medirunner</label>
-    <description>Rebuild a destroyed Medirunner from its wreck. The same dog docks straight into this stable.</description>
+    <description>Sometimes the rescuer needs bringing home first.\n\nRebuild a destroyed Medirunner from its wreck. The same dog docks straight into this stable.</description>
     <jobString>Rebuilding Medirunner.</jobString>
     <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
     <workAmount>1750</workAmount>
@@ -121,7 +121,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_AssembleCombatdog</defName>
     <label>assemble Combatdog</label>
-    <description>Assemble a Tier 1 Combatdog, a clawed guard robot. It docks straight into this stable.</description>
+    <description>The entry-level Hearthline "settlement assurance" package.\n\nAssemble a Tier 1 Combatdog with reinforced armor and cutting claws, but no gun. The finished dog docks straight into this stable.</description>
     <jobString>Assembling Combatdog.</jobString>
     <workAmount>4000</workAmount>
     <ingredients>
@@ -146,7 +146,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_RebuildCombatdog</defName>
     <label>rebuild Combatdog</label>
-    <description>Rebuild a destroyed Combatdog from its wreck. The same dog docks straight into this stable.</description>
+    <description>Hearthline's service instructions assume that the customer has recovered the pieces.\n\nRebuild a destroyed Combatdog of any tier from its wreck. It retains its tier and identity, then docks straight into this stable.</description>
     <jobString>Rebuilding Combatdog.</jobString>
     <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
     <workAmount>2000</workAmount>
@@ -205,7 +205,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogTwo</defName>
     <label>upgrade Combatdog to Tier 2</label>
-    <description>Rebuild a docked Combatdog as Tier 2: a built-in gun and much more durability. It keeps its name.</description>
+    <description>Hearthline's "improved customer engagement" conversion.\n\nUpgrade a docked Combatdog to Tier 2: tougher armor and one assault-rifle or LMG slot. It keeps its name; choose the gun in Overview.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>3000</workAmount>
     <ingredients>
@@ -218,7 +218,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogThree</defName>
     <label>upgrade Combatdog to Tier 3</label>
-    <description>Rebuild a docked Combatdog as Tier 3: a second weapon slot with a flamethrower and much more armor. It keeps its name.</description>
+    <description>For security problems that survived the first burst.\n\nUpgrade a docked Combatdog to Tier 3: heavy armor, a primary gun and a secondary close-range flamethrower. It keeps its name.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>4000</workAmount>
     <ingredients>
@@ -231,7 +231,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogFour</defName>
     <label>upgrade Combatdog to Tier 4</label>
-    <description>Rebuild a docked Combatdog as Tier 4: a built-in minigun and extreme armor. It keeps its name.</description>
+    <description>The Hearthline conversion whose brochure stopped calling it a deterrent.\n\nUpgrade a docked Combatdog to Tier 4: extreme armor and a single gun slot supporting a minigun, assault rifle or LMG. The secondary flamethrower is removed. It keeps its name.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>5000</workAmount>
     <ingredients>
@@ -252,7 +252,7 @@
   <RecipeDef ParentName="QR_MakeFieldFixBase">
     <defName>QR_MakeRobodogBattery</defName>
     <label>make robodog battery</label>
-    <description>Make a robodog battery. Colonists carry it to a powered-down robodog in the field and charge it to full on the spot.</description>
+    <description>A spare power supply is easier to carry than its customer.\n\nMake a single-use Hearthline robodog battery. Colonists bring it to a powered-down dog of any model and restore its battery to full on the spot.</description>
     <jobString>Making robodog battery.</jobString>
     <workAmount>800</workAmount>
     <ingredients>
@@ -273,7 +273,7 @@
   <RecipeDef ParentName="QR_MakeFieldFixBase">
     <defName>QR_MakeRobodogRepairKit</defName>
     <label>make robodog repair kit</label>
-    <description>Make a robodog repair kit. Colonists carry it to a damaged robodog in the field and repair it on the spot.</description>
+    <description>A Hearthline workshop in a box, with the workshop omitted.\n\nMake a single-use robodog repair kit. Colonists bring it to a dog below 70% health and remove its injuries in the field. Missing body parts are not replaced.</description>
     <jobString>Making robodog repair kit.</jobString>
     <workAmount>800</workAmount>
     <ingredients>

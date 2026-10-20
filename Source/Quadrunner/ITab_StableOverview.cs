@@ -52,10 +52,14 @@ namespace Quadrunner
             List<(Pawn dog, string[] cells)> rows = Rows(stable);
             Rect inner = new Rect(0f, 0f, WinSize.x, WinSize.y).ContractedBy(10f);
             Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(inner.x, inner.y, inner.width, RowHeight),
+            Rect title = new Rect(inner.x, inner.y, inner.width - 100f, RowHeight);
+            Widgets.Label(title,
                 $"Robodogs: {rows.Count} / {stable.Capacity} ({stable.Docked.Count} docked)");
+            TooltipHandler.TipRegion(title, new TipSignal(stable.def.description, stable.thingIDNumber));
+            DrawItemTooltip(new Rect(inner.xMax - 80f, inner.y, 24f, 24f), QR_DefOf.QR_RobodogBattery);
+            DrawItemTooltip(new Rect(inner.xMax - 52f, inner.y, 24f, 24f), QR_DefOf.QR_RobodogRepairKit);
             Rect header = new Rect(inner.x, inner.y + RowHeight, inner.width, RowHeight);
-            DrawRow(header, Headers, bold: true);
+            DrawRow(header, Headers, bold: true, dog: null);
             Rect outRect = new Rect(inner.x, header.yMax, inner.width, inner.yMax - header.yMax);
             Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, rows.Count * RowHeight);
             Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
@@ -68,7 +72,7 @@ namespace Quadrunner
                 Rect cells = new Rect(row.x, row.y, row.width - UpgradeWidth, row.height);
                 CombatTier tier = CombatTier.Of(dog);
                 // A Combatdog's Weapons cell is drawn as its button instead.
-                DrawRow(cells, tier?.SlotCount > 0 ? rows[i].cells.Take(6).ToArray() : rows[i].cells, bold: false);
+                DrawRow(cells, tier?.SlotCount > 0 ? rows[i].cells.Take(6).ToArray() : rows[i].cells, bold: false, dog: dog);
                 if (tier != null)
                     DrawCombatdogButtons(stable, dog, tier, rows[i].cells[6], cells,
                         new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f));
@@ -76,6 +80,13 @@ namespace Quadrunner
                     CameraJumper.TryJumpAndSelect(dog);
             }
             Widgets.EndScrollView();
+        }
+
+        private static void DrawItemTooltip(Rect rect, ThingDef item)
+        {
+            Widgets.DefIcon(rect, item);
+            if (Mouse.IsOver(rect))
+                TooltipHandler.TipRegion(rect, item.LabelCap.AsTipTitle() + "\n\n" + item.description);
         }
 
         /// <summary>The Weapons cell as a button listing each slot's choices, and the upgrade button.</summary>
@@ -92,12 +103,17 @@ namespace Quadrunner
                     {
                         int s = slot;
                         options.Add(new FloatMenuOption($"Slot {slot + 1}: {gun.LabelCap}{(Tiers.Gun(dog, slot) == gun ? " (fitted)" : "")}",
-                            () => Tiers.PickGun(dog, s, gun)));
+                            () => Tiers.PickGun(dog, s, gun)) { tooltip = new TipSignal(gun.description) });
                     }
                 Find.WindowStack.Add(new FloatMenu(options));
             }
-            if (tier.SlotCount > 0)
-                TooltipHandler.TipRegion(weapons, description);
+            if (tier.SlotCount > 0 && Mouse.IsOver(weapons))
+            {
+                string tip = description + "\n\n" + Tiers.Gun(dog, 0).description;
+                if (tier.SlotCount > 1)
+                    tip += "\n\n" + Tiers.Gun(dog, 1).description;
+                TooltipHandler.TipRegion(weapons, tip);
+            }
             if (tier.upgrade == null)
                 return;
             Bill_UpgradeDog bill = stable.UpgradeBill(dog);
@@ -114,7 +130,7 @@ namespace Quadrunner
                 + string.Join(", ", tier.upgrade.ingredients.Select(ing => ing.Summary)));
         }
 
-        private static void DrawRow(Rect rect, string[] cells, bool bold)
+        private static void DrawRow(Rect rect, string[] cells, bool bold, Pawn dog)
         {
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = bold ? Color.gray : Color.white;
@@ -123,7 +139,11 @@ namespace Quadrunner
             {
                 float w = ColumnWidths[c] > 0f ? ColumnWidths[c] : rect.xMax - x;
                 Widgets.Label(new Rect(x + 4f, rect.y, w - 4f, rect.height), cells[c].Truncate(w - 4f));
-                TooltipHandler.TipRegion(new Rect(x, rect.y, w, rect.height), cells[c]);
+                Rect cell = new Rect(x, rect.y, w, rect.height);
+                string tip = dog != null && c < 2 && Mouse.IsOver(cell)
+                    ? cells[c] + "\n\n" + dog.DescriptionFlavor
+                    : cells[c];
+                TooltipHandler.TipRegion(cell, tip);
                 x += w;
             }
             GUI.color = Color.white;

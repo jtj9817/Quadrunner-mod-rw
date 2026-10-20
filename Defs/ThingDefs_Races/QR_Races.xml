@@ -94,7 +94,7 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
-    <description>A four-legged utility robot. It docks at a stable, which sends it out to haul, clean and supply construction, and repairs and recharges it between jobs. A colonist can ride it: right-click it, or its stable, and pick a destination.</description>
+    <description>The original Hearthline utility chassis, designed for freight yards, mining camps and settlements where every pair of hands was already occupied. It carries supplies, clears the floors and occasionally carries its owner. Company literature describes these as three separate reasons to purchase one.\n\nA four-legged utility robot. Its stable dispatches it to haul, clean and supply construction, then repairs and recharges it between jobs. A colonist can ride it: right-click the dog or its stable and pick a destination.</description>
     <modExtensions>
       <!-- Vanilla work givers, in priority order; jobs other than the listed ones are refused (a blocked blueprint
            would otherwise ask for plant cutting). Map-wide ones ignore the stable's service radius. -->
@@ -132,7 +132,7 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Medirunner</defName>
     <label>Medirunner</label>
-    <description>A four-legged rescue robot. It docks at a stable, which sends it out whenever someone is down, raid or not, to carry them to a bed: colonists first, then guests, prisoners and colony animals, the fastest-bleeding first. It does no other work.</description>
+    <description>A Hearthline rescue chassis developed for settlements whose nearest ambulance was several light-years away. Its transport assembly brings casualties back to a bed, even under fire. Hearthline was careful to distinguish "medical support" from "medical treatment" after the first round of litigation.\n\nA dedicated rescue robot, dispatched map-wide by its stable during raids as well as peacetime. It carries downed colonists first, then guests, prisoners and colony animals, prioritizing the fastest-bleeding within each group. It does not tend injuries, haul supplies, clean or carry riders.</description>
     <modExtensions>
       <!-- Medic only (user, 2026-10-20): rescues, map-wide and under fire, nothing else; no raid speed or drain change. -->
       <li Class="Quadrunner.RobodogWork">
@@ -202,7 +202,7 @@
 
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_Combatdog</defName>
-    <description>A four-legged guard robot with built-in claws (Tier 1). It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <description>Hearthline's entry-level perimeter-security model replaces the utility chassis's reassuring appearance with reinforced armor and industrial cutting claws. Officially classified as a deterrent. Unofficially, the distinction becomes difficult to explain once it catches someone.\n\nA Tier 1 guard robot with built-in claws and no gun. Its stable deploys it for raids, attacks on any robodog, or player orders. It runs at double speed while deployed, attacks hostiles and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>900</MarketValue>
       <ArmorRating_Sharp>0.3</ArmorRating_Sharp>
@@ -223,7 +223,7 @@
   <!-- Durability per tier (design: much more durable, much more armor, extreme armor; agent default, 2026-10-20). -->
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_CombatdogTwo</defName>
-    <description>A four-legged guard robot (Tier 2): much more durable than Tier 1, with a built-in gun as well as its claws. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <description>Customer reports identified a weakness in Hearthline's original security model: intruders could shoot it before it reached them. The response was a reinforced chassis and an integrated firearm. The revised brochure called this "improved customer engagement."\n\nA Tier 2 guard robot with tougher armor, claws and one built-in gun slot. Choose its assault rifle or LMG in the stable's Overview. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>1500</MarketValue>
       <ArmorRating_Sharp>0.4</ArmorRating_Sharp>
@@ -247,7 +247,7 @@
 
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_CombatdogThree</defName>
-    <description>A four-legged guard robot (Tier 3): heavily armored, with two weapon slots: a gun, and a flamethrower it switches to at close range. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <description>Designed for settlements expecting their security problems to survive the first burst. Hearthline's heavier armor protects the chassis while a secondary incendiary mount handles close approaches. The operator's manual recommends establishing the perimeter somewhere you do not particularly like.\n\nA Tier 3 guard robot with heavy armor and two weapon slots: an assault rifle or LMG, plus a flamethrower that it switches to at close range. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>2400</MarketValue>
       <ArmorRating_Sharp>0.7</ArmorRating_Sharp>
@@ -274,7 +274,7 @@
 
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_CombatdogFour</defName>
-    <description>A four-legged guard robot (Tier 4): extremely armored, with a built-in minigun that slows it a little. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <description>Hearthline's heaviest settlement-security chassis carries enough armor and firepower to make its canine ancestry seem like a branding decision. The minigun configuration trades some mobility for sustained fire. Unlike earlier models, its brochure makes no attempt to call it a deterrent.\n\nA Tier 4 guard robot with extreme armor and one gun slot: minigun, assault rifle or LMG. The minigun slows it slightly; this tier has no secondary flamethrower. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>3600</MarketValue>
       <ArmorRating_Sharp>1.0</ArmorRating_Sharp>

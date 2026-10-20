@@ -35,7 +35,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_AssaultRifle</defName>
     <label>built-in assault rifle</label>
-    <description>A Combatdog's built-in assault rifle, with the stats of the vanilla one: good range, decent power, good accuracy.</description>
+    <description>Hearthline's standard "settlement assurance" rifle mount. A familiar mechanism in a weatherproof housing, advertised as a reassuring presence along any property boundary. Reassurance is delivered in three-round bursts.\n\nA Combatdog's built-in assault rifle: balanced accuracy, good range and controlled bursts. Available in the primary gun slot of Tiers 2, 3 and 4; select it in the stable's Overview.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/AssaultRifle</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -68,7 +68,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_LMG</defName>
     <label>built-in LMG</label>
-    <description>A Combatdog's built-in light machine gun, with the stats of the vanilla LMG: inaccurate, but its long bursts are effective against groups.</description>
+    <description>A belt-fed Hearthline security mount for customers who considered the standard rifle's pauses an unnecessary courtesy. The brochure recommends it for "distributed access-denial requirements," beside a photograph of a very empty road.\n\nA Combatdog's built-in light machine gun. Its longer bursts trade accuracy and range for more shots, making it useful against groups. Available in the primary gun slot of Tiers 2, 3 and 4; select it in the stable's Overview.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/LMG</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -102,7 +102,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_Minigun</defName>
     <label>built-in minigun</label>
-    <description>A Combatdog's built-in minigun, with the stats of the vanilla one: unwieldy and slow to spin up, but it fires very fast. It slows the dog down.</description>
+    <description>Hearthline's premium answer to a question its sales department preferred not to record. The rotating barrel assembly required a reinforced mount, revised balance software and a much less friendly product photograph.\n\nA Tier 4 Combatdog's built-in minigun. Slow to spin up and inaccurate, but fires very long bursts at high speed. Its weight slightly reduces the dog's movement speed. Shares the tier's single gun slot with the assault rifle and LMG.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/Minigun</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -143,7 +143,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_Flamethrower</defName>
     <label>built-in flamethrower</label>
-    <description>A Combatdog's built-in flamethrower: a short-range stream of burning fuel that sets its targets alight.</description>
+    <description>Originally catalogued by Hearthline as a vegetation-management attachment. Its reassignment to the security division changed the paint scheme, the warranty terms and very little else.\n\nA Tier 3 Combatdog's secondary weapon. Fires short-range bursts of burning fuel that can set targets alight; the dog switches to it automatically at close range. Fire can spread beyond the target, so keep it away from anything you want to preserve.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/Flamethrower</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -176,6 +176,7 @@
   <ThingDef ParentName="BaseBullet">
     <defName>QR_Bullet_Flame</defName>
     <label>burning fuel</label>
+    <description>Burning fuel discharged by a Hearthline flamethrower. The service manual's advice is unusually direct: do not stand in front of the nozzle.\n\nAn incendiary projectile that deals flame damage and can ignite what it hits. It is not a stockpiled fuel item.</description>
     <graphicData>
       <texPath>Things/Projectile/LauncherShot</texPath>
       <graphicClass>Graphic_Single</graphicClass>

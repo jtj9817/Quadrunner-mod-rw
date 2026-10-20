@@ -15,7 +15,7 @@
   <ThingDef ParentName="QR_FieldFixBase">
     <defName>QR_RobodogBattery</defName>
     <label>robodog battery</label>
-    <description>A charged battery pack for robodogs. Colonists carry it to a powered-down robodog and charge it to full on the spot.</description>
+    <description>A sealed Hearthline field battery, sized for the company's common robodog chassis. The carrying handle was added after customers pointed out that an exhausted dog was considerably heavier than its replacement power supply.\n\nA single-use emergency charge for any robodog model. Colonists bring it to a powered-down dog in the field and restore its battery to full. Made at a Quadrunner stable; consumed on use.</description>
     <graphicData>
       <texPath>Quadrunner/Items/Battery</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -37,7 +37,7 @@
   <ThingDef ParentName="QR_FieldFixBase">
     <defName>QR_RobodogRepairKit</defName>
     <label>robodog repair kit</label>
-    <description>Plates, servos and wiring for patching up a robodog. Colonists carry it to a damaged robodog and repair it on the spot.</description>
+    <description>A Hearthline service pack containing replacement plates, servo fittings and enough wiring to make the repair manual's illustrations look optimistic. Designed for the sort of workshop that is currently a muddy field.\n\nA single-use field repair for any robodog model. Colonists bring it to a damaged dog below 70% health and remove its injuries on the spot. It cannot replace missing body parts. Made at a Quadrunner stable; consumed on use.</description>
     <graphicData>
       <texPath>Quadrunner/Items/RepairKit</texPath>
       <graphicClass>Graphic_Single</graphicClass>

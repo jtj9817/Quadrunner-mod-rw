@@ -238,6 +238,7 @@ namespace Quadrunner
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             s.Do("spawn a powered stable with 14 dogs, materials and a bill", () =>
                 {
+                    DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     for (int i = 0; i < 14; i++)

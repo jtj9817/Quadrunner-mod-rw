@@ -1,6 +1,6 @@
 # TODO
 
-Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all** of its acceptance boxes in the plan are ticked. Workflow rules are in [AGENTS.md](AGENTS.md); the iteration log is [docs/test-runs.md](docs/test-runs.md).
+Tracks [Plan 0001](docs/plans/0001-quadrunner.md) and the post-release [Hearthline lore plan](docs/plans/0002-hearthline-lore.md). Tick a target only once **all** of its acceptance boxes in the plan are ticked. Workflow rules are in [AGENTS.md](AGENTS.md); the iteration log is [docs/test-runs.md](docs/test-runs.md).
 
 ## Progress
 
@@ -14,9 +14,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - [x] **T7**: Combatdog Tier 1, pings and patrols
 - [x] **T8**: Combatdog tiers 2–4
 - [x] **T9**: Polish and release
+- [ ] **Plan 0002**: Hearthline company lore, product descriptions and tooltips (implemented and visually verified; actual-package verification pending)
 
 ## Current state
 
+- **Hearthline lore implemented**, user-approved (2026-10-20): the stable introduces **Hearthline Robotics — “A good dog for a bad world.”** All six dog models, both field items, four built-in guns, burning fuel and all 11 bills have flavor and practical descriptions. Overview exposes company lore, dog name/type descriptions, field-item icons and fitted/choice weapon tooltips, preserving upgrade actions/costs. No gameplay or saved-state changes. Focused checks **5/5 PASS**, then gallery-only native-hover proof **1/1 PASS**, 0 new errors; all 25 cards and 14 real-pointer hover surfaces inspected. Clean package rebuild/verification is next.
 - **Battery range increased**, user-requested (2026-10-20): every model now travels about **3,500 cells** per normal full charge, with about **350 cells** left at the unchanged 10% seek threshold. Charging rates and the worker's raid drain multiplier are unchanged. Focused depletion, carrier and mounted power-down scenarios **3/3 PASS**, then actual packaged **Run all 39/39 PASS**, both with 0 new errors. Updated local release: `dist/Quadrunner`, build `4137037.20261020T174523Z`.
 - **T9 complete**, continued from `docs/handoff/20261020-0615-t8-done.md`. Original sci-fi robodog SVGs were rendered and inspected before export/integration; actual private-game art, ride poses, mounted guns, items, stable rotations, Overview and removal dialogs have been inspected. Original T9 release build: `a149eeb.20261020T085856Z`; the battery-range update above supersedes its local package.
 - **Raid: finish and dock** fixture corrected: the old raw log did show docking, but the predicate required exactly 30 gold and the pile already held 60. [INFERENCE] Vanilla's opportunistic extra-stack hauling explains the extra delivery; old target coordinates were not logged. Targets now sit outside the 8-cell duplicate-haul radius; strict 30/60 delivery and post-reload docking checks PASS in two fresh launches.
@@ -25,7 +27,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last verification: 2026-10-20 17:51, package `4137037.20261020T174523Z`: **39/39 PASS**, 0 new errors, 347 s. Cold-launched actual package root and BUILD checked; battery movement, charging, retrieval, mounted depletion, raid drain, all six models and save/load scenarios pass in sequence. Lint/build: 0 warnings/errors. Private game and Xvfb stopped; development symlink restored. Original independent removal-check evidence remains in `docs/test-runs.md`.
+- Last verification: 2026-10-20 18:33, development build `d180a1b-dirty.20261020T183255Z`: Artwork showcase **1/1 PASS**, 0 new errors, 47 s; the 18:25 focused mechanics/UI check was **5/5 PASS**, 0 new errors. Native pointer bounds, product cards and Overview tooltips verified on the private 1280x900 display. Lint/build: 0 warnings/errors. Private instance remains open for packaging; original independent removal-check evidence remains in `docs/test-runs.md`.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: **19 cases OK** (2026-10-20 08:52), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
@@ -123,6 +125,10 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 ### Testing
 
+- **Draft the capacity fixture itself.** In a fresh filtered run, an undrafted colonist can reserve and complete its assembly bill before `BillJob` is observed, leaving an untracked extra dog that contaminates later one-dog checks.
+- **Build capture steps from fixture definitions, not runtime IDs.** `dogIds` is empty while the scenario is constructed; use the model array for its hover-step loop. RimWorld's map mouseover is only a brief readout; full descriptions belong in native UI and Overview tooltips.
+- **Game resolution is not Xvfb resolution.** `Screen.SetResolution` enlarges captures but not the private display's pointer bounds. For real hover QA, cold-start with `QR_SCREEN=1280x900` and verify the observed window-relative pointer coordinates, not just successful `xdotool` exit status.
+- **Artwork is a gallery, not a charging room.** Its plot uses `FindClearArea` across the map; `ClearRect` adds an irrelevant off-center/reachable-door requirement and an 80-cell search can reject an otherwise usable random map. Keep the same clear-land, roof and occupancy checks.
 - **Scenario runner design that worked** *(QB)*: static, never-saved scenario state; `Expect(label, Func<bool>)` / `Do` / `Wait(ticks)` steps checked every tick; `SCENARIO <name>: start …` and `PASS/FAIL` lines with tick counts; **Run all** queues every scenario and logs one `n/m PASS` summary. Starting a scenario removes the previous one's things.
 - **Static state survives a reload.** Assemblies don't reload when a save loads, so a static scenario runner can save, reload and keep checking its steps. Re-find things by ID after the load; references from before it are stale.
 - **The raid check is cached for a second.** A raider spawned this tick isn't seen by `Raid.Active` yet, so the stable may still dispatch; scenarios call `Raid.Recheck(map)` after spawning hostiles.
