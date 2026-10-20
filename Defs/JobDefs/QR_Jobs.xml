@@ -42,4 +42,11 @@
     <casualInterruptible>false</casualInterruptible>
   </JobDef>
 
+  <JobDef>
+    <defName>QR_CarryToRoom</defName>
+    <driverClass>Quadrunner.JobDriver_CarryToRoom</driverClass>
+    <reportString>carrying TargetA away.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
 </Defs>

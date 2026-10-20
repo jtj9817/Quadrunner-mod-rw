@@ -17,6 +17,7 @@ namespace Quadrunner
             ("Dock and undock", DockAndUndock),
             ("Assemble and dock", () => AssembleAndDock("Assemble and dock", QR_DefOf.QR_AssembleQuadrunner)),
             ("Assemble Medirunner", () => AssembleAndDock("Assemble Medirunner", QR_DefOf.QR_AssembleMedirunner)),
+            ("Assemble Combatdog", () => AssembleAndDock("Assemble Combatdog", QR_DefOf.QR_AssembleCombatdog)),
             ("Stable full (16th dog)", StableFull),
             ("Battery drain and power-down", DrainAndPowerDown),
             ("Conduit charging", ConduitCharging),
@@ -41,6 +42,8 @@ namespace Quadrunner
             ("Ride until 0%", RideUntilEmpty),
             ("Ride and dismount", RideAndDismount),
             ("Rider pose", RiderPose),
+            ("Ping chain", PingChain),
+            ("Combatdog sweep", CombatdogSweep),
         };
 
         /// <summary>

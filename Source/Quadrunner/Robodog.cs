@@ -97,6 +97,15 @@ namespace Quadrunner
             lastCell = cell;
         }
 
+        /// <summary>Hit by a hostile pawn: a ping to the dog's stable, which sends a Combatdog after it.</summary>
+        public override void PostPostApplyDamage(DamageInfo dinfo, float totalDamageDealt)
+        {
+            base.PostPostApplyDamage(dinfo, totalDamageDealt);
+            if (dinfo.Instigator is Pawn attacker && attacker.HostileTo(Faction.OfPlayer) && stable != null
+                && parent.Spawned && !Dog.Dead)
+                stable.Ping(attacker, Dog);
+        }
+
         public override void PostExposeData()
         {
             base.PostExposeData();

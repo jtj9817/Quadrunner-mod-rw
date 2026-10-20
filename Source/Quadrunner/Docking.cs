@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -72,20 +73,30 @@ namespace Quadrunner
                 wait.expiryInterval = WaitTicks;
                 return wait;
             }
+            IntVec3 cell = CellInNearestRoom(pawn, pawn.GetRegion(), Qualifies);
+            return cell.IsValid ? JobMaker.MakeJob(JobDefOf.Goto, cell) : null;
+        }
+
+        /// <summary>
+        /// A standable cell <paramref name="pawn"/> can reach in the room nearest <paramref name="start"/> (by regions it
+        /// can pass) that passes <paramref name="ok"/>; invalid if none.
+        /// </summary>
+        public static IntVec3 CellInNearestRoom(Pawn pawn, Region start, Predicate<Room> ok)
+        {
             Region found = null;
             TraverseParms parms = TraverseParms.For(pawn);
-            RegionTraverser.BreadthFirstTraverse(pawn.GetRegion(), (from, to) => to.Allows(parms, isDestination: false),
+            RegionTraverser.BreadthFirstTraverse(start, (from, to) => to.Allows(parms, isDestination: false),
                 r =>
                 {
-                    if (r.IsDoorway || !Qualifies(r.Room))
+                    if (r.IsDoorway || !ok(r.Room))
                         return false;
                     found = r;
                     return true;
                 }, MaxRegions);
             if (found == null || !found.TryFindRandomCellInRegion(
                     c => c.Standable(pawn.Map) && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly), out IntVec3 cell))
-                return null;
-            return JobMaker.MakeJob(JobDefOf.Goto, cell);
+                return IntVec3.Invalid;
+            return cell;
         }
     }
 }

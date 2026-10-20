@@ -21,6 +21,9 @@ namespace Quadrunner
 
         private static Scenario current;
 
+        /// <summary>A scenario is running (Run all included, between its scenarios).</summary>
+        public static bool Running => current != null;
+
         // Run all: the scenarios still to start and each one's verdict so far.
         private static readonly Queue<(string name, Action setUp)> runAllQueue = new Queue<(string, Action)>();
         private static readonly List<string> runAllVerdicts = new List<string>();
@@ -36,6 +39,7 @@ namespace Quadrunner
         private int stepIndex;
         private int startTick;
         private float startRealtime;
+        private int startFrame;
         private int stepStartTick;
         private bool prevNeverForceNormalSpeed;
         private bool prevStoryteller;
@@ -155,6 +159,7 @@ namespace Quadrunner
             current = this;
             startTick = stepStartTick = Now;
             startRealtime = UnityEngine.Time.realtimeSinceStartup;
+            startFrame = UnityEngine.Time.frameCount;
             // Hostiles make vanilla force normal speed; this dev setting turns that off for the run.
             prevNeverForceNormalSpeed = DebugViewSettings.neverForceNormalSpeed;
             DebugViewSettings.neverForceNormalSpeed = true;
@@ -199,7 +204,7 @@ namespace Quadrunner
                 // Several steps can pass in the same frame; a load in progress stops the run until the map is back.
                 while (stepIndex < steps.Count && AutoTest.MapReady && steps[stepIndex].done())
                 {
-                    QR.Log($"SCENARIO {name}: t={Now - startTick} step {stepIndex + 1}/{steps.Count} ok: {steps[stepIndex].label} (+{Now - stepStartTick})");
+                    QR.Log($"SCENARIO {name}: t={Now - startTick} step {stepIndex + 1}/{steps.Count} ok: {steps[stepIndex].label} (+{Now - stepStartTick}, {UnityEngine.Time.realtimeSinceStartup - startRealtime:F0} s)");
                     stepIndex++;
                     stepStartTick = Now;
                 }
@@ -222,7 +227,9 @@ namespace Quadrunner
             string extra = summary != null ? $"; {summary()}" : "";
             // Wall time, to compare test-instance speed (map size, load beside the user's game); includes reloads.
             float secs = UnityEngine.Time.realtimeSinceStartup - startRealtime;
-            extra += $"; {secs:F0} s, {(Now - startTick) / Math.Max(secs, 0.001f):F0} ticks/s";
+            extra += $"; {secs:F0} s, {(Now - startTick) / Math.Max(secs, 0.001f):F0} ticks/s, " +
+                $"{(UnityEngine.Time.frameCount - startFrame) / Math.Max(secs, 0.001f):F0} fps, tick {Find.TickManager.MeanTickTime:F1} ms, " +
+                $"{Find.TickManager.CurTimeSpeed} x{Find.TickManager.TickRateMultiplier}";
             QR.Log($"SCENARIO {name}: {verdict}{extra}");
             foreach (string id in tracked)
                 ById(id)?.Destroy();

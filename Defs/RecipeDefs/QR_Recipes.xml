@@ -118,6 +118,57 @@
     </modExtensions>
   </RecipeDef>
 
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_AssembleCombatdog</defName>
+    <label>assemble Combatdog</label>
+    <description>Assemble a Tier 1 Combatdog, a clawed guard robot. It docks straight into this stable.</description>
+    <jobString>Assembling Combatdog.</jobString>
+    <workAmount>4000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>100</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>50</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>2</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>Plasteel</li>
+        <li>ComponentSpacer</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Combatdog</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_RebuildCombatdog</defName>
+    <label>rebuild Combatdog</label>
+    <description>Rebuild a destroyed Combatdog from its wreck. The same dog docks straight into this stable.</description>
+    <jobString>Rebuilding Combatdog.</jobString>
+    <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
+    <workAmount>2000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Corpse_QR_Combatdog</li></thingDefs></filter><count>1</count></li>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>50</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>25</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Corpse_QR_Combatdog</li>
+        <li>Steel</li>
+        <li>Plasteel</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Combatdog</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
   <RecipeDef Name="QR_MakeFieldFixBase" Abstract="True">
     <workSpeedStat>GeneralLaborSpeed</workSpeedStat>
     <workSkill>Crafting</workSkill>

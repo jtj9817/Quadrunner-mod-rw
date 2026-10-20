@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
 
-  <!-- A four-legged machine built from vanilla mechanoid body parts (no blood, no pain, no lungs). -->
+  <!-- A four-legged machine built from vanilla mechanoid body parts (no blood, no pain, no lungs). The front feet carry
+       the paw groups that the Combatdog's claws attack with. -->
   <BodyDef>
     <defName>QR_Robodog</defName>
     <label>robodog</label>
@@ -75,7 +76,7 @@
           <coverage>0.07</coverage>
           <height>Bottom</height>
           <parts>
-            <li><def>MechanicalFoot</def><customLabel>front left foot</customLabel><coverage>0.25</coverage></li>
+            <li><def>MechanicalFoot</def><customLabel>front left foot</customLabel><coverage>0.25</coverage><groups><li>FrontLeftPaw</li></groups></li>
           </parts>
         </li>
         <li>
@@ -84,7 +85,7 @@
           <coverage>0.07</coverage>
           <height>Bottom</height>
           <parts>
-            <li><def>MechanicalFoot</def><customLabel>front right foot</customLabel><coverage>0.25</coverage></li>
+            <li><def>MechanicalFoot</def><customLabel>front right foot</customLabel><coverage>0.25</coverage><groups><li>FrontRightPaw</li></groups></li>
           </parts>
         </li>
         <li>

@@ -32,7 +32,9 @@ namespace Quadrunner
         public static readonly string LaunchId = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Pid}";
 
         private bool announced;
+        private const int IdleFrameRate = 5;
         private float nextBeat, nextPoll;
+        private int fullFrameRate;
 
         public static bool Enabled => dir != null;
 
@@ -60,6 +62,10 @@ namespace Quadrunner
             Scenario.Update();
             if (dir == null)
                 return;
+            // Software rendering costs ~370% CPU even while idle: render 5 frames a second between scenarios.
+            if (fullFrameRate == 0)
+                fullFrameRate = Application.targetFrameRate;
+            Application.targetFrameRate = Scenario.Running ? fullFrameRate : IdleFrameRate;
             float now = Time.realtimeSinceStartup;
             if (now >= nextBeat)
             {

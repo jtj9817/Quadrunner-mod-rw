@@ -12,11 +12,17 @@ namespace Quadrunner
     {
         /// <summary>A medic (Medirunner): it only rescues the downed (<see cref="Rescue"/>), raid or not.</summary>
         public bool rescue;
+        /// <summary>A Combatdog: it only fights and captures hostiles (<see cref="Combat"/>).</summary>
+        public bool combat;
         public List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
         public List<WorkGiverDef> mapWide = new List<WorkGiverDef>();
         public List<JobDef> jobs = new List<JobDef>();
         public float raidSpeedFactor = 3f;
         public float raidDrainFactor = 2f;
+        /// <summary>Move speed factor whenever the dog is out of its stable (Combatdogs: 200% while deployed).</summary>
+        public float deployedSpeedFactor = 1f;
+        /// <summary>Combatdogs: hostiles seen within this many cells join the stable's target queue.</summary>
+        public float engageRange = 15f;
 
         public static RobodogWork Of(Thing thing) => thing?.def.GetModExtension<RobodogWork>();
     }
@@ -25,7 +31,8 @@ namespace Quadrunner
     /// Finds work for a dog of a stable: the first work giver (in <see cref="RobodogWork.workGivers"/> order) with a
     /// target in the stable's service radius (or anywhere, for <see cref="RobodogWork.mapWide"/> ones), closest to the
     /// dog first, after carrying powered-down dogs home (<see cref="Retrieval"/>). A target closer to another stable that
-    /// has an idle dog is left to that stable. None during a raid. A medic only rescues, raid or not.
+    /// has an idle dog is left to that stable. None during a raid. A medic only rescues, raid or not; a Combatdog only
+    /// fights.
     /// </summary>
     public static class DogWork
     {
@@ -39,6 +46,8 @@ namespace Quadrunner
                 return null;
             if (work.rescue)
                 return Rescue.JobFor(dog);
+            if (work.combat)
+                return Combat.JobFor(dog, stable);
             if (Raid.Active(dog.Map))
                 return null;
             List<Building_Stable> others = dog.Map.listerBuildings.AllBuildingsColonistOfClass<Building_Stable>()
@@ -108,7 +117,10 @@ namespace Quadrunner
         public static void Recheck(Map map) => cache.Remove(map.uniqueID);
     }
 
-    /// <summary>Move speed × <see cref="RobodogWork.raidSpeedFactor"/> for a working dog with a stable during a raid.</summary>
+    /// <summary>
+    /// Move speed × <see cref="RobodogWork.deployedSpeedFactor"/> for a dog of a stable that is out, and also ×
+    /// <see cref="RobodogWork.raidSpeedFactor"/> during a raid.
+    /// </summary>
     public class StatPart_RobodogRaid : StatPart
     {
         public override void TransformValue(StatRequest req, ref float val)
@@ -117,8 +129,14 @@ namespace Quadrunner
                 val *= f;
         }
 
-        public override string ExplanationPart(StatRequest req) =>
-            Factor(req, out float f) ? $"Raid, finishing up: x{f.ToStringPercent()}" : null;
+        public override string ExplanationPart(StatRequest req)
+        {
+            if (!Factor(req, out float f))
+                return null;
+            RobodogWork work = RobodogWork.Of(req.Thing);
+            return work.deployedSpeedFactor != 1f && f == work.deployedSpeedFactor
+                ? $"Deployed: x{f.ToStringPercent()}" : $"Raid, finishing up: x{f.ToStringPercent()}";
+        }
 
         private static bool Factor(StatRequest req, out float factor)
         {
@@ -126,10 +144,10 @@ namespace Quadrunner
             if (!(req.Thing is Pawn pawn) || !pawn.Spawned || CompRobodog.Of(pawn)?.stable == null)
                 return false;
             RobodogWork work = RobodogWork.Of(pawn);
-            if (work == null || !Raid.Active(pawn.Map))
+            if (work == null)
                 return false;
-            factor = work.raidSpeedFactor;
-            return true;
+            factor = work.deployedSpeedFactor * (Raid.Active(pawn.Map) ? work.raidSpeedFactor : 1f);
+            return factor != 1f;
         }
     }
 

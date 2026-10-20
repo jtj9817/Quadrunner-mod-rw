@@ -28,10 +28,16 @@ namespace Quadrunner
 
         [DebugAction(Category, "Spawn Quadrunner docked", actionType = DebugActionType.ToolMap,
             allowedGameStates = AllowedGameStates.PlayingOnMap)]
-        private static void SpawnDocked()
+        private static void SpawnDocked() => SpawnDocked(QR_DefOf.QR_Quadrunner);
+
+        [DebugAction(Category, "Spawn Combatdog docked", actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        private static void SpawnCombatdogDocked() => SpawnDocked(QR_DefOf.QR_Combatdog);
+
+        private static void SpawnDocked(PawnKindDef kind)
         {
             if (StableAt(UI.MouseCell()) is Building_Stable stable)
-                stable.AddNewDog(QR_DefOf.QR_Quadrunner);
+                stable.AddNewDog(kind);
             else
                 Messages.Message("Click a Quadrunner stable.", MessageTypeDefOf.RejectInput, historical: false);
         }
