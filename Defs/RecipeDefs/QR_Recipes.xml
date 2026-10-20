@@ -39,4 +39,82 @@
     </modExtensions>
   </RecipeDef>
 
+  <!-- A destroyed dog leaves its corpse as the wreck; rebuilding it costs about half the recipe and brings the same dog
+       back (agent default, 2026-10-20: half the steel and plasteel, no component). -->
+  <RecipeDef ParentName="QR_AssembleDogBase">
+    <defName>QR_RebuildQuadrunner</defName>
+    <label>rebuild Quadrunner</label>
+    <description>Rebuild a destroyed Quadrunner from its wreck. The same dog docks straight into this stable.</description>
+    <jobString>Rebuilding Quadrunner.</jobString>
+    <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
+    <workAmount>1500</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Corpse_QR_Quadrunner</li></thingDefs></filter><count>1</count></li>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>40</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>15</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Corpse_QR_Quadrunner</li>
+        <li>Steel</li>
+        <li>Plasteel</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <modExtensions>
+      <li Class="Quadrunner.AssembleProps">
+        <kind>QR_Quadrunner</kind>
+      </li>
+    </modExtensions>
+  </RecipeDef>
+
+  <RecipeDef Name="QR_MakeFieldFixBase" Abstract="True">
+    <workSpeedStat>GeneralLaborSpeed</workSpeedStat>
+    <workSkill>Crafting</workSkill>
+    <effectWorking>Smith</effectWorking>
+    <soundWorking>Recipe_Machining</soundWorking>
+    <researchPrerequisite>MicroelectronicsBasics</researchPrerequisite>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_MakeFieldFixBase">
+    <defName>QR_MakeRobodogBattery</defName>
+    <label>make robodog battery</label>
+    <description>Make a robodog battery. Colonists carry it to a powered-down robodog in the field and charge it to full on the spot.</description>
+    <jobString>Making robodog battery.</jobString>
+    <workAmount>800</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>20</count></li>
+      <li><filter><thingDefs><li>ComponentIndustrial</li></thingDefs></filter><count>1</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>ComponentIndustrial</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <products>
+      <QR_RobodogBattery>1</QR_RobodogBattery>
+    </products>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_MakeFieldFixBase">
+    <defName>QR_MakeRobodogRepairKit</defName>
+    <label>make robodog repair kit</label>
+    <description>Make a robodog repair kit. Colonists carry it to a damaged robodog in the field and repair it on the spot.</description>
+    <jobString>Making robodog repair kit.</jobString>
+    <workAmount>800</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>30</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>10</count></li>
+    </ingredients>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>Plasteel</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+    <products>
+      <QR_RobodogRepairKit>1</QR_RobodogRepairKit>
+    </products>
+  </RecipeDef>
+
 </Defs>

@@ -17,7 +17,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T4** (power-down and retrieval), code written, first run pending. T3 done: all 6 boxes ticked on run 2026-10-20 00:21 (Run all 17/17 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) comes with T4. T2 done (run 2026-10-19 22:27), T0 done (run 2026-10-19 23:20).
+- Next: **T4** (power-down and retrieval): code and 6 scenarios written (commit "T4 WIP"), first run 2026-10-20 00:23 partly seen; see the newest hand-off doc. T3 done: all 6 boxes ticked on run 2026-10-20 00:21 (Run all 17/17 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) comes with T4. T2 done (run 2026-10-19 22:27), T0 done (run 2026-10-19 23:20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
 - Last run: 2026-10-20 00:21, build `f4f1996-dirty.20261020T001251Z`, Run all 17/17 PASS, 0 new errors, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
@@ -112,6 +112,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 - **Scenario runner design that worked** *(QB)*: static, never-saved scenario state; `Expect(label, Func<bool>)` / `Do` / `Wait(ticks)` steps checked every tick; `SCENARIO <name>: start …` and `PASS/FAIL` lines with tick counts; **Run all** queues every scenario and logs one `n/m PASS` summary. Starting a scenario removes the previous one's things.
 - **Static state survives a reload.** Assemblies don't reload when a save loads, so a static scenario runner can save, reload and keep checking its steps. Re-find things by ID after the load; references from before it are stale.
+- **Ordered jobs race the stable.** A colonist's ordered carry and a stable dispatch in the same tick: the dog may reserve the target first. In scenarios, keep the stable's dogs busy (battery 1%: charging dogs aren't sent out).
+- **Implied corpse defs.** XML can name `Corpse_<race defName>` (generated before the second cross-ref pass); `rwdefs.py lint` now knows them.
 - **Find clear ground by scanning, not sampling.** `CellFinder.TryFindRandomCellNear` (3000 random tries) missed the few clear 15×15 areas on a dense map; `FindClearArea` now checks every cell in range, nearest first.
 - **Quicktest maps differ per launch.** Each launch generates a new map (trees, chunks, crashlanded items near the center); setups must find clear ground with `Walkable` (trees aren't `Standable`) and clear plants and items themselves. Scenarios turn the storyteller off while they run (a random event once left a colonist's relation to an unsaved pawn: 2 red errors on save/load).
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*

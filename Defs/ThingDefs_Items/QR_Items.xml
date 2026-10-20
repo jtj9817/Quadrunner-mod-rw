@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Field fixes, made at the stable; colonists bring them to dogs in the field (FieldFix.cs).
+       Placeholder art: the vanilla advanced component and industrial medicine, until the item textures exist (T9). -->
+  <ThingDef Name="QR_FieldFixBase" ParentName="ResourceBase" Abstract="True">
+    <soundInteract>Metal_Drop</soundInteract>
+    <soundDrop>Standard_Drop</soundDrop>
+    <stackLimit>10</stackLimit>
+    <healthAffectsPrice>false</healthAffectsPrice>
+    <thingCategories>
+      <li>Manufactured</li>
+    </thingCategories>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_FieldFixBase">
+    <defName>QR_RobodogBattery</defName>
+    <label>robodog battery</label>
+    <description>A charged battery pack for robodogs. Colonists carry it to a powered-down robodog and charge it to full on the spot.</description>
+    <graphicData>
+      <texPath>Things/Item/Resource/ComponentSpacer</texPath>
+      <graphicClass>Graphic_StackCount</graphicClass>
+    </graphicData>
+    <statBases>
+      <MaxHitPoints>60</MaxHitPoints>
+      <MarketValue>60</MarketValue>
+      <Mass>1.5</Mass>
+      <Flammability>0.4</Flammability>
+      <DeteriorationRate>1.0</DeteriorationRate>
+    </statBases>
+    <modExtensions>
+      <li Class="Quadrunner.RobodogFixProps">
+        <charges>true</charges>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_FieldFixBase">
+    <defName>QR_RobodogRepairKit</defName>
+    <label>robodog repair kit</label>
+    <description>Plates, servos and wiring for patching up a robodog. Colonists carry it to a damaged robodog and repair it on the spot.</description>
+    <graphicData>
+      <texPath>Things/Item/Resource/Medicine/MedicineIndustrial</texPath>
+      <graphicClass>Graphic_StackCount</graphicClass>
+      <drawSize>0.85</drawSize>
+    </graphicData>
+    <statBases>
+      <MaxHitPoints>60</MaxHitPoints>
+      <MarketValue>90</MarketValue>
+      <Mass>3</Mass>
+      <Flammability>0.4</Flammability>
+      <DeteriorationRate>1.0</DeteriorationRate>
+    </statBases>
+    <modExtensions>
+      <li Class="Quadrunner.RobodogFixProps">
+        <repairs>true</repairs>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+</Defs>

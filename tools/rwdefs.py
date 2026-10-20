@@ -32,6 +32,32 @@ def index_names(files):
     return names
 
 
+def implied_corpses(files):
+    """Corpse_<defName> for every race ThingDef in files (the game generates them); race inherited via ParentName."""
+    by_name, things = {}, []
+    for f in files:
+        try:
+            root = ET.parse(f).getroot()
+        except ET.ParseError:
+            continue
+        for el in root.findall("ThingDef"):
+            if el.get("Name"):
+                by_name[el.get("Name")] = el
+            things.append(el)
+
+    def has_race(el):
+        seen = set()
+        while el is not None and id(el) not in seen:
+            seen.add(id(el))
+            if el.find("race") is not None:
+                return True
+            el = by_name.get(el.get("ParentName"))
+        return False
+
+    return {"Corpse_" + el.findtext("defName").strip() for el in things
+            if el.findtext("defName") and el.get("Abstract") != "True" and has_race(el)}
+
+
 def cmd_def(rw_dir, wanted):
     core = def_files(Path(rw_dir) / "Data/Core/Defs")
     by_key = {}
@@ -78,6 +104,7 @@ def cmd_lint(rw_dir, repo):
     errors = []
     ours = def_files(repo / "Defs")
     known = index_names(def_files(Path(rw_dir) / "Data/Core/Defs")) | index_names(ours)
+    known |= implied_corpses(ours)
     tex_root = repo / "Textures"
 
     for f in [*ours, *def_files(repo / "About")]:

@@ -15,4 +15,17 @@
     <casualInterruptible>false</casualInterruptible>
   </JobDef>
 
+  <JobDef>
+    <defName>QR_CarryToStable</defName>
+    <driverClass>Quadrunner.JobDriver_CarryToStable</driverClass>
+    <reportString>carrying TargetA to TargetB.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
+  <JobDef>
+    <defName>QR_FieldFixRobodog</defName>
+    <driverClass>Quadrunner.JobDriver_FieldFixRobodog</driverClass>
+    <reportString>bringing TargetA to TargetB.</reportString>
+  </JobDef>
+
 </Defs>

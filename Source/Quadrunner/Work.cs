@@ -22,7 +22,8 @@ namespace Quadrunner
     /// <summary>
     /// Finds work for a dog of a stable: the first work giver (in <see cref="RobodogWork.workGivers"/> order) with a
     /// target in the stable's service radius (or anywhere, for <see cref="RobodogWork.mapWide"/> ones), closest to the
-    /// dog first. A target closer to another stable that has an idle dog is left to that stable. None during a raid.
+    /// dog first, after carrying powered-down dogs home (<see cref="Retrieval"/>). A target closer to another stable that
+    /// has an idle dog is left to that stable. None during a raid.
     /// </summary>
     public static class DogWork
     {
@@ -36,6 +37,11 @@ namespace Quadrunner
                 return null;
             List<Building_Stable> others = dog.Map.listerBuildings.AllBuildingsColonistOfClass<Building_Stable>()
                 .Where(s => s != stable && s.HasIdleDog).ToList();
+            // Powered-down dogs first, map-wide.
+            Job carry = Retrieval.JobFor(dog, t => others.Any(s =>
+                s.InteractionCell.DistanceToSquared(t.Position) < dog.Position.DistanceToSquared(t.Position)));
+            if (carry != null)
+                return carry;
             foreach (WorkGiverDef giver in work.workGivers)
             {
                 if (!(giver.Worker is WorkGiver_Scanner scanner) || scanner.ShouldSkip(dog))

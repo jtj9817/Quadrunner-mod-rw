@@ -10,6 +10,10 @@ namespace Quadrunner
         public static PawnKindDef QR_Quadrunner;
         public static JobDef QR_Dock;
         public static JobDef QR_ChargeAtConduit;
+        public static JobDef QR_CarryToStable;
+        public static JobDef QR_FieldFixRobodog;
+        public static ThingDef QR_RobodogBattery;
+        public static ThingDef QR_RobodogRepairKit;
         public static HediffDef QR_PoweredDown;
         public static RecipeDef QR_AssembleQuadrunner;
         public static WorkGiverDef QR_DoBillsStable;

@@ -29,6 +29,12 @@ namespace Quadrunner
             ("Stable power loss", StablePowerLoss),
             ("Stable fire with docked dogs", StableFire),
             ("Stable uninstall and reinstall", StableUninstall),
+            ("Carry home", CarryHome),
+            ("Field battery and repair kit", FieldBatteryAndRepairKit),
+            ("Carrier runs low", CarrierRunsLow),
+            ("Retrieval under fire", RetrievalUnderFire),
+            ("Raider carries off a dog", RaiderCarriesOffDog),
+            ("Wreck rebuilt", WreckRebuilt),
         };
 
         /// <summary>

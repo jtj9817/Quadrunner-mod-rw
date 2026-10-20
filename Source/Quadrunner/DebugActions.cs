@@ -69,6 +69,18 @@ namespace Quadrunner
                 })).ToList()));
         }
 
+        [DebugAction(Category, "Power down", actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        private static void PowerDown()
+        {
+            foreach (Pawn dog in UI.MouseCell().GetThingList(Find.CurrentMap).OfType<Pawn>().Where(CompRobodog.IsRobodog).ToList())
+                CompRobodog.Of(dog).SetBattery(0f);
+        }
+
+        [DebugAction(Category, "Force dispatch", actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        private static void ForceDispatch() => StableAt(UI.MouseCell())?.TryDispatch(force: true);
+
         [DebugAction(Category, "Highlight charge spots", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         internal static void HighlightSpots()
         {

@@ -11,6 +11,10 @@ namespace Quadrunner
         public float conduitChargePerTick = 0.0004f;
         public float stableChargePerTick = 0.0012f;
         public float energyPerFullCharge = 100f;
+        /// <summary>A powered-down dog is left this long to colonists bringing a robodog battery, when one is in stock.</summary>
+        public int fieldFixWaitTicks = 2500;
+        /// <summary>Colonists bring a repair kit to a dog in the field below this health.</summary>
+        public float fieldRepairBelow = 0.7f;
 
         public CompProperties_Robodog() => compClass = typeof(CompRobodog);
     }

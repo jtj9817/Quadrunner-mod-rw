@@ -50,6 +50,8 @@
       <canBePredatorPrey>false</canBePredatorPrey>
       <herdAnimal>false</herdAnimal>
       <lifeExpectancy>2500</lifeExpectancy>
+      <!-- Puts out a fire next to a powered-down dog before carrying it home. -->
+      <giveNonToolUserBeatFireVerb>true</giveNonToolUserBeatFireVerb>
       <bloodDef>Filth_MachineBits</bloodDef>
       <nameGenerator>NamerAnimalGenericMale</nameGenerator>
       <baseBodySize>0.8</baseBodySize>
@@ -80,6 +82,10 @@
         <conduitChargePerTick>0.0004</conduitChargePerTick>
         <stableChargePerTick>0.0012</stableChargePerTick>
         <energyPerFullCharge>100</energyPerFullCharge>
+        <!-- Field fixes (agent defaults, 2026-10-20): a powered-down dog with a robodog battery in stock is left to
+             the colonists for an hour before a dog carries it home; a repair kit goes to a dog below 70% health. -->
+        <fieldFixWaitTicks>2500</fieldFixWaitTicks>
+        <fieldRepairBelow>0.7</fieldRepairBelow>
       </li>
     </comps>
   </ThingDef>

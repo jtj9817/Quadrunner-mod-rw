@@ -92,13 +92,20 @@ namespace Quadrunner
             return true;
         }
 
-        /// <summary>A new dog from a bill or a debug action: docked if a slot is free, else left beside the stable.</summary>
+        /// <summary>A new dog from a bill or a debug action.</summary>
         public Pawn AddNewDog(PawnKindDef kind)
         {
             Pawn dog = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, Faction.OfPlayer,
                 PawnGenerationContext.NonPlayer, forceGenerateNewPawn: true));
             if (dog.Name == null)
                 dog.Name = PawnBioAndNameGenerator.GeneratePawnName(dog);
+            TakeNewDog(dog);
+            return dog;
+        }
+
+        /// <summary>An unspawned dog, new or rebuilt: docked if a slot is free, else left beside the stable.</summary>
+        public void TakeNewDog(Pawn dog)
+        {
             if (!TryDock(dog))
             {
                 GenSpawn.Spawn(dog, InteractionCell, Map);
@@ -106,17 +113,16 @@ namespace Quadrunner
                     MessageTypeDefOf.CautionInput);
                 QR.Log($"{dog} made at a full {this}; waits unassigned");
             }
-            return dog;
         }
 
         /// <summary>
         /// Sends out one idle dog if there is work for it. The work search needs a spawned dog, so the dog steps out
         /// and, if it finds nothing, docks again in the same tick; the stable then waits <see cref="StableProps.idleBackoff"/>.
         /// </summary>
-        private void TryDispatch()
+        public void TryDispatch(bool force = false)
         {
             int now = Find.TickManager.TicksGame;
-            if (now < nextDispatchTick || Raid.Active(Map))
+            if (!force && now < nextDispatchTick || Raid.Active(Map))
                 return;
             Pawn dog = IdleDog();
             if (dog == null || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))

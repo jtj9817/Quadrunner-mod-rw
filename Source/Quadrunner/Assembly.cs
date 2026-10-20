@@ -26,6 +26,38 @@ namespace Quadrunner
         }
     }
 
+    /// <summary>
+    /// Rebuilds a dog from its wreck (the dog's corpse, an ingredient): the same dog, name and all, comes back docked
+    /// in the stable, or beside it when every slot is taken.
+    /// </summary>
+    public class RecipeWorker_RebuildDog : RecipeWorker
+    {
+        public override void ConsumeIngredient(Thing ingredient, RecipeDef recipe, Map map)
+        {
+            // The wreck stays until Notify_IterationCompleted, which brings its dog back.
+            if (!(ingredient is Corpse corpse && CompRobodog.IsRobodog(corpse.InnerPawn)))
+                base.ConsumeIngredient(ingredient, recipe, map);
+        }
+
+        public override void Notify_IterationCompleted(Pawn billDoer, List<Thing> ingredients)
+        {
+            base.Notify_IterationCompleted(billDoer, ingredients);
+            Corpse wreck = ingredients.OfType<Corpse>().FirstOrDefault(c => CompRobodog.IsRobodog(c.InnerPawn));
+            if (!(billDoer.CurJob?.bill?.billStack?.billGiver is Building_Stable stable) || wreck == null)
+                return;
+            Pawn dog = wreck.InnerPawn;
+            if (!ResurrectionUtility.TryResurrect(dog, new ResurrectionParams { dontSpawn = true }))
+            {
+                QR.Error($"couldn't rebuild {dog} from its wreck");
+                return;
+            }
+            CompRobodog comp = CompRobodog.Of(dog);
+            comp.SetBattery(comp.Battery);
+            stable.TakeNewDog(dog);
+            QR.Log($"{billDoer} rebuilt {dog} at {stable}");
+        }
+    }
+
     /// <summary>"Do until you have X" counts this stable's dogs of the recipe's kind.</summary>
     public class RecipeWorkerCounter_Dogs : RecipeWorkerCounter
     {
