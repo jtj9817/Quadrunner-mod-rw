@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
-  <!-- Core's Misc tree, with its virtual carried-thing worker replaced. No Harmony or humanlike render cache. -->
+  <!-- Core's Misc tree, with its virtual carried-thing worker replaced. No Harmony or humanlike render cache.
+       The sprite is split into the body and four legs (Art/: id="part-…"), which walk under the body
+       (Quadrunner.PawnRenderNodeWorker_Gait). The hind legs show only in profile. The never-drawn Whole node keeps
+       the whole sprite as the pawn's body graphic, which Core's icons (info card, inspector) show. -->
   <PawnRenderTreeDef>
     <defName>QR_RobodogRenderTree</defName>
     <root Class="PawnRenderNodeProperties_Parent">
@@ -8,9 +11,15 @@
       <tagDef>Root</tagDef>
       <children>
         <li>
-          <debugLabel>Body</debugLabel>
+          <debugLabel>Whole</debugLabel>
           <tagDef>Body</tagDef>
           <nodeClass>PawnRenderNode_AnimalPart</nodeClass>
+          <visibleFacing />
+        </li>
+        <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
+          <debugLabel>Body</debugLabel>
+          <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <part>Body</part>
           <useRottenColor>true</useRottenColor>
           <children>
             <li>
@@ -30,6 +39,60 @@
               <baseLayer>5</baseLayer>
             </li>
           </children>
+        </li>
+        <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
+          <debugLabel>Leg HindFar</debugLabel>
+          <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <workerClass>Quadrunner.PawnRenderNodeWorker_Gait</workerClass>
+          <useRottenColor>true</useRottenColor>
+          <baseLayer>-2</baseLayer>
+          <visibleFacing><li>East</li><li>West</li></visibleFacing>
+          <part>HindFar</part>
+          <stride>1.4</stride>
+          <phase>0.5</phase>
+          <swing>22</swing>
+          <lift>0.06</lift>
+          <hip>(44, 69)</hip>
+        </li>
+        <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
+          <debugLabel>Leg FrontFar</debugLabel>
+          <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <workerClass>Quadrunner.PawnRenderNodeWorker_Gait</workerClass>
+          <useRottenColor>true</useRottenColor>
+          <baseLayer>-2</baseLayer>
+          <part>FrontFar</part>
+          <stride>1.4</stride>
+          <phase>0</phase>
+          <swing>22</swing>
+          <lift>0.06</lift>
+          <hip>(82, 68)</hip>
+        </li>
+        <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
+          <debugLabel>Leg HindNear</debugLabel>
+          <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <workerClass>Quadrunner.PawnRenderNodeWorker_Gait</workerClass>
+          <useRottenColor>true</useRottenColor>
+          <baseLayer>-1</baseLayer>
+          <visibleFacing><li>East</li><li>West</li></visibleFacing>
+          <part>HindNear</part>
+          <stride>1.4</stride>
+          <phase>0</phase>
+          <swing>22</swing>
+          <lift>0.06</lift>
+          <hip>(40, 73)</hip>
+        </li>
+        <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
+          <debugLabel>Leg FrontNear</debugLabel>
+          <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <workerClass>Quadrunner.PawnRenderNodeWorker_Gait</workerClass>
+          <useRottenColor>true</useRottenColor>
+          <baseLayer>-1</baseLayer>
+          <part>FrontNear</part>
+          <stride>1.4</stride>
+          <phase>0.5</phase>
+          <swing>22</swing>
+          <lift>0.06</lift>
+          <hip>(84, 72)</hip>
         </li>
         <li Class="PawnRenderNodeProperties_Carried">
           <debugLabel>Carried thing or built-in mount</debugLabel>

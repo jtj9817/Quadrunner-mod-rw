@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Export Art/**/*.svg to PNG at the mirrored path (Art/Textures/X.svg → Textures/X.png), sized by the SVG's width/height.
 # Each element with id="part-<name>" is also exported alone, on the full page, as X_<Name>.png (layers the code
-# draws separately, e.g. a bee's wings, body and light). Art/About/ goes last: its SVGs embed the exported sprites.
+# draws separately, e.g. a bee's wings, body and light). A facing sprite keeps the facing last, so Graphic_Multi finds the
+# part: X_east.svg#part-frontNear → X_FrontNear_east.png. Art/About/ goes last: its SVGs embed the exported sprites.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 
@@ -31,8 +32,10 @@ for svg in "${svgs[@]}"; do
   mkdir -p "$(dirname "$png")"
   inkscape --export-type=png --export-filename="$png" "$svg" 2>/dev/null
   echo "export: Art/$rel → ${png#$REPO/} ($(png_size "$png"))"
-  for part in $(grep -o 'id="part-[a-z]*"' "$svg" | sed 's/id="part-\(.*\)"/\1/'); do
-    part_png="${png%.png}_${part^}.png"
+  for part in $(grep -o 'id="part-[A-Za-z]*"' "$svg" | sed 's/id="part-\(.*\)"/\1/'); do
+    stem="${png%.png}" facing=""
+    [[ "$stem" =~ ^(.*)(_north|_east|_south|_west)$ ]] && stem="${BASH_REMATCH[1]}" facing="${BASH_REMATCH[2]}"
+    part_png="${stem}_${part^}${facing}.png"
     inkscape --export-type=png --export-filename="$part_png" --export-id="part-$part" --export-id-only \
       --export-area-page "$svg" 2>/dev/null
     echo "export: Art/$rel#part-$part → ${part_png#$REPO/} ($(png_size "$part_png"))"

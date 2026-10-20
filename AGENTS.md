@@ -119,7 +119,7 @@ Every helper script lives in `tools/`. Rules:
 | `tools/build.sh` | Lint, then `dotnet build` stamped with a build id, installed into `1.6/Assemblies` with an atomic rename. The id goes to `.devlog/last-build` | done (T0) |
 | `tools/status.sh` | Environment check (game version, toolchain, Steam, Harmony, mod symlink, decomp, baseline), then `autotest.py status` (test instance, its build, the user's game) | done (T0) |
 | `tools/screenshot.sh` | Captures only the test instance's exact RimWorldLinux window class on its own Xvfb display into `.devlog/screens/`; never the user's game or desktop | proven and image inspected (T9) |
-| `tools/export-textures.sh` | Exports original `Art/**/*.svg` to PNG at mirrored paths with Inkscape; `id="part-<name>"` elements become separate layers | used for all T9 artwork; sources and actual game rendering inspected |
+| `tools/export-textures.sh` | Exports original `Art/**/*.svg` to PNG at mirrored paths with Inkscape; `id="part-<name>"` elements become separate layers (a facing sprite's part keeps the facing last: `X_Body_east.png`) | used for all T9 artwork; sources and actual game rendering inspected |
 | `tools/backup-saves.sh` | Archives the **user's** profile (Saves, Config; logs excluded) to `~/RimWorldBackups/<stamp>.tar.gz`, read-only, and refuses while their game runs. Run it whenever the user asks, and before anything that could reach their profile | done (ported from Queen Bee; first backup 2026-10-19, 44 saves) |
 | `tools/package.sh` | From a clean tree: build, then copy only About/Defs/Textures/1.6 (and Patches/Languages/Sounds) into `dist/Quadrunner` with a `BUILD` stamp, and lint the copy | T9 built/linted with 0 warnings/errors; packaged Run all 39/39 PASS, 0 new errors (2026-10-20 09:04) |
 

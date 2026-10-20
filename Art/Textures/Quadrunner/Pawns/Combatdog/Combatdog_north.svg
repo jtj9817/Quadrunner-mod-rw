@@ -1,21 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <!-- Combatdog, north. Cyan optics; 1 tier bars and reinforced chassis. West mirrors east in game. -->
   <g stroke="#17232c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
-    <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
-    <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
-    <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#7e939c"/>
-    <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#b7c8ca"/>
-    <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
-    <path d="M32 43 44 37 49 42 47 66 34 69Z M80 42 84 37 95 43 93 69 80 66Z" fill="#b7c8ca"/>
-    <path d="M51 45H77" stroke="#f19155" stroke-width="4"/>
-    <path d="M54 69v5" stroke="#f19155" stroke-width="3"/>
-    <path d="M47 35 45 21 53 12 63 16 74 12 82 22 80 36 71 45H56Z" fill="#7e939c"/>
-    <path d="M46 23 43 9 55 17 M73 17 85 9 82 26" fill="#b7c8ca"/>
-    <path d="M52 26 63 21 76 26 73 35 63 38 54 34Z" fill="#3b5361"/>
-    <path d="M56 29H70" stroke="#76e5ed" stroke-width="3"/>
-    <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#f19155" stroke="none"/>
-    <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#f19155" stroke="none"/>
-    <path d="M33 104 31 110 M39 104V110 M45 104 47 110 M79 104 77 110 M85 104V110 M91 104 93 110" stroke="#b7c8ca" stroke-width="2"/>
+    <g id="part-frontFar">
+      <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
+      <path d="M33 104 31 110 M39 104V110 M45 104 47 110" stroke="#b7c8ca" stroke-width="2"/>
+    </g>
+    <g id="part-frontNear">
+      <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
+      <path d="M79 104 77 110 M85 104V110 M91 104 93 110" stroke="#b7c8ca" stroke-width="2"/>
+    </g>
+    <g id="part-body">
+      <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
+      <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#7e939c"/>
+      <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#b7c8ca"/>
+      <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
+      <path d="M32 43 44 37 49 42 47 66 34 69Z M80 42 84 37 95 43 93 69 80 66Z" fill="#b7c8ca"/>
+      <path d="M51 45H77" stroke="#f19155" stroke-width="4"/>
+      <path d="M54 69v5" stroke="#f19155" stroke-width="3"/>
+      <path d="M47 35 45 21 53 12 63 16 74 12 82 22 80 36 71 45H56Z" fill="#7e939c"/>
+      <path d="M46 23 43 9 55 17 M73 17 85 9 82 26" fill="#b7c8ca"/>
+      <path d="M52 26 63 21 76 26 73 35 63 38 54 34Z" fill="#3b5361"/>
+      <path d="M56 29H70" stroke="#76e5ed" stroke-width="3"/>
+      <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+      <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+    </g>
   </g>
 </svg>

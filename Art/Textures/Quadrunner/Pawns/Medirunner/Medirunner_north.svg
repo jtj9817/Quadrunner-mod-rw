@@ -1,19 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <!-- Medirunner, north. Cyan optics; teal medical pods. West mirrors east in game. -->
   <g stroke="#17232c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
-    <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
-    <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
-    <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#cfdfdc"/>
-    <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#f3f4e8"/>
-    <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
-    <path d="M39 47H48V79H39Z M79 47H88V79H79Z" fill="#4acdb7"/>
-    <path d="M59 48H68V56H76V65H68V73H59V65H51V56H59Z" fill="#4acdb7" stroke="none"/>
-    <path d="M47 35 45 21 53 12 63 16 74 12 82 22 80 36 71 45H56Z" fill="#cfdfdc"/>
-    <path d="M46 23 43 9 55 17 M73 17 85 9 82 26" fill="#f3f4e8"/>
-    <path d="M52 26 63 21 76 26 73 35 63 38 54 34Z" fill="#3b5361"/>
-    <path d="M56 29H70" stroke="#76e5ed" stroke-width="3"/>
-    <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
-    <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
+    <g id="part-frontFar">
+      <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
+    </g>
+    <g id="part-frontNear">
+      <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
+    </g>
+    <g id="part-body">
+      <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
+      <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#cfdfdc"/>
+      <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#f3f4e8"/>
+      <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
+      <path d="M39 47H48V79H39Z M79 47H88V79H79Z" fill="#4acdb7"/>
+      <path d="M59 48H68V56H76V65H68V73H59V65H51V56H59Z" fill="#4acdb7" stroke="none"/>
+      <path d="M47 35 45 21 53 12 63 16 74 12 82 22 80 36 71 45H56Z" fill="#cfdfdc"/>
+      <path d="M46 23 43 9 55 17 M73 17 85 9 82 26" fill="#f3f4e8"/>
+      <path d="M52 26 63 21 76 26 73 35 63 38 54 34Z" fill="#3b5361"/>
+      <path d="M56 29H70" stroke="#76e5ed" stroke-width="3"/>
+      <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
+      <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
+    </g>
   </g>
 </svg>
