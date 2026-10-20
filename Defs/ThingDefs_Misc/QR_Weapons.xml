@@ -12,6 +12,9 @@
     <smeltable>false</smeltable>
     <techLevel>Spacer</techLevel>
     <soundInteract>Interact_Rifle</soundInteract>
+    <graphicData>
+      <drawSize>(0.8,0.8)</drawSize>
+    </graphicData>
     <comps>
       <li>
         <compClass>Quadrunner.CompBuiltInGun</compClass>
@@ -34,7 +37,7 @@
     <label>built-in assault rifle</label>
     <description>A Combatdog's built-in assault rifle, with the stats of the vanilla one: good range, decent power, good accuracy.</description>
     <graphicData>
-      <texPath>Things/Item/Equipment/WeaponRanged/AssaultRifle</texPath>
+      <texPath>Quadrunner/Weapons/AssaultRifle</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
@@ -67,7 +70,7 @@
     <label>built-in LMG</label>
     <description>A Combatdog's built-in light machine gun, with the stats of the vanilla LMG: inaccurate, but its long bursts are effective against groups.</description>
     <graphicData>
-      <texPath>Things/Item/Equipment/WeaponRanged/LMG</texPath>
+      <texPath>Quadrunner/Weapons/LMG</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
@@ -101,7 +104,7 @@
     <label>built-in minigun</label>
     <description>A Combatdog's built-in minigun, with the stats of the vanilla one: unwieldy and slow to spin up, but it fires very fast. It slows the dog down.</description>
     <graphicData>
-      <texPath>Things/Item/Equipment/WeaponRanged/Minigun</texPath>
+      <texPath>Quadrunner/Weapons/Minigun</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
@@ -142,7 +145,7 @@
     <label>built-in flamethrower</label>
     <description>A Combatdog's built-in flamethrower: a short-range stream of burning fuel that sets its targets alight.</description>
     <graphicData>
-      <texPath>Things/Item/Equipment/WeaponRanged/IncendiaryLauncher</texPath>
+      <texPath>Quadrunner/Weapons/Flamethrower</texPath>
       <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>

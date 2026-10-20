@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
 
-  <!-- The stable: docks up to 15 robodogs of any type, runs every dog bill, and (later targets) dispatches, repairs and
-       charges them. -->
+  <!-- Fifteen shared docks, a service gantry and the bills for every robodog. -->
   <ThingDef ParentName="BuildingBase">
     <defName>QR_Stable</defName>
     <label>Quadrunner stable</label>
     <description>A docking station for robodogs. Up to 15 Quadrunners, Medirunners and Combatdogs share its slots. Colonists assemble new robodogs here; each finished dog docks straight into the stable.</description>
     <thingClass>Quadrunner.Building_Stable</thingClass>
     <tickerType>Normal</tickerType>
-    <!-- Placeholder art: the vanilla comms console, until the stable texture exists (T9). -->
     <graphicData>
-      <texPath>Things/Building/Misc/CommsConsole</texPath>
+      <texPath>Quadrunner/Buildings/Stable</texPath>
       <graphicClass>Graphic_Multi</graphicClass>
-      <drawSize>(5,4)</drawSize>
+      <drawSize>(3,3)</drawSize>
       <damageData>
         <rect>(0,0,3,1.8)</rect>
         <cornerBL>Damage/Corner</cornerBL>

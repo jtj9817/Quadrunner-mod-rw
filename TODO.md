@@ -17,17 +17,17 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T9** (polish and release), not started: the user asked to stand by after T8 (2026-10-20). Read the plan's T9 and the design first. Hand-off: `docs/handoff/20261020-0615-t8-done.md`.
-- Open flake: **Raid: finish and dock** (T3) FAIL in the 06:13 Run all at step 5 'it finishes the haul and docks': 60 gold in the pile, nothing carried, the dog never docked. It failed in Run alls before (02:40, 02:43). Haul and clean passed this time.
-- Balance, worth raising with the user in T9: a Tier 1 Combatdog sent through three fist fights in a row, with no dock between, died in about half the Ping chain runs (thorax). The scenarios now use Melee 0 raiders, so they no longer show it.
-- **Haul and clean** (older flake) passed in the 06:13 Run all; keep watching it.
+- **T9 in progress**, resumed from `docs/handoff/20261020-0615-t8-done.md`. Original sci-fi robodog SVGs were rendered and inspected before export/integration; actual private-game art, ride poses, mounted guns, items, stable rotations, Overview and removal dialogs have been inspected.
+- **Raid: finish and dock** fixture corrected: the old raw log did show docking, but the predicate required exactly 30 gold and the pile already held 60. [INFERENCE] Vanilla's opportunistic extra-stack hauling explains the extra delivery; old target coordinates were not logged. Targets now sit outside the 8-cell duplicate-haul radius; strict 30/60 delivery and post-reload docking checks PASS in two fresh launches.
+- **Tier 1 balance**, user-approved: sharp/blunt armor 0.30/0.15 and health scale 1.6, higher tiers unchanged. Four sampled dogs each won three real unarmed Melee-6 fights without repair; controlled six-hit damage with reload also PASS. This is a sample, not a guaranteed win rate.
+- **Core-only release**, user-approved: DLC-owning tester gate waived, no DLC compatibility claim. Removal uses a confirmed backup/export action, not simply disabling an occupied save. Production export PASS; independent no-assembly proof and packaged Run all remain.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 06:13, build `acc316f.20261020T060848Z`, Run all 35/36 PASS, 0 new errors, 284 s, beside the user's open game (FAIL: Raid: finish and dock).
+- Last run: 2026-10-20 07:19, build `6442182-dirty.20261020T071914Z`, Artwork showcase + Prepare removal **2/2 PASS**, 0 new errors, 13 s. Private instance stopped for independent removal-check.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
-- `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
+- `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
 
 ## Open questions
 
@@ -87,6 +87,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Damage can be deflected** by armor: to injure a dog in a scenario, add the injury hediff (`DamageDefOf.Blunt.hediff`) with a severity instead of `TakeDamage`.
 - **Drafting changes the colonist lists.** Iterate `FreeColonistsSpawned.ToList()` when drafting or undrafting.
 - **Forcing a bill in a scenario.** `WorkGiverDef.Worker.JobOnThing(colonist, stable, forced: true)` then `jobs.TryTakeOrderedJob`; also finish the recipe's research first.
+- **Carry overloads differ.** `TryStartCarry(Thing)` expects an unheld item; for a spawned patient or stack use `TryStartCarry(thing, count, reserve:false)`, which splits/despawns/transfers out of Map's container.
+- **Removal cannot blindly drop everything.** Docked dogs sit in a typed pawn container, and off-map caravan dogs have no drop map. Explicitly drop vanilla cargo on the held map or transfer it to a surviving caravan pawn; fail safely rather than discard unplaceable cargo.
 
 
 - **Use the offline wiki.** The mirror at `/mnt/0B8533211952FCF2/rimworld-wiki-local/data/site/pages/` has every Modding Tutorials page as Markdown, so grep it before fetching the web. *(QB)*
@@ -158,6 +160,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 - **"Gone" in a summary can mean dead:** a killed pawn's corpse has another ThingID, so `ById` finds nothing. Robodog deaths are logged (`killed by <instigator> (<damage>, <weapon>, <part>)`).
 - **At Ultrafast one frame is ~20 ticks:** a state that lasts a tick or two (docked at 100% before the stable dispatches it, a short walk home from a nearby bed, a retreat that ends docked) can fall between two checks. Latch flags across frames, use thresholds (battery ≥ 98%), or accept the end state.
+- **Exact-haul fixtures need separated piles.** Vanilla hauling opportunistically collects duplicate stacks within 8 cells inside one job. Space intended first/second deliveries at least 12 cells apart; do not weaken exact quantities or infer docking from the cargo count.
 
 ### Assets
 
@@ -165,3 +168,4 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Canvas sizes.** At 128 px per tile, a 2×2 building is a 256×256 canvas, and the canvas matches `drawSize`. Sizes must be multiples of 4, ideally powers of two. Pawns need `_north`/`_east`/`_south` (west mirrors east). *(QB)*
 - **Compression edges.** RimWorld compresses textures in memory, which can add white fringes around transparent edges. Keep edge colors in the transparent pixels, or add a 1%-opacity dark outline. *(QB)*
 - **Preview limits.** `About/Preview.png` must stay under 1 MB (Steam rejects larger) and is 640×360. `About/ModIcon.png` (64×64) is optional. *(QB)*
+- **Use the Misc render tree for robodogs.** Neither Animal nor Humanlike, these pawns use Core's Misc tree. A virtual carried-node worker mounts built-in guns on the back (XML offsets), while ordinary cargo keeps Core's position/layer; no additional Harmony patch.

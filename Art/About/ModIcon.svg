@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Quadrunner insignia: angular robotic canine, cyan visor and amber gripper. -->
+  <g stroke="#17232c" stroke-width="2.8" stroke-linejoin="round">
+    <path d="M13 30 11 9 25 18 32 15 40 18 53 9 51 31 46 47 37 55H27L18 47Z" fill="#a4bcc6"/>
+    <path d="m14 28-1-15 11 9 m16 0 11-9-1 15" fill="#e2ece8"/>
+    <path d="m17 31 10-5h10l10 5-4 9H21Z" fill="#29434f"/>
+    <path d="M21 32H29 M35 32H43" stroke="#76e5ed" stroke-width="3"/>
+    <path d="M25 40H39L41 47 35 53H29L23 47Z" fill="#e7b05a"/>
+    <path d="M29 41H35" stroke="#203a47" stroke-width="3"/>
+  </g>
+</svg>

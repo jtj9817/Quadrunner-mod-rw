@@ -2,6 +2,7 @@
 dist/
 Source/**/bin/
 Source/**/obj/
+tools/removal-probe/obj/
 1.6/Assemblies/
 
 # Local agent tooling: decompiler and decompiled game source (derived from the game, never committed)

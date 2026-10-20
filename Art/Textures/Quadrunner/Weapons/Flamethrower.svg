@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in Flamethrower module; barrel aims right on the horizontal centerline. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M21 55 31 47H69L78 54V72H30L21 66Z" fill="#8da6b0"/>
+    <path d="M40 70V82H61V71" fill="#425c6b"/>
+    <path d="M70 56H103V72H70Z" fill="#536e7b"/>
+    <path d="M96 54H106V74H96Z" fill="#afc3c7"/>
+    <path d="M31 55H62" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 62H48" stroke="#3b5360" stroke-width="3"/>
+    <path d="M21 48V72H34V48Z" fill="#daa557"/><path d="m87 59 14 5-14 5" fill="#efb25f" stroke="none"/>
+  </g>
+</svg>

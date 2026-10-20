@@ -78,7 +78,8 @@ namespace Quadrunner
             {
                 announced = true;
                 Event("ready", ("build", QR.BuildId), ("game", VersionControl.CurrentVersionStringWithRev),
-                    ("map", Find.CurrentMap.Size.ToString()));
+                    ("map", Find.CurrentMap.Size.ToString()),
+                    ("modRoot", LoadedModManager.GetMod<QuadrunnerMod>().Content.RootDir));
             }
             CloseBlockingWindows();
             if (now >= nextPoll)

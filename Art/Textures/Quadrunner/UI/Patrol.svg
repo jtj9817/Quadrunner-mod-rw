@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Patrol waypoint command; transparent background and high-contrast route. -->
+  <g stroke="#c9e0df" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" fill="none">
+    <path d="M14 43 30 19 49 36 38 49"/>
+    <path d="M9 38H20V49H9Z M25 13H36V24H25Z M44 31H55V42H44Z" fill="#6fd9d5" stroke="#253e4a" stroke-width="3"/>
+    <path d="M31 48H40V39" stroke="#6fd9d5"/>
+  </g>
+</svg>

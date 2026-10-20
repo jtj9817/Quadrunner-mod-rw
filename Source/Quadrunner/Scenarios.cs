@@ -48,6 +48,9 @@ namespace Quadrunner
             ("Drafted priority target", DraftedPriorityTarget),
             ("Tier upgrade", TierUpgrade),
             ("Tier 3 and 4 weapons", Tier3And4Weapons),
+            ("Combatdog endurance", CombatdogEndurance),
+            ("Artwork showcase", ArtworkShowcase),
+            ("Prepare removal", RemovalSave),
         };
 
         /// <summary>

@@ -2,9 +2,48 @@
 
 A RimWorld 1.6 mod (Core only, requires Harmony): robot dogs dispatched from a stable haul, clean, supply construction, carry riders, rescue the downed (Medirunner) and defend the colony (Combatdogs, tiers 1–4). They charge at conduits or their stable, power down instead of dying when empty, and are carried home.
 
-Status: in development, nothing playable yet. See [TODO.md](TODO.md).
+Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled configurations have not been verified. Progress and exact verification runs are recorded in [TODO.md](TODO.md) and [docs/test-runs.md](docs/test-runs.md).
 
-- Design: [docs/design.md](docs/design.md)
+## Install and play
+
+1. Put the packaged `Quadrunner` folder in RimWorld's `Mods/` directory. Enable **Harmony**, **Core**, then **Quadrunner**, and restart the game.
+2. Research **Microelectronics**, then build a **Quadrunner stable** from **Misc** and connect its 200 W power supply. Its 15 slots include dogs currently working away from home.
+3. Add **Assemble Quadrunner**, **Assemble Medirunner** or **Assemble Combatdog** bills at the stable. Colonists do the work under Crafting. The **Overview** tab shows each dog's battery, health and current activity.
+
+- **Quadrunners** automatically supply construction map-wide, and haul/clean within 40 cells of their stable. Select an undrafted colonist, right-click a stable or an available Quadrunner, choose **Ride … to…**, and pick a destination. Riders dismount on arrival, drafting or entering a building.
+- **Medirunners** rescue reachable downed colonists, guests, prisoners and colony animals to appropriate beds. They do not tend patients or do worker jobs.
+- **Combatdogs** answer attack pings and raids. Set a route with the stable's **Add patrol waypoints** / **Clear patrol** buttons, or draft a dog for direct orders. Order paid tier upgrades and choose free built-in gun options in **Overview**. Tier 3 switches between its rifle/LMG and short-range flamethrower; Tier 4 adds the minigun option. Built-in guns are never dropped as loot.
+- Dogs seek charging at **10%** and power down at **0%**. The powered stable charges and repairs docked dogs. Outdoor dogs can also use safe roofed indoor conduit rooms on a network with stored battery energy; nearby wind turbines invalidate spots (distance configurable in mod settings).
+- Other Quadrunners retrieve powered-down dogs. Colonists can **Carry to stable** or automatically deliver field batteries and repair kits made at the stable. Keep a destroyed dog's wreck for its **Rebuild** bill.
+
+## Removing Quadrunner safely
+
+**Do not simply disable the mod on a save that contains its dogs or buildings.**
+
+1. With the colony loaded and Quadrunner still enabled, open **Options → Mod settings → Quadrunner**.
+2. Choose **Prepare save for removing Quadrunner...** and read the destructive confirmation.
+3. The action first writes `QR_before_removal_<timestamp>`. It releases riders, carried patients and vanilla cargo, removes Quadrunner content on all maps and in the world, and creates `QR_removed_<timestamp>`. Mod content is not refunded; surviving injuries are not healed.
+4. Note the cleaned save's exact name. **Quit without saving again**, disable Quadrunner, restart and load that cleaned save. The changed-mod-list warning is expected.
+5. Keep the backup. To undo removal, re-enable Quadrunner and load the `QR_before_removal_…` backup.
+
+If preparation reports failure, **keep Quadrunner enabled and reload the backup**. No successful clean export is claimed. Bring any off-map robodog cargo without a surviving caravan carrier onto a map before retrying.
+
+## Development
+
+Original SVG sources live in `Art/`; `tools/export-textures.sh` exports the committed PNGs. Preview sources before integration and inspect actual private-game screenshots afterwards.
+
+```sh
+tools/autotest.py run "Artwork showcase"  # lint/build/deploy and exercise the isolated game
+tools/autotest.py stop
+tools/autotest.py removal-check          # independent observer, no Quadrunner assembly
+tools/package.sh                        # requires a clean committed tree; writes dist/Quadrunner
+tools/autotest.py --timeout 3600 pkg-run  # cold-launch the package, run every scenario, restore dev link
+tools/autotest.py stop
+```
+
+`removal-check` requires an export from the **Prepare removal** scenario (`tools/autotest.py run "Prepare removal"`), not an arbitrary player save. The observer loads the export, ticks 600, saves/reloads and ticks another 600 while checking expected vanilla contents and absence of the Quadrunner assembly. The harness rejects any new errors. Tests use only `.devlog/` data and a private Xvfb display, never the player's profile or window.
+
+- Design snapshot: [docs/design.md](docs/design.md)
 - Plan and decisions: [docs/plans/0001-quadrunner.md](docs/plans/0001-quadrunner.md)
-- Agent workflow (automated develop → test → analyze loop): [AGENTS.md](AGENTS.md)
-- Test run log: [docs/test-runs.md](docs/test-runs.md)
+- Automated work loop and tool reference: [AGENTS.md](AGENTS.md)
+- Verification evidence: [docs/test-runs.md](docs/test-runs.md)

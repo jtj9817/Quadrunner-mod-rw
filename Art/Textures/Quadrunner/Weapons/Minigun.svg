@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in Minigun module; barrel aims right on the horizontal centerline. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M21 55 31 47H69L78 54V72H30L21 66Z" fill="#8da6b0"/>
+    <path d="M40 70V82H61V71" fill="#425c6b"/>
+    <path d="M70 52H116V76H70Z" fill="#536e7b"/>
+    <path d="M109 50H119V78H109Z" fill="#afc3c7"/>
+    <path d="M31 55H62" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 62H48" stroke="#3b5360" stroke-width="3"/>
+    <path d="M79 57H109 M79 64H109 M79 71H109" stroke="#b3c9cc" stroke-width="3"/>
+  </g>
+</svg>

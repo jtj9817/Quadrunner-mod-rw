@@ -3,6 +3,9 @@ game. Launched through ./RimWorldLinux with the real game's arguments.
 
   FAKE_STARTUP_ERROR=1   log one red error at startup (autotest.py must count it)
   FAKE_FAIL=<name>       that scenario FAILs
+Without -quadrunner-autotest (a baseline or removal-check launch) it idles; when a Saves/autostart.rws exists it
+logs the load line and, with FAKE_REMOVAL_ERRORS=1, the errors a removed mod leaves, or with FAKE_LOAD_FAIL=1 the
+"long event" exception of a failed load.
 """
 import json
 import os
@@ -16,14 +19,34 @@ args = sys.argv[1:]
 log_path = Path(args[args.index("-logFile") + 1])
 ctl_arg = [a.split("=", 1)[1] for a in args if a.startswith("-quadrunner-autotest=")]
 if not ctl_arg:
-    # Baseline run (no Quadrunner): log some vanilla noise, then idle until killed.
-    log_path.write_text("Command line arguments: " + " ".join(args) + "\n"
-                        "Exception in fake startup: NullReferenceException\n[Ref ABCD1234]\n  at Fake.Startup ()\n")
+    # Baseline or removal-check run (no Quadrunner): log some vanilla noise, then idle until killed.
+    text = "Command line arguments: " + " ".join(args) + "\n"
+    data = Path(next(a.split("=", 1)[1] for a in args if a.startswith("-savedatafolder=")))
+    auto = data / "Saves" / "autostart.rws"
+    if auto.exists():
+        text += "Loading game from file autostart with mods:\n  - brrainz.harmony\n  - ludeon.rimworld\n"
+        if os.environ.get("FAKE_LOAD_FAIL"):
+            text += ("Exception from long event: System.NullReferenceException: Object reference not set to an "
+                     "instance of an object\n[Ref ABCD1234]\n  at Fake.Load ()\n")
+        elif os.environ.get("FAKE_REMOVAL_ERRORS"):
+            text += ("Could not load reference to Verse.ThingDef named QR_Stable\n"
+                     "Exception spawning loaded thing FakeThing: System.NullReferenceException\n"
+                     "Exception ticking FakeColonist: System.InvalidOperationException: DoBill on non-Billgiver.\n")
+    text += "Exception in fake startup: NullReferenceException\n[Ref ABCD1234]\n  at Fake.Startup ()\n"
+    log_path.write_text(text)
+    probe = next((a.split("=", 1)[1] for a in args if a.startswith("-quadrunner-removal-probe=")), None)
+    if probe:
+        directory = Path(probe)
+        (directory / "heartbeat").write_text("fake observer")
+        (directory / "result").write_text("FAIL: load failed" if os.environ.get("FAKE_LOAD_FAIL") else
+                                        "PASS: loaded, ticked, saved and reloaded without Quadrunner")
     while True:
         time.sleep(1)
 ctl = Path(ctl_arg[0])
 devlog = Path(os.environ["QR_DEVLOG"])
-build = (devlog / "last-build").read_text().strip()  # "loads" whatever was built last, like the real DLL
+mod_root = (Path(os.environ["RW_DIR"]) / "Mods" / "Quadrunner").resolve()
+stamp = mod_root / "BUILD"
+build = stamp.read_text().strip() if stamp.is_file() else (devlog / "last-build").read_text().strip()
 pid = os.getpid()
 launch = f"{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}-{pid}"
 log = open(log_path, "w", buffering=1)
@@ -48,7 +71,8 @@ if os.environ.get("FAKE_STARTUP_ERROR"):
 threading.Thread(target=beat, daemon=True).start()
 event("launched", build=f"0.1.0+{build}")
 time.sleep(2)  # "generating the quicktest map"
-event("ready", build=f"0.1.0+{build}", game="1.6.4871 rev598", map="(250, 1, 250)")
+event("ready", build=f"0.1.0+{build}", game="1.6.4871 rev598", map="(250, 1, 250)",
+      modRoot=str(devlog if os.environ.get("FAKE_WRONG_MOD_SOURCE") else mod_root))
 
 while True:
     time.sleep(0.5)

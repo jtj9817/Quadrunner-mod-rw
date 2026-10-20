@@ -26,8 +26,12 @@ namespace Quadrunner
     /// (<see cref="Combat"/>): hostiles that hit one of its dogs (a ping) or that a Combatdog sees, and walk its patrol
     /// waypoints, placed with a gizmo.
     /// </summary>
+    [StaticConstructorOnStartup]
     public class Building_Stable : Building_WorkTable, IThingHolder
     {
+        private static readonly Texture2D PatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/Patrol");
+        private static readonly Texture2D ClearPatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/ClearPatrol");
+
         private ThingOwner<Pawn> docked;
         private List<Pawn> targets = new List<Pawn>();
         private List<IntVec3> waypoints = new List<IntVec3>();
@@ -239,7 +243,7 @@ namespace Quadrunner
                 defaultLabel = "Add patrol waypoints",
                 defaultDesc = "Click to place waypoints one after another; right-click to stop. Deployed Combatdogs walk "
                     + "them in order, in a loop, while a raid is on or targets remain.",
-                icon = TexCommand.SquadAttack,
+                icon = PatrolIcon,
                 action = PlaceWaypoints,
             };
             if (waypoints.Count > 0)
@@ -247,7 +251,7 @@ namespace Quadrunner
                 {
                     defaultLabel = "Clear patrol",
                     defaultDesc = $"Remove all {waypoints.Count} patrol waypoints.",
-                    icon = TexCommand.ClearPrioritizedWork,
+                    icon = ClearPatrolIcon,
                     action = ClearWaypoints,
                 };
         }

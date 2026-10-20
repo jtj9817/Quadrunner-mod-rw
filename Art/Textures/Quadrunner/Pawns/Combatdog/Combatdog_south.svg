@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Combatdog, south. Cyan optics; 1 tier bars and reinforced chassis. West mirrors east in game. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
+    <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
+    <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
+    <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#7e939c"/>
+    <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#b7c8ca"/>
+    <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
+    <path d="M32 43 44 37 49 42 47 66 34 69Z M80 42 84 37 95 43 93 69 80 66Z" fill="#b7c8ca"/>
+    <path d="M51 45H77" stroke="#f19155" stroke-width="4"/>
+    <path d="M54 69v5" stroke="#f19155" stroke-width="3"/>
+    <path d="M44 60 43 44 53 49 64 45 75 49 85 44 83 62 79 79 69 87H57L47 79Z" fill="#7e939c"/>
+    <path d="M44 59 43 44 54 53 M74 53 85 44 83 61" fill="#b7c8ca"/>
+    <path d="M47 63 58 59H70L81 63 77 71H51Z" fill="#263a46"/>
+    <path d="M51 65H60 M68 65H77" stroke="#76e5ed" stroke-width="3"/>
+    <path d="M55 74H73L76 82 68 89H60L52 82Z" fill="#b7c8ca"/>
+    <path d="M59 75H69L70 79H58Z" fill="#172b36" stroke="none"/>
+    <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+    <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+    <path d="M33 104 31 110 M39 104V110 M45 104 47 110 M79 104 77 110 M85 104V110 M91 104 93 110" stroke="#b7c8ca" stroke-width="2"/>
+  </g>
+</svg>

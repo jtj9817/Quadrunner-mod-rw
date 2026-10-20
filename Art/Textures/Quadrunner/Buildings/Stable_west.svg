@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="384" viewBox="0 0 384 384">
+  <!-- Three-by-two docking station; square canvas preserves footprint in every rotation. Fifteen indicator lamps, service gantry and charging floor. -->
+  <g transform="rotate(90 192 192)">
+  <g stroke="#17232c" stroke-width="5" stroke-linejoin="round">
+    <path d="M13 80 32 66H352L371 80V303L352 319H32L13 303Z" fill="#526a77"/>
+    <path d="M27 103H357V292H27Z" fill="#303f4a"/>
+    <path d="M38 153H346V289H38Z" fill="#647a81"/>
+    <path d="M46 164H338V280H46Z" fill="#7c9194"/>
+    <path d="M48 179H336 M48 260H336" stroke="#435b68" stroke-width="3"/>
+    <path d="M132 166V278 M252 166V278" stroke="#b0c1bb" stroke-width="3"/>
+    <path d="M21 75H363V142H21Z" fill="#adc1c4"/>
+    <path d="M31 85H353V105H31Z" fill="#d2ddda" stroke="none"/>
+    <path d="M31 119H353V134H31Z" fill="#3b5362"/>
+    <path d="M59 113H109 M167 113H217 M275 113H325" stroke="#6be1e1" stroke-width="5"/>
+    <path d="M58 147V169 M111 147V169 M167 147V169 M218 147V169 M276 147V169 M328 147V169" stroke="#e2ac54" stroke-width="8"/>
+    <path d="M16 153H38V278H16Z M346 153H368V278H346Z" fill="#b1c1c1"/>
+    <path d="M19 179H35 M19 202H35 M19 225H35 M19 248H35 M349 179H365 M349 202H365 M349 225H365 M349 248H365" stroke="#526d79"/>
+    <path d="M31 294H353V309H31Z" fill="#b5bfb1"/>
+    <path d="m48 295 12 13 m18-13 12 13 m18-13 12 13 m144-13 12 13 m18-13 12 13 m18-13 12 13" stroke="#dfad57" stroke-width="9"/>
+    <path d="M160 294H224V309H160Z" fill="#374f5d"/>
+    <path d="M174 300H210" stroke="#6be1e1" stroke-width="4"/>
+    <path d="M76 202 72 185 84 192 96 190 108 185 104 204 109 222 101 234H82L73 222Z" fill="#607985" stroke="#bdcfc8" stroke-width="3"/>
+    <path d="M81 208H100 M85 222H97" stroke="#7be3dc" stroke-width="3"/>
+    <path d="M176 202 176 185H209V241H176Z" fill="#3c5360"/>
+    <path d="M185 197H201V226H185Z" fill="#7be3dc" stroke="none"/>
+    <path d="M278 196 289 190 301 196V224L289 233 278 224Z" fill="#415b68"/>
+    <path d="M289 200V222 M279 211H300" stroke="#e3b264" stroke-width="6"/>
+    <path d="M45 87H112V102H45Z M154 87H221V102H154Z M263 87H330V102H263Z" fill="#344e5d" stroke-width="3"/>
+    <path d="M53 91V98 M65 91V98 M77 91V98 M89 91V98 M101 91V98 M162 91V98 M174 91V98 M186 91V98 M198 91V98 M210 91V98 M271 91V98 M283 91V98 M295 91V98 M307 91V98 M319 91V98" stroke="#7be3dc" stroke-width="6"/>
+  </g>
+  </g>
+</svg>

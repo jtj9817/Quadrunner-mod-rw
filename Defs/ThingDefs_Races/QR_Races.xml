@@ -39,6 +39,7 @@
       <intelligence>Animal</intelligence>
       <fleshType>QR_Robotic</fleshType>
       <body>QR_Robodog</body>
+      <renderTree>QR_RobodogRenderTree</renderTree>
       <thinkTreeMain>QR_Robodog</thinkTreeMain>
       <needsRest>false</needsRest>
       <hasGenders>false</hasGenders>
@@ -121,9 +122,9 @@
       <li Class="Quadrunner.Rideable">
         <riddenMoveSpeed>7</riddenMoveSpeed>
         <offsetNorth>(0, 0, 0.42)</offsetNorth>
-        <offsetEast>(-0.08, 0, 0.36)</offsetEast>
-        <offsetSouth>(0, 0, 0.45)</offsetSouth>
-        <offsetWest>(0.08, 0, 0.36)</offsetWest>
+        <offsetEast>(-0.22, 0, 0.40)</offsetEast>
+        <offsetSouth>(0, 0, 0.70)</offsetSouth>
+        <offsetWest>(0.22, 0, 0.40)</offsetWest>
       </li>
     </modExtensions>
   </ThingDef>
@@ -204,7 +205,12 @@
     <description>A four-legged guard robot with built-in claws (Tier 1). It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
     <statBases>
       <MarketValue>900</MarketValue>
+      <ArmorRating_Sharp>0.3</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.15</ArmorRating_Blunt>
     </statBases>
+    <race>
+      <baseHealthScale>1.6</baseHealthScale>
+    </race>
     <modExtensions>
       <li Class="Quadrunner.CombatTier">
         <tier>1</tier>
@@ -295,14 +301,12 @@
     <race>QR_Quadrunner</race>
     <combatPower>40</combatPower>
     <canArriveManhunter>false</canArriveManhunter>
-    <!-- Placeholder art: the vanilla husky, tinted steel blue, until the robodog textures exist (T9). -->
     <lifeStages>
       <li>
         <bodyGraphicData>
-          <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
-          <drawSize>1.4</drawSize>
-          <color>(120,135,150)</color>
-          <shaderType>CutoutComplex</shaderType>
+          <texPath>Quadrunner/Pawns/Quadrunner/Quadrunner</texPath>
+          <drawSize>2.0</drawSize>
+          <shaderType>Cutout</shaderType>
           <shadowData>
             <volume>(0.25, 0.3, 0.25)</volume>
             <offset>(0,0,-0.15)</offset>
@@ -318,14 +322,12 @@
     <race>QR_Medirunner</race>
     <combatPower>40</combatPower>
     <canArriveManhunter>false</canArriveManhunter>
-    <!-- Placeholder art: the vanilla husky, tinted white with a red hint, until the robodog textures exist (T9). -->
     <lifeStages>
       <li>
         <bodyGraphicData>
-          <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
+          <texPath>Quadrunner/Pawns/Medirunner/Medirunner</texPath>
           <drawSize>1.4</drawSize>
-          <color>(225,215,215)</color>
-          <shaderType>CutoutComplex</shaderType>
+          <shaderType>Cutout</shaderType>
           <shadowData>
             <volume>(0.25, 0.3, 0.25)</volume>
             <offset>(0,0,-0.15)</offset>
@@ -341,14 +343,12 @@
     <race>QR_Combatdog</race>
     <combatPower>80</combatPower>
     <canArriveManhunter>false</canArriveManhunter>
-    <!-- Placeholder art: the vanilla husky, tinted gunmetal with a red hint, until the robodog textures exist (T9). -->
     <lifeStages>
       <li>
         <bodyGraphicData>
-          <texPath>Things/Pawn/Animal/Husky/Husky</texPath>
+          <texPath>Quadrunner/Pawns/Combatdog/Combatdog</texPath>
           <drawSize>1.5</drawSize>
-          <color>(95,80,80)</color>
-          <shaderType>CutoutComplex</shaderType>
+          <shaderType>Cutout</shaderType>
           <shadowData>
             <volume>(0.25, 0.3, 0.25)</volume>
             <offset>(0,0,-0.15)</offset>
@@ -362,18 +362,57 @@
     <defName>QR_CombatdogTwo</defName>
     <race>QR_CombatdogTwo</race>
     <combatPower>150</combatPower>
+    <lifeStages Inherit="False">
+      <li>
+        <bodyGraphicData>
+          <texPath>Quadrunner/Pawns/CombatdogTwo/CombatdogTwo</texPath>
+          <drawSize>1.5</drawSize>
+          <shaderType>Cutout</shaderType>
+          <shadowData>
+            <volume>(0.25, 0.3, 0.25)</volume>
+            <offset>(0,0,-0.15)</offset>
+          </shadowData>
+        </bodyGraphicData>
+      </li>
+    </lifeStages>
   </PawnKindDef>
 
   <PawnKindDef ParentName="QR_CombatdogKind">
     <defName>QR_CombatdogThree</defName>
     <race>QR_CombatdogThree</race>
     <combatPower>250</combatPower>
+    <lifeStages Inherit="False">
+      <li>
+        <bodyGraphicData>
+          <texPath>Quadrunner/Pawns/CombatdogThree/CombatdogThree</texPath>
+          <drawSize>1.5</drawSize>
+          <shaderType>Cutout</shaderType>
+          <shadowData>
+            <volume>(0.25, 0.3, 0.25)</volume>
+            <offset>(0,0,-0.15)</offset>
+          </shadowData>
+        </bodyGraphicData>
+      </li>
+    </lifeStages>
   </PawnKindDef>
 
   <PawnKindDef ParentName="QR_CombatdogKind">
     <defName>QR_CombatdogFour</defName>
     <race>QR_CombatdogFour</race>
     <combatPower>350</combatPower>
+    <lifeStages Inherit="False">
+      <li>
+        <bodyGraphicData>
+          <texPath>Quadrunner/Pawns/CombatdogFour/CombatdogFour</texPath>
+          <drawSize>1.5</drawSize>
+          <shaderType>Cutout</shaderType>
+          <shadowData>
+            <volume>(0.25, 0.3, 0.25)</volume>
+            <offset>(0,0,-0.15)</offset>
+          </shadowData>
+        </bodyGraphicData>
+      </li>
+    </lifeStages>
   </PawnKindDef>
 
 </Defs>

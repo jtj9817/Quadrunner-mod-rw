@@ -18,7 +18,11 @@
   <loadAfter>
     <li>brrainz.harmony</li>
   </loadAfter>
-  <description>Stable-dispatched robot dogs that haul, clean, supply construction, carry riders, rescue the downed and defend the colony. In development.
+  <description>Sci-fi robot dogs dispatched from a powered stable: Quadrunners haul, clean, supply construction and carry riders; Medirunners rescue the downed; Combatdogs defend the colony and upgrade through four tiers.
 
-Requires Harmony.</description>
+Research Microelectronics, build a stable under Misc, and assemble dogs through its bills. Charge and repair at the stable, maintain field batteries and repair kits, and keep wrecks for rebuilding.
+
+RimWorld 1.6, Core + Harmony only. No DLC required; DLC-enabled configurations are unverified.
+
+Before removing the mod, load the colony and use Mod settings → Quadrunner → Prepare save for removing Quadrunner. It creates a backup and a separate cleaned save. Quit without saving again, disable the mod, then load the cleaned save.</description>
 </ModMetaData>

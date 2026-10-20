@@ -249,7 +249,7 @@ namespace Quadrunner
             float raidSpeed = 0f, calmSpeed = 0f, raidDrain = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
-            s.Do("an unpowered stable with a dog, a gold stockpile, two gold stacks 22–30 cells out", () =>
+            s.Do("an unpowered stable with a dog, a gold stockpile, two gold stacks 22–30 cells out and 12+ apart", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
@@ -259,8 +259,12 @@ namespace Quadrunner
                     IntVec3 home = stable.InteractionCell;
                     pile = ClearRect(map, home, 3, 1, 6f, 10f);
                     Stockpile(s, pile, ThingDefOf.Gold);
-                    for (int i = 0; i < 2; i++)
-                        goldIds.Add(SpawnStack(s, ThingDefOf.Gold, 30, OpenCell(map, home, 22f, 30f)).ThingID);
+                    IntVec3 first = OpenCell(map, home, 22f, 30f);
+                    goldIds.Add(SpawnStack(s, ThingDefOf.Gold, 30, first).ThingID);
+                    // Vanilla HaulToCell adds duplicate stacks within 8 cells of the pickup, in the same job.
+                    // Leave room for an adjacent pickup cell too: the second stack must be a separate job.
+                    goldIds.Add(SpawnStack(s, ThingDefOf.Gold, 30,
+                        OpenCell(map, home, 22f, 30f, c => c.DistanceTo(first) >= 12f)).ThingID);
                 })
                 .Expect("the dog is sent for gold", () => Dog().Spawned && Dog().CurJobDef == JobDefOf.HaulToCell)
                 .Do("a raider appears far away", () =>
@@ -296,7 +300,9 @@ namespace Quadrunner
                 .SaveAndReload()
                 .Expect("still a raid after the load", () => Raid.Active(Find.CurrentMap))
                 .Wait(300)
-                .Expect("still docked", () => Stable().Docked.Contains(Dog()))
+                .Expect("still docked, the other stack untouched", () =>
+                    Stable().Docked.Contains(Dog()) && CountIn(pile, ThingDefOf.Gold) == 30
+                    && Scenario.ById(otherGoldId)?.Position == otherGoldCell)
                 .Do("the raider leaves", () => Scenario.ById(raiderId).Destroy())
                 .Expect("raid over: the dog goes out at normal speed and drain", () =>
                 {
@@ -311,7 +317,8 @@ namespace Quadrunner
                 .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; gold " + string.Join(", ",
                     goldIds.Select(id => Scenario.ById(id) ?? Dog()?.carryTracker.CarriedThing).Where(t => t != null)
                         .Select(t => $"{t.stackCount} at {t.PositionHeld}{(pile.Contains(t.PositionHeld) ? " (pile)" : "")}"))
-                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}; " + ColonistStates())
+                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}, docked {Stable().Docked.Contains(Dog())}, "
+                    + $"job {Dog()?.CurJob.ToStringSafe()}; " + ColonistStates())
                 .Start();
         }
 

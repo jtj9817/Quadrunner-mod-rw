@@ -13,8 +13,8 @@ namespace Quadrunner
     /// </summary>
     public class ITab_StableOverview : ITab
     {
-        private static readonly Vector2 WinSize = new Vector2(760f, 420f);
-        private static readonly float[] ColumnWidths = { 120f, 90f, 60f, 60f, 170f, 40f, 0f };
+        private static readonly Vector2 WinSize = new Vector2(840f, 420f);
+        private static readonly float[] ColumnWidths = { 120f, 90f, 60f, 60f, 110f, 40f, 0f };
         private static readonly string[] Headers = { "Name", "Type", "Battery", "Health", "Doing", "Tier", "Weapons" };
         private const float UpgradeWidth = 120f;
         private const float RowHeight = 26f;
@@ -74,7 +74,8 @@ namespace Quadrunner
                 // A Combatdog's Weapons cell is drawn as its button instead.
                 DrawRow(cells, tier?.SlotCount > 0 ? rows[i].cells.Take(6).ToArray() : rows[i].cells, bold: false);
                 if (tier != null)
-                    DrawCombatdogButtons(stable, dog, tier, cells, new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f));
+                    DrawCombatdogButtons(stable, dog, tier, rows[i].cells[6], cells,
+                        new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f));
                 else if (dog.Spawned && Widgets.ButtonInvisible(row))
                     CameraJumper.TryJumpAndSelect(dog);
             }
@@ -82,11 +83,12 @@ namespace Quadrunner
         }
 
         /// <summary>The Weapons cell as a button listing each slot's choices, and the upgrade button.</summary>
-        private static void DrawCombatdogButtons(Building_Stable stable, Pawn dog, CombatTier tier, Rect cells, Rect upgrade)
+        private static void DrawCombatdogButtons(Building_Stable stable, Pawn dog, CombatTier tier, string description,
+            Rect cells, Rect upgrade)
         {
             float weaponsX = cells.x + ColumnWidths.Take(ColumnWidths.Length - 1).Sum();
             Rect weapons = new Rect(weaponsX, cells.y, cells.xMax - weaponsX, cells.height).ContractedBy(2f);
-            if (tier.SlotCount > 0 && Widgets.ButtonText(weapons, Tiers.Describe(dog)))
+            if (tier.SlotCount > 0 && Widgets.ButtonText(weapons, description))
             {
                 var options = new List<FloatMenuOption>();
                 for (int slot = 0; slot < tier.SlotCount; slot++)
@@ -98,6 +100,8 @@ namespace Quadrunner
                     }
                 Find.WindowStack.Add(new FloatMenu(options));
             }
+            if (tier.SlotCount > 0)
+                TooltipHandler.TipRegion(weapons, description);
             if (tier.upgrade == null)
                 return;
             Bill_UpgradeDog bill = stable.UpgradeBill(dog);
@@ -123,6 +127,7 @@ namespace Quadrunner
             {
                 float w = ColumnWidths[c] > 0f ? ColumnWidths[c] : rect.xMax - x;
                 Widgets.Label(new Rect(x + 4f, rect.y, w - 4f, rect.height), cells[c].Truncate(w - 4f));
+                TooltipHandler.TipRegion(new Rect(x, rect.y, w, rect.height), cells[c]);
                 x += w;
             }
             GUI.color = Color.white;

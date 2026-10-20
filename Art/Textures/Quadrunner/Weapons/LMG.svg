@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in LMG module; barrel aims right on the horizontal centerline. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M21 55 31 47H69L78 54V72H30L21 66Z" fill="#8da6b0"/>
+    <path d="M40 70V82H61V71" fill="#425c6b"/>
+    <path d="M70 56H112V72H70Z" fill="#536e7b"/>
+    <path d="M105 54H115V74H105Z" fill="#afc3c7"/>
+    <path d="M31 55H62" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 62H48" stroke="#3b5360" stroke-width="3"/>
+    <path d="M31 70H47V89H31Z" fill="#d0a25a"/>
+  </g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Medirunner, south. Cyan optics; teal medical pods. West mirrors east in game. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
+    <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
+    <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
+    <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#cfdfdc"/>
+    <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#f3f4e8"/>
+    <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
+    <path d="M39 47H48V79H39Z M79 47H88V79H79Z" fill="#4acdb7"/>
+    <path d="M59 48H68V56H76V65H68V73H59V65H51V56H59Z" fill="#4acdb7" stroke="none"/>
+    <path d="M44 60 43 44 53 49 64 45 75 49 85 44 83 62 79 79 69 87H57L47 79Z" fill="#cfdfdc"/>
+    <path d="M44 59 43 44 54 53 M74 53 85 44 83 61" fill="#f3f4e8"/>
+    <path d="M47 63 58 59H70L81 63 77 71H51Z" fill="#263a46"/>
+    <path d="M51 65H60 M68 65H77" stroke="#76e5ed" stroke-width="3"/>
+    <path d="M55 74H73L76 82 68 89H60L52 82Z" fill="#f3f4e8"/>
+    <path d="M59 75H69L70 79H58Z" fill="#172b36" stroke="none"/>
+    <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
+    <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#4acdb7" stroke="none"/>
+  </g>
+</svg>

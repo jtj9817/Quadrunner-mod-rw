@@ -29,6 +29,13 @@ namespace Quadrunner
             list.Begin(inRect);
             list.Label($"Keep charge spots at least {Settings.turbineDistance} cells from wind turbines and their clear area");
             Settings.turbineDistance = Mathf.RoundToInt(list.Slider(Settings.turbineDistance, 0f, 15f));
+            list.GapLine();
+            if (Current.ProgramState == ProgramState.Playing && Find.CurrentMap != null)
+            {
+                list.Label("Removal creates a backup, removes Quadrunner content, and exports a separate cleaned save.");
+                if (list.ButtonText("Prepare save for removing Quadrunner..."))
+                    Removal.Confirm();
+            }
             list.End();
         }
 

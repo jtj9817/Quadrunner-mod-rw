@@ -4,6 +4,13 @@
   autotest.py run [filter]    one iteration: build, restart the instance in game (or start it), run the scenarios,
                               diff the log against the baseline, record the run. Exit 0 pass, 1 fail, 2 hang/crash,
                               3 not run (the environment is broken)
+  autotest.py pkg-run [filter]
+                              like run, but against the packaged copy in dist/Quadrunner (QR_PKG) without building:
+                              the mod link temporarily points at the package, and the loaded assembly must report the
+                              package's BUILD stamp; the dev link is restored afterwards
+  autotest.py removal-check   load the prepared removal save WITHOUT Quadrunner, with an independent test-only observer.
+                              Require 600 live ticks, a new save/reload, 600 more ticks, retained vanilla contents and
+                              zero new errors. Never installs the observer into the release package.
   autotest.py start           launch the instance and wait until its quicktest map is ready
   autotest.py restart         in-game restart (GenCommandLine.Restart, as after toggling Texture Compression)
   autotest.py stop            quit the instance (in game, then SIGTERM/SIGKILL) and its Xvfb
@@ -22,6 +29,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -59,6 +67,18 @@ PACKAGE_ID = "josh9817.quadrunner"
 CORE_MODS = ["brrainz.harmony", "ludeon.rimworld"]
 AUTOTEST_ARG = "-quadrunner-autotest"
 MAPSIZE_ARG = "-quadrunner-mapsize"
+# The packaged release copy (tools/package.sh): `autotest.py pkg-run` points the mod link at it instead of the dev
+# repo, without building. Same variable and default as tools/env.sh.
+PKG = Path(os.environ.get("QR_PKG", REPO / "dist/Quadrunner"))
+# Where the mod link points for a normal launch: the dev repo. pkg-run temporarily repoints it (and restores it).
+MOD_DIR = REPO
+# The save the "Removal save" scenario writes and `removal-check` loads without the mod.
+REMOVAL_SAVE = "QR_removal"
+LOAD_MARKER = "Loading game from file autostart"
+PROBE_ID = "quadrunner.removalprobe"
+PROBE_MOD = DEVLOG / "removal-probe-mod"
+PROBE_LINK = RW_DIR / "Mods" / "QuadrunnerRemovalProbe"
+PROBE_CTL = DEVLOG / "removal-probe"
 
 EXIT_PASS, EXIT_FAIL, EXIT_HANG, EXIT_NOT_RUN = 0, 1, 2, 3
 
@@ -277,11 +297,11 @@ def game_version():
         return "missing"
 
 
-def write_profile(with_mod):
+def write_profile(with_mod, removal_probe=False):
     """Rewrites the test profile's config every launch, so the game can't drift from it."""
     config = RW_DATA / "Config"
     config.mkdir(parents=True, exist_ok=True)
-    mods = CORE_MODS + ([PACKAGE_ID] if with_mod else [])
+    mods = CORE_MODS + ([PACKAGE_ID] if with_mod else []) + ([PROBE_ID] if removal_probe else [])
     items = "\n".join(f"    <li>{m}</li>" for m in mods)
     (config / "ModsConfig.xml").write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<ModsConfigData>\n'
@@ -291,14 +311,16 @@ def write_profile(with_mod):
 
 
 def ensure_mod_link():
+    """The mod link must point at MOD_DIR (the dev repo, or dist/Quadrunner during pkg-run)."""
+    target = MOD_DIR
     if MOD_LINK.is_symlink():
-        if MOD_LINK.resolve() != REPO:
-            die(f"{MOD_LINK} links to {MOD_LINK.resolve()}, not this repo; move it away by hand")
+        if MOD_LINK.resolve() != target:
+            die(f"{MOD_LINK} links to {MOD_LINK.resolve()}, not {target}; move it away by hand")
     elif MOD_LINK.exists():
-        die(f"{MOD_LINK} exists and is not the dev symlink; move it away by hand")
+        die(f"{MOD_LINK} exists and is not the mod link; move it away by hand")
     else:
-        MOD_LINK.symlink_to(REPO)
-        say(f"installed dev symlink {MOD_LINK} -> {REPO}")
+        MOD_LINK.symlink_to(target)
+        say(f"installed mod link {MOD_LINK} -> {target}")
 
 
 def preflight():
@@ -350,11 +372,14 @@ def archive_log(name):
     return target
 
 
-def launch(with_mod=True):
+def launch(with_mod=True, removal_probe=False):
     """Starts a fresh instance in its own session, so it outlives this script."""
-    write_profile(with_mod)
+    write_profile(with_mod, removal_probe)
     if with_mod:
         ensure_mod_link()
+        # A leftover autostart save would load instead of the quicktest map (Root_Play checks it first). It is only
+        # ever written by the removal check, as a copy; remove it so a normal launch always quicktests.
+        (RW_DATA / "Saves" / "autostart.rws").unlink(missing_ok=True)
     archive_log(f"orphan-{utc_stamp()}")
     env = dict(os.environ)
     env.pop("WAYLAND_DISPLAY", None)
@@ -367,6 +392,8 @@ def launch(with_mod=True):
         argv.append(f"{AUTOTEST_ARG}={CTL}")
         if MAP_SIZE:
             argv.append(f"{MAPSIZE_ARG}={MAP_SIZE}")
+    if removal_probe:
+        argv.append(f"-quadrunner-removal-probe={PROBE_CTL}")
     proc = subprocess.Popen(argv, cwd=RW_DIR, env=env, stdin=subprocess.DEVNULL,
                             stdout=open(CTL / "stdout.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
     say(f"launched test instance pid {proc.pid} on {env['DISPLAY']}{'' if with_mod else ' (without Quadrunner)'}")
@@ -488,14 +515,15 @@ def new_errors(path, start=0, show_all=False):
 
 # --- commands --------------------------------------------------------------------------------------------------
 
-def cmd_run(args):
-    preflight()
-    if not args.no_build:
+def run_harness(expected_build, args, build_first):
+    """Start or restart the instance until it runs `expected_build` (the latest dev build, or a package's BUILD
+    stamp), run the scenarios and report. Never builds when `build_first` is false (packaged runs)."""
+    if build_first:
         say("building")
         if subprocess.run([str(REPO / "tools/build.sh")]).returncode != 0:
             print("RESULT: BUILD FAILED")
             return EXIT_FAIL
-    last = LAST_BUILD.read_text().strip() if LAST_BUILD.exists() else None
+    last = expected_build or (LAST_BUILD.read_text().strip() if LAST_BUILD.exists() else None)
     cur = current()
     try:
         if cur is None:
@@ -508,6 +536,9 @@ def cmd_run(args):
         if build_id(cur) != last:
             print(f"RESULT: STALE BUILD: loaded {build_id(cur)}, expected {last}")
             return EXIT_FAIL
+        if Path(cur.get("modRoot", "")).resolve() != MOD_DIR.resolve():
+            print(f"RESULT: WRONG MOD SOURCE: loaded {cur.get('modRoot')}, expected {MOD_DIR}")
+            return EXIT_FAIL
         log_start = 0 if fresh else (RW_LOG.stat().st_size if RW_LOG.exists() else 0)
         offset = events_size()
         t0 = time.time()
@@ -517,6 +548,119 @@ def cmd_run(args):
     except Outcome as o:
         return report_outcome(o, cur)
     return report(cur, result, offset, log_start, time.time() - t0, args.filter)
+
+
+def cmd_run(args):
+    preflight()
+    return run_harness(None, args, build_first=not args.no_build)
+
+
+def cmd_pkg_run(args):
+    """Cold-launch the actual package, never build it or reuse a dev process with the same build stamp."""
+    preflight()
+    pkg = PKG.resolve()
+    about = pkg / "About" / "About.xml"
+    import xml.etree.ElementTree as ET
+    try:
+        if ET.parse(about).getroot().findtext("packageId") != PACKAGE_ID:
+            die(f"{about} does not declare packageId {PACKAGE_ID}")
+    except (OSError, ET.ParseError) as e:
+        die(f"no valid package at {pkg}: {e} (tools/package.sh writes it from a clean tree)")
+    stamp_file = pkg / "BUILD"
+    if not stamp_file.is_file() or not (stamp := stamp_file.read_text().strip()):
+        die(f"no BUILD stamp at {stamp_file}")
+    dll = pkg / "1.6" / "Assemblies" / "Quadrunner.dll"
+    if not dll.is_file() or dll.stat().st_size == 0:
+        die(f"no Quadrunner.dll at {dll}")
+    if MOD_LINK.is_symlink():
+        if MOD_LINK.resolve() not in (REPO, pkg):
+            die(f"refusing to replace an unrelated mod link: {MOD_LINK} -> {MOD_LINK.resolve()}")
+    elif MOD_LINK.exists():
+        die(f"{MOD_LINK} exists and is not a symlink")
+    global MOD_DIR
+    try:
+        cmd_stop(args)
+        MOD_DIR = pkg
+        MOD_LINK.unlink(missing_ok=True)
+        MOD_LINK.symlink_to(pkg)
+        say(f"packaged run against {pkg}, expected build {stamp}; cold launch and modRoot checked")
+        return run_harness(stamp, args, build_first=False)
+    finally:
+        cmd_stop(args)
+        MOD_DIR = REPO
+        MOD_LINK.unlink(missing_ok=True)
+        MOD_LINK.symlink_to(REPO)
+        say(f"restored mod link {MOD_LINK} -> {REPO}")
+
+
+def cmd_removal_check(args):
+    """Exercise a prepared save in a fresh process that cannot load Quadrunner.dll."""
+    preflight()
+    if test_pids():
+        die("the test instance is running; autotest.py stop first")
+    if Path(args.save).name != args.save:
+        die("--save must be a save name, not a path")
+    src = RW_DATA / "Saves" / f"{args.save}.rws"
+    expected = CTL / "removal-expected.txt"
+    if not src.is_file() or not expected.is_file():
+        die("run 'autotest.py run \"Prepare removal\"' first: removal save or expected vanilla contents missing")
+    if PROBE_LINK.exists() or PROBE_LINK.is_symlink():
+        if not PROBE_LINK.is_symlink() or PROBE_LINK.resolve() != PROBE_MOD:
+            die(f"refusing to replace unrelated removal-observer install {PROBE_LINK}")
+    assemblies = PROBE_MOD / "1.6" / "Assemblies"
+    if subprocess.run(["dotnet", "build", str(REPO / "tools/removal-probe/RemovalProbe.csproj"), "-c", "Release",
+                       "-nologo", "-v", "quiet", "-o", str(assemblies)]).returncode:
+        return EXIT_FAIL
+    about = PROBE_MOD / "About"
+    about.mkdir(parents=True, exist_ok=True)
+    (about / "About.xml").write_text(
+        f"<ModMetaData><name>Quadrunner removal observer (test only)</name><author>Quadrunner tools</author>"
+        f"<packageId>{PROBE_ID}</packageId><supportedVersions><li>1.6</li></supportedVersions></ModMetaData>")
+    PROBE_CTL.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(expected, PROBE_CTL / "expected.txt")
+    for name in ("result", "heartbeat"):
+        (PROBE_CTL / name).unlink(missing_ok=True)
+    auto = RW_DATA / "Saves" / "autostart.rws"
+    auto.unlink(missing_ok=True)
+    shutil.copy2(src, auto)
+    result, code = "", EXIT_FAIL
+    log = None
+    try:
+        if not PROBE_LINK.is_symlink():
+            PROBE_LINK.symlink_to(PROBE_MOD)
+        launch(with_mod=False, removal_probe=True)
+        t0 = time.time()
+        while not (PROBE_CTL / "result").is_file():
+            time.sleep(0.5)
+            if not test_pids():
+                raise Outcome("CRASH", "the no-Quadrunner process exited")
+            if time.time() - t0 > args.ready_timeout:
+                raise Outcome("TIMEOUT", "the independent observer did not finish")
+            beat = PROBE_CTL / "heartbeat"
+            if beat.is_file() and time.time() - beat.stat().st_mtime > args.hang_after:
+                raise Outcome("HANG", "the independent observer stopped beating")
+        result = (PROBE_CTL / "result").read_text().strip()
+        code = EXIT_PASS if result.startswith("PASS:") else EXIT_FAIL
+    except Outcome as o:
+        result, code = str(o), EXIT_HANG
+    finally:
+        kill_instance()
+        log = archive_log(f"removal-{utc_stamp()}")
+        auto.unlink(missing_ok=True)
+        PROBE_LINK.unlink(missing_ok=True)
+        write_profile(with_mod=True)
+    text = log.read_text(errors="replace") if log else ""
+    errors = new_errors(log) if log else []
+    for b in errors:
+        print("\\n".join(b.lines[:20]))
+    if LOAD_MARKER not in text or OURS in text:
+        result, code = "invalid proof: save was not loaded or Quadrunner was still active", EXIT_FAIL
+    if errors and code == EXIT_PASS:
+        code = EXIT_FAIL
+    print(f"RESULT: {'LOADED CLEAN' if code == EXIT_PASS else 'REMOVAL FAILED'}: {result}; {len(errors)} new errors")
+    print(f"log: {log}")
+    print(f"observer proof: {PROBE_CTL / 'result'}; screenshot: {PROBE_CTL / 'removed-colony.png'}")
+    return code
 
 
 def report_outcome(o, cur):
@@ -551,6 +695,7 @@ def report(cur, result, offset, log_start, seconds, filt):
     names = ", ".join(e["name"] for e in scen) or (filt or "all")
     (run_dir / f"run-{utc_stamp()}.json").write_text(json.dumps(
         dict(verdict=verdict, passed=passed, total=total, errors=len(errors), seconds=round(seconds),
+             mod_root=cur.get("modRoot"),
              build=build_id(cur), launch=cur["launch"], filter=filt, scenarios=scen,
              error_heads=[b.lines[0] for b in errors]), indent=1))
     print(f"row: | {stamp} | | {build_id(cur)} | {names} | {passed}/{total} PASS, {len(errors)} new errors | | |")
@@ -729,6 +874,12 @@ def main():
     p.add_argument("filter", nargs="?", help="comma-separated, case-insensitive parts of scenario names")
     p.add_argument("--no-build", action="store_true")
     p.set_defaults(fn=cmd_run)
+    p = sub.add_parser("pkg-run")
+    p.add_argument("filter", nargs="?", help="comma-separated, case-insensitive parts of scenario names")
+    p.set_defaults(fn=cmd_pkg_run)
+    p = sub.add_parser("removal-check")
+    p.add_argument("--save", default=REMOVAL_SAVE, help="prepared save name (not a path)")
+    p.set_defaults(fn=cmd_removal_check)
     for name, fn in (("start", cmd_start), ("restart", cmd_restart), ("stop", cmd_stop), ("status", cmd_status),
                      ("hang", cmd_hang)):
         sub.add_parser(name).set_defaults(fn=fn)

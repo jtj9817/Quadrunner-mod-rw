@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Defs>
 
-  <!-- Field fixes, made at the stable; colonists bring them to dogs in the field (FieldFix.cs).
-       Placeholder art: the vanilla advanced component and industrial medicine, until the item textures exist (T9). -->
+  <!-- Field fixes made at the stable; colonists bring them to dogs in the field (FieldFix.cs). -->
   <ThingDef Name="QR_FieldFixBase" ParentName="ResourceBase" Abstract="True">
     <soundInteract>Metal_Drop</soundInteract>
     <soundDrop>Standard_Drop</soundDrop>
@@ -18,8 +17,8 @@
     <label>robodog battery</label>
     <description>A charged battery pack for robodogs. Colonists carry it to a powered-down robodog and charge it to full on the spot.</description>
     <graphicData>
-      <texPath>Things/Item/Resource/ComponentSpacer</texPath>
-      <graphicClass>Graphic_StackCount</graphicClass>
+      <texPath>Quadrunner/Items/Battery</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
     </graphicData>
     <statBases>
       <MaxHitPoints>60</MaxHitPoints>
@@ -40,8 +39,8 @@
     <label>robodog repair kit</label>
     <description>Plates, servos and wiring for patching up a robodog. Colonists carry it to a damaged robodog and repair it on the spot.</description>
     <graphicData>
-      <texPath>Things/Item/Resource/Medicine/MedicineIndustrial</texPath>
-      <graphicClass>Graphic_StackCount</graphicClass>
+      <texPath>Quadrunner/Items/RepairKit</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
       <drawSize>0.85</drawSize>
     </graphicData>
     <statBases>
