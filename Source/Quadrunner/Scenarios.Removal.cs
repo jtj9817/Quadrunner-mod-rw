@@ -26,6 +26,7 @@ namespace Quadrunner
             var s = new Scenario("Prepare removal", 12000);
             string stableId = null, riderId = null, rideDogId = null, downDogId = null, walkDogId = null, crafterId = null;
             string patientId = null, cargoId = null, dockCargoId = null, travelerId = null, worldCargoId = null, backup = null;
+            string[] removedIds = null;
             float woundSeverity = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
@@ -138,6 +139,23 @@ namespace Quadrunner
                     if (!worldDog.inventory.innerContainer.TryAdd(worldCargo))
                         throw new InvalidOperationException("could not stage the caravan cargo");
                     CaravanMaker.MakeCaravan(new[] { traveler, worldDog }, Faction.OfPlayer, map.Tile, true);
+                    Pawn wreckDog = s.Track(Stable().AddNewDog(QR_DefOf.QR_CombatdogThree));
+                    Stable().TryUndock(wreckDog);
+                    wreckDog.Kill(null);
+                    Corpse wreck = wreckDog.Corpse ?? throw new InvalidOperationException("no wreck to remove");
+                    s.Track(wreck);
+                    CellRect field = ClearRect(map, Stable().Position, 13, 1, 12f, 35f);
+                    Building_Stable packed = SpawnStable(s, powered: false, near: field.CenterCell, maxDist: 0f);
+                    IntVec3 packedAt = packed.Position;
+                    MinifiedThing mini = packed.MakeMinified();
+                    if (!GenPlace.TryPlaceThing(mini, packedAt, map, ThingPlaceMode.Near))
+                        throw new InvalidOperationException("could not place the packed stable");
+                    s.Track(mini);
+                    Blueprint blueprint = s.Track(GenConstruct.PlaceBlueprintForBuild(QR_DefOf.QR_Stable,
+                        field.CenterCell + new IntVec3(-4, 0, -4), map, Rot4.North, Faction.OfPlayer, null));
+                    Thing frame = SpawnBuilding(s, QR_DefOf.QR_Stable.frameDef, null,
+                        field.CenterCell + new IntVec3(4, 0, -4), Rot4.North);
+                    removedIds = new[] { wreck.ThingID, mini.ThingID, blueprint.ThingID, frame.ThingID };
                     Hediff wound = Rider().health.AddHediff(HediffDefOf.Cut, Rider().RaceProps.body.corePart);
                     wound.Severity = woundSeverity = 2f;
                     wound.sourceDef = QR_DefOf.QR_Gun_AssaultRifle;
@@ -148,18 +166,21 @@ namespace Quadrunner
                                 .Concat(new[] { cargoId, dockCargoId, travelerId, worldCargoId }));
                 })
                 .Expect("rider and carried patient survive, cargo is kept, mod objects and jobs are gone", () =>
-                    Rider().Spawned && Riding.MountOf(Rider()) == null
-                    && Scenario.ById(patientId) is Pawn patient && patient.Spawned && patient.Downed
-                    && Scenario.ById(cargoId) is Thing cargo && cargo.Spawned && cargo.stackCount == 20
-                    && Scenario.ById(dockCargoId) is Thing dockCargo && dockCargo.Spawned && dockCargo.stackCount == 7
-                    && Removal.AllThings().OfType<Pawn>().Any(p => p.ThingID == travelerId
-                        && p.GetCaravan() != null && p.inventory.innerContainer.Any(t =>
-                            t.ThingID == worldCargoId && t.stackCount == 9))
-                    && Rider().health.hediffSet.hediffs.Any(h => h.def == HediffDefOf.Cut
-                        && h.Severity >= woundSeverity && h.sourceDef == null)
-                    && !Removal.AllThings().Any(CompRobodog.IsRobodog)
-                    && !Find.CurrentMap.mapPawns.AllPawns.Any(p =>
-                        p.jobs?.AllJobs().Any(j => j.def.defName.StartsWith("QR_", StringComparison.Ordinal)) == true))
+                {
+                    var remaining = Removal.AllThings();
+                    return Rider().Spawned && Riding.MountOf(Rider()) == null
+                        && Scenario.ById(patientId) is Pawn patient && patient.Spawned && patient.Downed
+                        && Scenario.ById(cargoId) is Thing cargo && cargo.Spawned && cargo.stackCount == 20
+                        && Scenario.ById(dockCargoId) is Thing dockCargo && dockCargo.Spawned && dockCargo.stackCount == 7
+                        && remaining.OfType<Pawn>().Any(p => p.ThingID == travelerId
+                            && p.GetCaravan() != null && p.inventory.innerContainer.Any(t =>
+                                t.ThingID == worldCargoId && t.stackCount == 9))
+                        && Rider().health.hediffSet.hediffs.Any(h => h.def == HediffDefOf.Cut
+                            && h.Severity >= woundSeverity && h.sourceDef == null)
+                        && !remaining.Any(t => CompRobodog.IsRobodog(t) || removedIds.Contains(t.ThingID))
+                        && !Find.CurrentMap.mapPawns.AllPawns.Any(p =>
+                            p.jobs?.AllJobs().Any(j => j.def.defName.StartsWith("QR_", StringComparison.Ordinal)) == true);
+                })
                 .Summary(() => backup == null ? "removal preparation not reached; no clean export claimed"
                     : $"export {RemovalSaveName}, backup {backup}; rider {riderId}, patient {patientId}, cargo {cargoId}/{dockCargoId}/{worldCargoId}")
                 .Start();

@@ -33,7 +33,7 @@ If preparation reports failure, **keep Quadrunner enabled and reload the backup*
 Original SVG sources live in `Art/`; `tools/export-textures.sh` exports the committed PNGs. Preview sources before integration and inspect actual private-game screenshots afterwards.
 
 ```sh
-tools/autotest.py run "Artwork showcase"  # lint/build/deploy and exercise the isolated game
+tools/autotest.py run "Artwork showcase,Prepare removal"  # private visual captures and removal export
 tools/autotest.py stop
 tools/autotest.py removal-check          # independent observer, no Quadrunner assembly
 tools/package.sh                        # requires a clean committed tree; writes dist/Quadrunner

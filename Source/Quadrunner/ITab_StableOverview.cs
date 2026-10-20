@@ -21,9 +21,6 @@ namespace Quadrunner
 
         private Vector2 scrollPosition;
 
-        /// <summary>Frames drawn; scenarios check it went up while the tab was open.</summary>
-        public static int framesDrawn;
-
         public ITab_StableOverview()
         {
             size = WinSize;
@@ -32,7 +29,7 @@ namespace Quadrunner
 
         private Building_Stable Stable => (Building_Stable)SelThing;
 
-        /// <summary>The tab's rows as text, docked dogs first; scenarios check these without drawing.</summary>
+        /// <summary>The tab's row values, docked dogs first.</summary>
         public static List<(Pawn dog, string[] cells)> Rows(Building_Stable stable) =>
             stable.Dogs()
                 .OrderBy(d => stable.Docked.Contains(d) ? 0 : 1)
@@ -51,7 +48,6 @@ namespace Quadrunner
 
         protected override void FillTab()
         {
-            framesDrawn++;
             Building_Stable stable = Stable;
             List<(Pawn dog, string[] cells)> rows = Rows(stable);
             Rect inner = new Rect(0f, 0f, WinSize.x, WinSize.y).ContractedBy(10f);

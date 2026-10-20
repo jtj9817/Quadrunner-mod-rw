@@ -387,7 +387,10 @@ def launch(with_mod=True, removal_probe=False):
                XDG_CONFIG_HOME=str(DEVLOG / "xdg/config"), XDG_CACHE_HOME=str(DEVLOG / "xdg/cache"))
     if RENDER_THREADS:
         env["LP_NUM_THREADS"] = RENDER_THREADS
-    argv = [str(EXE), f"-savedatafolder={RW_DATA}", "-logFile", str(RW_LOG), "-quicktest", "-disable-compute-shaders"]
+    argv = [str(EXE), f"-savedatafolder={RW_DATA}", "-logFile", str(RW_LOG), "-disable-compute-shaders"]
+    # Root_Entry starts autoload itself. QuickStarter would also switch scenes, leaving a half-created Game.
+    if not removal_probe:
+        argv.append("-quicktest")
     if with_mod:
         argv.append(f"{AUTOTEST_ARG}={CTL}")
         if MAP_SIZE:
@@ -634,7 +637,7 @@ def cmd_removal_check(args):
             time.sleep(0.5)
             if not test_pids():
                 raise Outcome("CRASH", "the no-Quadrunner process exited")
-            if time.time() - t0 > args.ready_timeout:
+            if time.time() - t0 > args.timeout:
                 raise Outcome("TIMEOUT", "the independent observer did not finish")
             beat = PROBE_CTL / "heartbeat"
             if beat.is_file() and time.time() - beat.stat().st_mtime > args.hang_after:
@@ -652,7 +655,7 @@ def cmd_removal_check(args):
     text = log.read_text(errors="replace") if log else ""
     errors = new_errors(log) if log else []
     for b in errors:
-        print("\\n".join(b.lines[:20]))
+        print("\n".join(b.lines[:20]))
     if LOAD_MARKER not in text or OURS in text:
         result, code = "invalid proof: save was not loaded or Quadrunner was still active", EXIT_FAIL
     if errors and code == EXIT_PASS:

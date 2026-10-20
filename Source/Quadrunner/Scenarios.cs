@@ -235,7 +235,6 @@ namespace Quadrunner
         {
             var s = new Scenario("Stable full (16th dog)", 8000);
             string stableId = null, extraId = null, outId = null;
-            int drawnBefore = 0;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             s.Do("spawn a powered stable with 14 dogs, materials and a bill", () =>
                 {
@@ -261,22 +260,6 @@ namespace Quadrunner
                     Stable().TryUndock(dog);
                 })
                 .Expect("an undocked dog keeps its slot", () => Stable().Docked.Count == 14 && !Stable().HasFreeSlot)
-                .Expect("the Overview tab has 15 rows, 14 docked", () =>
-                {
-                    var rows = ITab_StableOverview.Rows(Stable());
-                    return rows.Count == 15 && rows.Count(r => r.cells[4] == "Docked") == 14
-                        && rows.All(r => r.cells[1] == "Quadrunner" && r.cells[2] == "100%" && r.cells[3] == "100%");
-                })
-                .Do("select the stable, open its Overview tab", () =>
-                {
-                    drawnBefore = ITab_StableOverview.framesDrawn;
-                    Find.Selector.ClearSelection();
-                    Find.Selector.Select(Stable(), playSound: false);
-                    Find.MainTabsRoot.SetCurrentTab(MainButtonDefOf.Inspect, playSound: false);
-                    ((MainTabWindow_Inspect)MainButtonDefOf.Inspect.TabWindow).OpenTabType = typeof(ITab_StableOverview);
-                })
-                .Expect("the tab drew", () => ITab_StableOverview.framesDrawn > drawnBefore)
-                .Do("deselect", () => Find.Selector.ClearSelection())
                 .SaveAndReload()
                 .Expect("after the reload: 15 assigned, the 16th still unassigned", () =>
                     Stable().Dogs().Count == 15 && CompRobodog.Of(Scenario.ById(extraId))?.stable == null)

@@ -23,8 +23,13 @@ if not ctl_arg:
     text = "Command line arguments: " + " ".join(args) + "\n"
     data = Path(next(a.split("=", 1)[1] for a in args if a.startswith("-savedatafolder=")))
     auto = data / "Saves" / "autostart.rws"
+    conflicting_start = auto.exists() and "-quicktest" in args
     if auto.exists():
-        text += "Loading game from file autostart with mods:\n  - brrainz.harmony\n  - ludeon.rimworld\n"
+        if conflicting_start:
+            text += ("Initializing new game with mods:\nException from asynchronous event: "
+                     "System.NullReferenceException: WorldObjects is null\n[Ref ABCD1234]\n  at Fake.InitNewGame ()\n")
+        else:
+            text += "Loading game from file autostart with mods:\n  - brrainz.harmony\n  - ludeon.rimworld\n"
         if os.environ.get("FAKE_LOAD_FAIL"):
             text += ("Exception from long event: System.NullReferenceException: Object reference not set to an "
                      "instance of an object\n[Ref ABCD1234]\n  at Fake.Load ()\n")
@@ -38,7 +43,8 @@ if not ctl_arg:
     if probe:
         directory = Path(probe)
         (directory / "heartbeat").write_text("fake observer")
-        (directory / "result").write_text("FAIL: load failed" if os.environ.get("FAKE_LOAD_FAIL") else
+        failed = os.environ.get("FAKE_LOAD_FAIL") or conflicting_start
+        (directory / "result").write_text("FAIL: load failed" if failed else
                                         "PASS: loaded, ticked, saved and reloaded without Quadrunner")
     while True:
         time.sleep(1)
