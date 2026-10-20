@@ -346,22 +346,24 @@ namespace Quadrunner
             var s = new Scenario("Drafted priority target", 20000);
             string stableId = null, combatId = null, nearId = null, farId = null;
             int holdTick = 0;
+            bool charged = false, wentOut = false;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
             Pawn ById(string id) => (Pawn)Scenario.ById(id);
             bool Down(string id) => !(ById(id) is Pawn p) || p.Dead || p.Downed;
-            s.Do("a stable with a docked Combatdog; a Quadrunner 20–25 cells out hit by a raider; another raider 35–45 cells out the other way", () =>
+            // Raiders beyond the drafted colonists' rifle range (~25 cells from the stable), so only the Combatdog deals with them.
+            s.Do("a stable with a docked Combatdog; a Quadrunner 32–38 cells out hit by a raider; another raider 45–55 cells out the other way", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
-                    IntVec3 field = OpenCell(map, stable.InteractionCell, 20f, 25f);
+                    IntVec3 field = OpenCell(map, stable.InteractionCell, 32f, 38f);
                     Pawn quad = DogOut(s, stable, field);
                     Pawn near = SpawnRaider(s, OpenCell(map, field, 2f, 4f));
                     nearId = near.ThingID;
-                    farId = SpawnRaider(s, OpenCell(map, stable.InteractionCell, 35f, 45f, c => c.DistanceTo(field) > 30f)).ThingID;
+                    farId = SpawnRaider(s, OpenCell(map, stable.InteractionCell, 45f, 55f, c => c.DistanceTo(field) > 40f)).ThingID;
                     Raid.Recheck(map);
                     Hit(quad, near);
                 })
@@ -408,7 +410,13 @@ namespace Quadrunner
                 .Do("its battery drops to 10%", () => CompRobodog.Of(Combatdog()).SetBattery(0.1f))
                 .Expect("undrafted, it retreats to charge", () => !Combatdog().Drafted && Retreating(Combatdog()))
                 .Expect("charged to full, it goes back out for the queued raider", () =>
-                    CompRobodog.Of(Combatdog()).Battery >= 1f && Attacking(Combatdog(), ById(nearId)))
+                {
+                    // Full only while docked (walking drains it), and the fight can start and end between two frames at
+                    // Ultrafast: charged once seen docked at 100%, out once seen spawned after that.
+                    charged |= Stable().Docked.Contains(Combatdog()) && CompRobodog.Of(Combatdog()).Battery >= 1f;
+                    wentOut |= charged && Combatdog().Spawned;
+                    return wentOut && (Attacking(Combatdog(), ById(nearId)) || Down(nearId));
+                })
                 .Expect("the queued raider dead or down; the Combatdog docks", () =>
                     Down(nearId) && Stable().Docked.Contains(Combatdog()))
                 .Summary(() => $"near {Fate(nearId)}, far {Fate(farId)}; Combatdog " + (Combatdog() == null ? "gone"

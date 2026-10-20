@@ -17,11 +17,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: run **Drafted priority target** (built, not run; the user asked to close the test instance at 05:11, so wait for their OK before launching), then the T7 Run all and tick box 7. Boxes 1–5 ticked (runs 2026-10-20 04:51–05:09): race, pings, capture, patrol waypoints (stable gizmo), low-battery retreat with the siren lamp.
+- Next: **T7 Run all** (shared code changed: think tree, `DogWork.FindJob` → `Combat`, stable dispatch, `Scenario.Resume`), then tick box 7 (all four T7 scenarios have passed alone: Ping chain, Low-battery retreat 05:08, Combatdog sweep 05:09, Drafted priority target 05:18) and T7 in Progress; then T8. Boxes 1–6 ticked.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 05:09, build `dc08c02-dirty.20261020T050850Z`, Combatdog sweep 1/1 PASS (and 05:08: Ping chain, Low-battery retreat PASS), 0 new errors, map 200.
+- Last run: 2026-10-20 05:18, build `a8e36e1-dirty.20261020T051811Z`, Drafted priority target 1/1 PASS, 0 new errors, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
@@ -141,6 +141,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Dogs in the field go home.** A Quadrunner placed out with nothing to do walks back to its stable; spawn later hostiles relative to something that stays put, or they appear by the stable and the drafted colonists shoot them.
 - **Glow textures have no alpha.** `Things/Mote/LightningGlow` is meant for the additive `MoteGlow` shader; with `Transparent` it draws a dark square, and additive alone hardly shows on bright ground. The siren uses its own lamp texture with alpha.
 - **Targeter re-arming.** `Targeter` calls `StopTargeting()` after the click action, so begin the next targeting from `actionWhenFinished` (guarded by a flag set in the action, since right-click also calls it).
+- **Battery drains as soon as a dog walks.** "Full and out" never holds past the dispatch tick: check full while docked, then spawned.
+- **Drafted colonists shoot ~25 cells out.** Scenarios draft every colonist, so raiders meant for a Combatdog go 30+ cells from the stable.
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*
 - **One defend point clusters pawns.** A single `LordJob_DefendPoint` for several pawns gathers them at one spot. Give each hostile its own lord. *(QB)*
 - **Screenshots: one window only.** Capture by exact window class `RimWorldLinux` on the instance's own `DISPLAY` (read from `/proc/<pid>/environ`); a title match also hits browser tabs about RimWorld. Never `import -window root`. *(QB)*
