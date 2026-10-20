@@ -182,9 +182,11 @@ namespace Quadrunner
                     combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
                     RoomWithBeds(s, ClearRect(map, stable.InteractionCell, 5, 1, 6f, 16f), 1, prisoners: true);
                     IntVec3 field = OpenCell(map, stable.InteractionCell, 20f, 30f);
-                    emptyRoom = BuildRoom(s, ClearRect(map, field, 5, 1, 13f, 22f), batteryPct: -1f);
-                    float emptyDist = emptyRoom.rect.CenterCell.DistanceTo(field);
-                    bedroom = RoomWithBeds(s, ClearRect(map, field, 5, 1, 5f, emptyDist - 4f), 1, prisoners: false);
+                    // Place the excluded bedroom first; the usable room must be farther, not squeeze the bedroom
+                    // into whatever narrow annulus remains after a random-map room placement.
+                    bedroom = RoomWithBeds(s, ClearRect(map, field, 5, 1, 5f, 35f), 1, prisoners: false);
+                    float emptyMin = bedroom.rect.CenterCell.DistanceTo(field) + 10f;
+                    emptyRoom = BuildRoom(s, ClearRect(map, field, 5, 1, emptyMin, emptyMin + 35f), batteryPct: -1f);
                     Pawn quad = DogOut(s, stable, field);
                     var raiders = new List<Pawn>();
                     for (int i = 0; i < 4; i++)

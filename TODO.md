@@ -24,7 +24,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 08:29, `a14ee7e-dirty.20261020T082843Z`: **3/3 PASS**, 0 new errors (Charging maze, Ride until 0%, Ride and dismount). Relative near/far placement and normal-speed arrival observation retain the exact destination/door checks; unmounted speed is restored after exhaustion. Next: clean package Run all and independent no-Quadrunner load.
+- Last run: 2026-10-20 08:41, `1f8d31a-dirty.20261020T084046Z`: **3/3 PASS**, 0 new errors (Raid: finish and dock, Stable power loss, Combatdog sweep). Core departure during explicitly staged weapon cooldown survives subsequent reloads; bedroom-first placement preserves all capture/patrol checks. Next: clean package Run all and independent no-Quadrunner load.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
@@ -168,6 +168,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Equipment fixtures need a Combatdog.** A worker Quadrunner has no equipment tracker. Launch built-in-gun projectiles from a real Tier-2 Combatdog equipped through `Tiers.Arm`, not by adding equipment to a hauler.
 - **Relative charging-room placement.** A generated map can lack the maze's fixed 7–20-cell plot after the turbine is placed. Search more widely for near, then place far at least 12 cells beyond its actual radius, preserving the test's near/far ordering.
 - **Observe exact ride arrivals at normal speed.** The rider can move on between ultrafast frame observations. Keep exact destination and outside-door assertions, but run these transitions at normal speed (including after reload); assert draft/down state rather than diagnostic reason wording.
+- **NPC departure is not destruction.** `Pawn.Destroy()` can destroy equipment while leaving a world pawn's cooldown verb referencing it. Use Core `ExitMap` when a fixture says the raider leaves; stage cooldown and save/reload after departure to cover this boundary.
+- **Place the nearer excluded room first.** Combatdog sweep must not put the empty room down first and squeeze its nearer bedroom into a tiny remaining radius. Derive the farther empty-room radius from the actual bedroom placement.
 
 ### Assets
 

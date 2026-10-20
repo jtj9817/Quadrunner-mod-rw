@@ -303,7 +303,15 @@ namespace Quadrunner
                 .Expect("still docked, the other stack untouched", () =>
                     Stable().Docked.Contains(Dog()) && CountIn(pile, ThingDefOf.Gold) == 30
                     && Scenario.ById(otherGoldId)?.Position == otherGoldCell)
-                .Do("the raider leaves", () => Scenario.ById(raiderId).Destroy())
+                .Do("the raider leaves during weapon cooldown", () =>
+                {
+                    Pawn raider = (Pawn)Scenario.ById(raiderId);
+                    // Destroy() removes equipment but can leave its verb in a world pawn's saved cooldown.
+                    // Stage that boundary explicitly, then use the actual pawn departure lifecycle.
+                    raider.stances.SetStance(new Stance_Cooldown(300, LocalTargetInfo.Invalid,
+                        raider.equipment.PrimaryEq.PrimaryVerb));
+                    raider.ExitMap(allowedToJoinOrCreateCaravan: false, Rot4.North);
+                })
                 .Expect("raid over: the dog goes out at normal speed and drain", () =>
                 {
                     if (Raid.Active(Find.CurrentMap) || !Dog().Spawned)
@@ -312,6 +320,7 @@ namespace Quadrunner
                     return CompRobodog.Of(Dog()).DrainFactor == 1f;
                 })
                 .Expect("move speed was 3x during the raid", () => Math.Abs(raidSpeed / calmSpeed - 3f) < 0.01f)
+                .SaveAndReload()
                 .Expect("all gold stored, the dog docked", () =>
                     CountIn(pile, ThingDefOf.Gold) == 60 && Stable().Docked.Contains(Dog()))
                 .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; gold " + string.Join(", ",
