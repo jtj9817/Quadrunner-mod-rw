@@ -25,5 +25,6 @@ Thumbs.db
 desktop.ini
 
 # Misc
+__pycache__/
 *.log
 *.tmp
