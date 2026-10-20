@@ -6,12 +6,17 @@ using Verse;
 
 namespace Quadrunner
 {
-    /// <summary>The stable's Overview tab: one row per assigned dog with its type, battery, health and current job.</summary>
+    /// <summary>
+    /// The stable's Overview tab: one row per assigned dog with its type, battery, health and current job; for
+    /// Combatdogs also its tier, what fills each weapon slot (a button picks from the tier's list) and an upgrade button
+    /// that orders the next tier's bill (design).
+    /// </summary>
     public class ITab_StableOverview : ITab
     {
-        private static readonly Vector2 WinSize = new Vector2(560f, 420f);
-        private static readonly float[] ColumnWidths = { 140f, 90f, 60f, 60f, 0f };
-        private static readonly string[] Headers = { "Name", "Type", "Battery", "Health", "Doing" };
+        private static readonly Vector2 WinSize = new Vector2(760f, 420f);
+        private static readonly float[] ColumnWidths = { 120f, 90f, 60f, 60f, 170f, 40f, 0f };
+        private static readonly string[] Headers = { "Name", "Type", "Battery", "Health", "Doing", "Tier", "Weapons" };
+        private const float UpgradeWidth = 120f;
         private const float RowHeight = 26f;
 
         private Vector2 scrollPosition;
@@ -39,6 +44,8 @@ namespace Quadrunner
                     CompRobodog.Of(d).Battery.ToStringPercent(),
                     d.health.summaryHealth.SummaryHealthPercent.ToStringPercent(),
                     stable.Docked.Contains(d) ? "Docked" : d.jobs?.curDriver?.GetReport().CapitalizeFirst() ?? "Idle",
+                    CombatTier.Of(d) is CombatTier t ? t.tier.ToString() : "",
+                    CombatTier.Of(d) != null ? Tiers.Describe(d) : "",
                 }))
                 .ToList();
 
@@ -61,12 +68,50 @@ namespace Quadrunner
                 Rect row = new Rect(0f, i * RowHeight, viewRect.width, RowHeight);
                 if (i % 2 == 1)
                     Widgets.DrawLightHighlight(row);
-                DrawRow(row, rows[i].cells, bold: false);
                 Pawn dog = rows[i].dog;
-                if (dog.Spawned && Widgets.ButtonInvisible(row))
+                Rect cells = new Rect(row.x, row.y, row.width - UpgradeWidth, row.height);
+                CombatTier tier = CombatTier.Of(dog);
+                // A Combatdog's Weapons cell is drawn as its button instead.
+                DrawRow(cells, tier?.SlotCount > 0 ? rows[i].cells.Take(6).ToArray() : rows[i].cells, bold: false);
+                if (tier != null)
+                    DrawCombatdogButtons(stable, dog, tier, cells, new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f));
+                else if (dog.Spawned && Widgets.ButtonInvisible(row))
                     CameraJumper.TryJumpAndSelect(dog);
             }
             Widgets.EndScrollView();
+        }
+
+        /// <summary>The Weapons cell as a button listing each slot's choices, and the upgrade button.</summary>
+        private static void DrawCombatdogButtons(Building_Stable stable, Pawn dog, CombatTier tier, Rect cells, Rect upgrade)
+        {
+            float weaponsX = cells.x + ColumnWidths.Take(ColumnWidths.Length - 1).Sum();
+            Rect weapons = new Rect(weaponsX, cells.y, cells.xMax - weaponsX, cells.height).ContractedBy(2f);
+            if (tier.SlotCount > 0 && Widgets.ButtonText(weapons, Tiers.Describe(dog)))
+            {
+                var options = new List<FloatMenuOption>();
+                for (int slot = 0; slot < tier.SlotCount; slot++)
+                    foreach (ThingDef gun in tier.Slot(slot))
+                    {
+                        int s = slot;
+                        options.Add(new FloatMenuOption($"Slot {slot + 1}: {gun.LabelCap}{(Tiers.Gun(dog, slot) == gun ? " (fitted)" : "")}",
+                            () => Tiers.PickGun(dog, s, gun)));
+                    }
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+            if (tier.upgrade == null)
+                return;
+            Bill_UpgradeDog bill = stable.UpgradeBill(dog);
+            if (bill != null)
+            {
+                if (Widgets.ButtonText(upgrade, "Cancel upgrade"))
+                    stable.BillStack.Delete(bill);
+                TooltipHandler.TipRegion(upgrade, $"{bill.LabelCap}: done at this stable while the dog is docked.");
+                return;
+            }
+            if (Widgets.ButtonText(upgrade, $"Upgrade to Tier {tier.tier + 1}"))
+                stable.OrderUpgrade(dog);
+            TooltipHandler.TipRegion(upgrade, $"{tier.upgrade.description}\n\nCost: "
+                + string.Join(", ", tier.upgrade.ingredients.Select(ing => ing.Summary)));
         }
 
         private static void DrawRow(Rect rect, string[] cells, bool bold)

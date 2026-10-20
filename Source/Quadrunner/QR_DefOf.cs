@@ -10,6 +10,13 @@ namespace Quadrunner
         public static PawnKindDef QR_Quadrunner;
         public static PawnKindDef QR_Medirunner;
         public static PawnKindDef QR_Combatdog;
+        public static PawnKindDef QR_CombatdogTwo;
+        public static PawnKindDef QR_CombatdogThree;
+        public static PawnKindDef QR_CombatdogFour;
+        public static ThingDef QR_Gun_AssaultRifle;
+        public static ThingDef QR_Gun_LMG;
+        public static ThingDef QR_Gun_Minigun;
+        public static ThingDef QR_Gun_Flamethrower;
         public static JobDef QR_Dock;
         public static JobDef QR_ChargeAtConduit;
         public static JobDef QR_CarryToStable;

@@ -46,6 +46,8 @@ namespace Quadrunner
             ("Combatdog sweep", CombatdogSweep),
             ("Low-battery retreat", LowBatteryRetreat),
             ("Drafted priority target", DraftedPriorityTarget),
+            ("Tier upgrade", TierUpgrade),
+            ("Tier 3 and 4 weapons", Tier3And4Weapons),
         };
 
         /// <summary>

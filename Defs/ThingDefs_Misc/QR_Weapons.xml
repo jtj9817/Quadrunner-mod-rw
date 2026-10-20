@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Combatdog built-in guns: part of the dog, like vanilla mechanoid guns (destroyed when dropped, never traded, never
+       on a raider), picked per slot from the stable's Overview tab (user, 2026-10-20). Stats copy the vanilla gun named
+       in each label. -->
+  <ThingDef Name="QR_BuiltInGunBase" ParentName="BaseGun" Abstract="True">
+    <destroyOnDrop>true</destroyOnDrop>
+    <tradeability>None</tradeability>
+    <generateCommonality>0</generateCommonality>
+    <relicChance>0</relicChance>
+    <smeltable>false</smeltable>
+    <techLevel>Spacer</techLevel>
+    <soundInteract>Interact_Rifle</soundInteract>
+    <tools>
+      <li>
+        <label>barrel</label>
+        <capacities>
+          <li>Blunt</li>
+        </capacities>
+        <power>9</power>
+        <cooldownTime>2</cooldownTime>
+      </li>
+    </tools>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_AssaultRifle</defName>
+    <label>built-in assault rifle</label>
+    <description>A Combatdog's built-in assault rifle, with the stats of the vanilla one: good range, decent power, good accuracy.</description>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/AssaultRifle</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>500</MarketValue>
+      <Mass>3.5</Mass>
+      <AccuracyTouch>0.60</AccuracyTouch>
+      <AccuracyShort>0.70</AccuracyShort>
+      <AccuracyMedium>0.65</AccuracyMedium>
+      <AccuracyLong>0.55</AccuracyLong>
+      <RangedWeapon_Cooldown>1.70</RangedWeapon_Cooldown>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_AssaultRifle</defaultProjectile>
+        <warmupTime>1.0</warmupTime>
+        <range>30.9</range>
+        <burstShotCount>3</burstShotCount>
+        <ticksBetweenBurstShots>10</ticksBetweenBurstShots>
+        <soundCast>Shot_AssaultRifle</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_LMG</defName>
+    <label>built-in LMG</label>
+    <description>A Combatdog's built-in light machine gun, with the stats of the vanilla LMG: inaccurate, but its long bursts are effective against groups.</description>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/LMG</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>500</MarketValue>
+      <Mass>8.5</Mass>
+      <AccuracyTouch>0.40</AccuracyTouch>
+      <AccuracyShort>0.48</AccuracyShort>
+      <AccuracyMedium>0.35</AccuracyMedium>
+      <AccuracyLong>0.26</AccuracyLong>
+      <RangedWeapon_Cooldown>1.6</RangedWeapon_Cooldown>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_LMG</defaultProjectile>
+        <warmupTime>1.8</warmupTime>
+        <range>25.9</range>
+        <ticksBetweenBurstShots>7</ticksBetweenBurstShots>
+        <burstShotCount>6</burstShotCount>
+        <soundCast>Shot_Minigun</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <!-- Tier 4: the vanilla minigun's stats, its move-speed penalty included (design). -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_Minigun</defName>
+    <label>built-in minigun</label>
+    <description>A Combatdog's built-in minigun, with the stats of the vanilla one: unwieldy and slow to spin up, but it fires very fast. It slows the dog down.</description>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/Minigun</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>1200</MarketValue>
+      <Mass>10</Mass>
+      <AccuracyTouch>0.2</AccuracyTouch>
+      <AccuracyShort>0.25</AccuracyShort>
+      <AccuracyMedium>0.25</AccuracyMedium>
+      <AccuracyLong>0.18</AccuracyLong>
+      <RangedWeapon_Cooldown>1.5</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <equippedStatOffsets>
+      <MoveSpeed>-0.25</MoveSpeed>
+    </equippedStatOffsets>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_Minigun</defaultProjectile>
+        <warmupTime>2.5</warmupTime>
+        <range>30.9</range>
+        <burstShotCount>25</burstShotCount>
+        <ticksBetweenBurstShots>5</ticksBetweenBurstShots>
+        <soundCast>Shot_Minigun</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <!-- Tier 3's second slot. Core has no flamethrower (design), and the Core assembly's spray verbs spawn DLC defs, so it
+       is a short-range gun firing burning blobs: Flame damage sets what it hits alight. -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_Flamethrower</defName>
+    <label>built-in flamethrower</label>
+    <description>A Combatdog's built-in flamethrower: a short-range stream of burning fuel that sets its targets alight.</description>
+    <graphicData>
+      <texPath>Things/Item/Equipment/WeaponRanged/IncendiaryLauncher</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>600</MarketValue>
+      <Mass>6</Mass>
+      <AccuracyTouch>0.9</AccuracyTouch>
+      <AccuracyShort>0.8</AccuracyShort>
+      <AccuracyMedium>0.6</AccuracyMedium>
+      <AccuracyLong>0.4</AccuracyLong>
+      <RangedWeapon_Cooldown>1.5</RangedWeapon_Cooldown>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>QR_Bullet_Flame</defaultProjectile>
+        <warmupTime>0.8</warmupTime>
+        <range>8.9</range>
+        <burstShotCount>5</burstShotCount>
+        <ticksBetweenBurstShots>6</ticksBetweenBurstShots>
+        <soundCast>InfernoCannon_Fire</soundCast>
+        <soundCastTail>GunTail_Light</soundCastTail>
+        <muzzleFlashScale>12</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <ThingDef ParentName="BaseBullet">
+    <defName>QR_Bullet_Flame</defName>
+    <label>burning fuel</label>
+    <graphicData>
+      <texPath>Things/Projectile/LauncherShot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <shaderType>TransparentPostLight</shaderType>
+      <color>(254,140,40)</color>
+    </graphicData>
+    <projectile>
+      <damageDef>Flame</damageDef>
+      <damageAmountBase>9</damageAmountBase>
+      <speed>30</speed>
+      <ai_IsIncendiary>true</ai_IsIncendiary>
+    </projectile>
+  </ThingDef>
+
+</Defs>

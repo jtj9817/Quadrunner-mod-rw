@@ -58,11 +58,33 @@ namespace Quadrunner
             }
         }
 
+        /// <summary>
+        /// Claws: vanilla AttackMelee. A gun (Tier 2 on, the slot for the range, see <see cref="Tiers"/>): vanilla
+        /// AttackStatic from where it stands if it can hit, else a walk to a cast position as vanilla's fighting AI
+        /// finds one, else the claws.
+        /// </summary>
         private static Job AttackJob(Pawn dog, Pawn target)
         {
             if (!dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
                 return null;
-            Job job = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+            Tiers.Arm(dog, Tiers.GunFor(dog, target));
+            Verb verb = dog.equipment?.PrimaryEq?.PrimaryVerb;
+            Job job = null;
+            if (verb != null && verb.Available())
+            {
+                if (verb.CanHitTarget(target))
+                {
+                    job = JobMaker.MakeJob(JobDefOf.AttackStatic, target);
+                    job.endIfCantShootTargetFromCurPos = true;
+                }
+                else if (CastPositionFinder.TryFindCastPosition(new CastPositionRequest
+                         {
+                             caster = dog, target = target, verb = verb, maxRangeFromTarget = verb.verbProps.range,
+                             wantCoverFromTarget = false,
+                         }, out IntVec3 cell))
+                    job = JobMaker.MakeJob(JobDefOf.Goto, cell);
+            }
+            job = job ?? JobMaker.MakeJob(JobDefOf.AttackMelee, target);
             job.expiryInterval = RecheckTicks;
             job.checkOverrideOnExpire = true;
             return job;

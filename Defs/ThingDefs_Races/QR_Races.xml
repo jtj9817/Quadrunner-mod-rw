@@ -142,13 +142,10 @@
     </modExtensions>
   </ThingDef>
 
-  <ThingDef ParentName="QR_RobodogBase">
-    <defName>QR_Combatdog</defName>
+  <!-- Combatdogs: four tiers, each its own model (design). Every one is built at Tier 1 and upgraded from the stable's
+       Overview tab; CombatTier names the next tier, its upgrade bill and what can fill each weapon slot. -->
+  <ThingDef ParentName="QR_RobodogBase" Name="QR_CombatdogBase" Abstract="True">
     <label>Combatdog</label>
-    <description>A four-legged guard robot with built-in claws (Tier 1). It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
-    <statBases>
-      <MarketValue>900</MarketValue>
-    </statBases>
     <!-- Claws, cut and scratch (design); about a warg's claws. -->
     <tools Inherit="False">
       <li>
@@ -202,6 +199,96 @@
     </modExtensions>
   </ThingDef>
 
+  <ThingDef ParentName="QR_CombatdogBase">
+    <defName>QR_Combatdog</defName>
+    <description>A four-legged guard robot with built-in claws (Tier 1). It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <statBases>
+      <MarketValue>900</MarketValue>
+    </statBases>
+    <modExtensions>
+      <li Class="Quadrunner.CombatTier">
+        <tier>1</tier>
+        <next>QR_CombatdogTwo</next>
+        <upgrade>QR_UpgradeCombatdogTwo</upgrade>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <!-- Durability per tier (design: much more durable, much more armor, extreme armor; agent default, 2026-10-20). -->
+  <ThingDef ParentName="QR_CombatdogBase">
+    <defName>QR_CombatdogTwo</defName>
+    <description>A four-legged guard robot (Tier 2): much more durable than Tier 1, with a built-in gun as well as its claws. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <statBases>
+      <MarketValue>1500</MarketValue>
+      <ArmorRating_Sharp>0.4</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.2</ArmorRating_Blunt>
+    </statBases>
+    <race>
+      <baseHealthScale>2</baseHealthScale>
+    </race>
+    <modExtensions>
+      <li Class="Quadrunner.CombatTier">
+        <tier>2</tier>
+        <next>QR_CombatdogThree</next>
+        <upgrade>QR_UpgradeCombatdogThree</upgrade>
+        <slot1>
+          <li>QR_Gun_AssaultRifle</li>
+          <li>QR_Gun_LMG</li>
+        </slot1>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_CombatdogBase">
+    <defName>QR_CombatdogThree</defName>
+    <description>A four-legged guard robot (Tier 3): heavily armored, with two weapon slots: a gun, and a flamethrower it switches to at close range. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <statBases>
+      <MarketValue>2400</MarketValue>
+      <ArmorRating_Sharp>0.7</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.4</ArmorRating_Blunt>
+    </statBases>
+    <race>
+      <baseHealthScale>2</baseHealthScale>
+    </race>
+    <modExtensions>
+      <li Class="Quadrunner.CombatTier">
+        <tier>3</tier>
+        <next>QR_CombatdogFour</next>
+        <upgrade>QR_UpgradeCombatdogFour</upgrade>
+        <slot1>
+          <li>QR_Gun_AssaultRifle</li>
+          <li>QR_Gun_LMG</li>
+        </slot1>
+        <slot2>
+          <li>QR_Gun_Flamethrower</li>
+        </slot2>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_CombatdogBase">
+    <defName>QR_CombatdogFour</defName>
+    <description>A four-legged guard robot (Tier 4): extremely armored, with a built-in minigun that slows it a little. It docks at a stable and deploys when a raid starts, when a robodog is attacked anywhere on the map, or on order; deployed, it runs at double speed, attacks the nearest hostile it was sent after or sees nearby, and carries the downed to a prisoner bed. It does no other work.</description>
+    <statBases>
+      <MarketValue>3600</MarketValue>
+      <ArmorRating_Sharp>1.0</ArmorRating_Sharp>
+      <ArmorRating_Blunt>0.6</ArmorRating_Blunt>
+    </statBases>
+    <race>
+      <baseHealthScale>2.5</baseHealthScale>
+    </race>
+    <modExtensions>
+      <li Class="Quadrunner.CombatTier">
+        <tier>4</tier>
+        <slot1>
+          <li>QR_Gun_Minigun</li>
+          <li>QR_Gun_AssaultRifle</li>
+          <li>QR_Gun_LMG</li>
+        </slot1>
+      </li>
+    </modExtensions>
+  </ThingDef>
+
   <PawnKindDef>
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
@@ -248,7 +335,7 @@
     </lifeStages>
   </PawnKindDef>
 
-  <PawnKindDef>
+  <PawnKindDef Name="QR_CombatdogKind">
     <defName>QR_Combatdog</defName>
     <label>Combatdog</label>
     <race>QR_Combatdog</race>
@@ -269,6 +356,24 @@
         </bodyGraphicData>
       </li>
     </lifeStages>
+  </PawnKindDef>
+
+  <PawnKindDef ParentName="QR_CombatdogKind">
+    <defName>QR_CombatdogTwo</defName>
+    <race>QR_CombatdogTwo</race>
+    <combatPower>150</combatPower>
+  </PawnKindDef>
+
+  <PawnKindDef ParentName="QR_CombatdogKind">
+    <defName>QR_CombatdogThree</defName>
+    <race>QR_CombatdogThree</race>
+    <combatPower>250</combatPower>
+  </PawnKindDef>
+
+  <PawnKindDef ParentName="QR_CombatdogKind">
+    <defName>QR_CombatdogFour</defName>
+    <race>QR_CombatdogFour</race>
+    <combatPower>350</combatPower>
   </PawnKindDef>
 
 </Defs>

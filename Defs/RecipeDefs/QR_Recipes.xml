@@ -151,13 +151,27 @@
     <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
     <workAmount>2000</workAmount>
     <ingredients>
-      <li><filter><thingDefs><li>Corpse_QR_Combatdog</li></thingDefs></filter><count>1</count></li>
+      <!-- Any tier's wreck, for the same price: it comes back at its tier (agent default, 2026-10-20). -->
+      <li>
+        <filter>
+          <thingDefs>
+            <li>Corpse_QR_Combatdog</li>
+            <li>Corpse_QR_CombatdogTwo</li>
+            <li>Corpse_QR_CombatdogThree</li>
+            <li>Corpse_QR_CombatdogFour</li>
+          </thingDefs>
+        </filter>
+        <count>1</count>
+      </li>
       <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>50</count></li>
       <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>25</count></li>
     </ingredients>
     <fixedIngredientFilter>
       <thingDefs>
         <li>Corpse_QR_Combatdog</li>
+        <li>Corpse_QR_CombatdogTwo</li>
+        <li>Corpse_QR_CombatdogThree</li>
+        <li>Corpse_QR_CombatdogFour</li>
         <li>Steel</li>
         <li>Plasteel</li>
       </thingDefs>
@@ -167,6 +181,64 @@
         <kind>QR_Combatdog</kind>
       </li>
     </modExtensions>
+  </RecipeDef>
+
+  <!-- Combatdog upgrades: ordered per dog from the stable's Overview tab, which adds the bill (user, 2026-10-20); not in
+       the stable's Bills list. Done while the dog is docked; the dog comes back as the next tier with its name. Costs from
+       the design's table; work amounts agent default (2026-10-20). -->
+  <RecipeDef Name="QR_UpgradeCombatdogBase" Abstract="True">
+    <workerClass>Quadrunner.RecipeWorker_UpgradeDog</workerClass>
+    <workSpeedStat>GeneralLaborSpeed</workSpeedStat>
+    <workSkill>Crafting</workSkill>
+    <effectWorking>Smith</effectWorking>
+    <soundWorking>Recipe_Machining</soundWorking>
+    <researchPrerequisite>MicroelectronicsBasics</researchPrerequisite>
+    <fixedIngredientFilter>
+      <thingDefs>
+        <li>Steel</li>
+        <li>Plasteel</li>
+        <li>ComponentSpacer</li>
+      </thingDefs>
+    </fixedIngredientFilter>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_UpgradeCombatdogBase">
+    <defName>QR_UpgradeCombatdogTwo</defName>
+    <label>upgrade Combatdog to Tier 2</label>
+    <description>Rebuild a docked Combatdog as Tier 2: a built-in gun and much more durability. It keeps its name.</description>
+    <jobString>Upgrading Combatdog.</jobString>
+    <workAmount>3000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>100</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>75</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>2</count></li>
+    </ingredients>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_UpgradeCombatdogBase">
+    <defName>QR_UpgradeCombatdogThree</defName>
+    <label>upgrade Combatdog to Tier 3</label>
+    <description>Rebuild a docked Combatdog as Tier 3: a second weapon slot with a flamethrower and much more armor. It keeps its name.</description>
+    <jobString>Upgrading Combatdog.</jobString>
+    <workAmount>4000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>150</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>100</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>3</count></li>
+    </ingredients>
+  </RecipeDef>
+
+  <RecipeDef ParentName="QR_UpgradeCombatdogBase">
+    <defName>QR_UpgradeCombatdogFour</defName>
+    <label>upgrade Combatdog to Tier 4</label>
+    <description>Rebuild a docked Combatdog as Tier 4: a built-in minigun and extreme armor. It keeps its name.</description>
+    <jobString>Upgrading Combatdog.</jobString>
+    <workAmount>5000</workAmount>
+    <ingredients>
+      <li><filter><thingDefs><li>Steel</li></thingDefs></filter><count>200</count></li>
+      <li><filter><thingDefs><li>Plasteel</li></thingDefs></filter><count>150</count></li>
+      <li><filter><thingDefs><li>ComponentSpacer</li></thingDefs></filter><count>4</count></li>
+    </ingredients>
   </RecipeDef>
 
   <RecipeDef Name="QR_MakeFieldFixBase" Abstract="True">

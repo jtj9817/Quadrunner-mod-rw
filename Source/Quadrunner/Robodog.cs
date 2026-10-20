@@ -34,6 +34,8 @@ namespace Quadrunner
         private IntVec3 lastCell = IntVec3.Invalid;
         /// <summary>Combatdogs: patrol waypoints reached so far; the next one is this modulo the stable's count.</summary>
         public int waypointsReached;
+        // Combatdogs: the built-in gun picked for each weapon slot (null: the slot's default), see Tiers.
+        private ThingDef gun1, gun2;
 
         public CompProperties_Robodog Props => (CompProperties_Robodog)props;
 
@@ -85,7 +87,8 @@ namespace Quadrunner
                     Dog.drafter.Drafted = false;
                 }
                 else if (RobodogWork.Of(parent)?.combat == true && parent.Spawned
-                    && (job == JobDefOf.AttackMelee || job == JobDefOf.Wait || job == JobDefOf.Goto))
+                    && (job == JobDefOf.AttackMelee || job == JobDefOf.AttackStatic || job == JobDefOf.Wait
+                        || job == JobDefOf.Goto))
                 {
                     QR.Log($"{Dog} at {battery:P0}: retreats from {job.defName} to charge");
                     Dog.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -104,6 +107,16 @@ namespace Quadrunner
                 Dog.health.RemoveHediff(Dog.health.hediffSet.GetFirstHediffOfDef(QR_DefOf.QR_PoweredDown));
                 QR.Log($"{Dog} powered up at {battery:P0}");
             }
+        }
+
+        public ThingDef PickedGun(int slot) => slot == 0 ? gun1 : gun2;
+
+        public void PickGun(int slot, ThingDef gun)
+        {
+            if (slot == 0)
+                gun1 = gun;
+            else
+                gun2 = gun;
         }
 
         /// <summary>Adds <paramref name="amount"/> (0–1) of charge.</summary>
@@ -162,6 +175,8 @@ namespace Quadrunner
             Scribe_Values.Look(ref battery, "battery", 1f);
             Scribe_Values.Look(ref wantsCharge, "wantsCharge");
             Scribe_Values.Look(ref waypointsReached, "waypointsReached");
+            Scribe_Defs.Look(ref gun1, "gun1");
+            Scribe_Defs.Look(ref gun2, "gun2");
         }
 
         public override string CompInspectStringExtra() =>

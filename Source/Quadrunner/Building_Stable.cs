@@ -70,7 +70,7 @@ namespace Quadrunner
         private static bool Combatdog(Pawn d) => RobodogWork.Of(d)?.combat == true;
 
         private Pawn IdleDog(Func<Pawn, bool> kind) => docked.InnerListForReading
-            .Where(d => kind(d) && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
+            .Where(d => kind(d) && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown && !BeingUpgraded(d))
             .OrderByDescending(d => CompRobodog.Of(d).Battery)
             .FirstOrDefault();
 
@@ -130,6 +130,52 @@ namespace Quadrunner
                     MessageTypeDefOf.CautionInput);
                 QR.Log($"{dog} made at a full {this}; waits unassigned");
             }
+        }
+
+        /// <summary>The upgrade bill waiting for <paramref name="dog"/>, if one was ordered.</summary>
+        public Bill_UpgradeDog UpgradeBill(Pawn dog) =>
+            BillStack.Bills.OfType<Bill_UpgradeDog>().FirstOrDefault(b => b.dog == dog && b.Pending);
+
+        /// <summary>From the Overview tab: a bill to upgrade <paramref name="dog"/> to its next tier.</summary>
+        public Bill_UpgradeDog OrderUpgrade(Pawn dog)
+        {
+            RecipeDef recipe = CombatTier.Of(dog)?.upgrade;
+            if (recipe == null || CompRobodog.Of(dog)?.stable != this || UpgradeBill(dog) != null)
+                return null;
+            var bill = new Bill_UpgradeDog(recipe, dog);
+            BillStack.AddBill(bill);
+            QR.Log($"{this}: {bill.LabelCap} ordered");
+            return bill;
+        }
+
+        /// <summary>A colonist is working on this dog's upgrade: it stays docked (agent default, 2026-10-20).</summary>
+        private bool BeingUpgraded(Pawn dog) =>
+            Map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob?.bill is Bill_UpgradeDog b && b.dog == dog);
+
+        /// <summary>
+        /// Rebuilds a docked Combatdog as its next tier (design: tiers are separate models): a new dog of the next kind
+        /// takes its name, stable, battery and gun picks, holds its first slot's gun, and replaces it in the dock.
+        /// </summary>
+        public Pawn Upgrade(Pawn dog)
+        {
+            PawnKindDef next = CombatTier.Of(dog)?.next;
+            if (next == null || !docked.Contains(dog))
+                return null;
+            Pawn upgraded = PawnGenerator.GeneratePawn(new PawnGenerationRequest(next, Faction.OfPlayer,
+                PawnGenerationContext.NonPlayer, forceGenerateNewPawn: true));
+            upgraded.Name = dog.Name;
+            CompRobodog from = CompRobodog.Of(dog), to = CompRobodog.Of(upgraded);
+            to.stable = this;
+            to.SetBattery(from.Battery);
+            for (int slot = 0; slot < 2; slot++)
+                if (from.PickedGun(slot) != null)
+                    to.PickGun(slot, from.PickedGun(slot));
+            Tiers.Arm(upgraded, Tiers.Gun(upgraded, 0));
+            docked.Remove(dog);
+            dog.Destroy();
+            if (!docked.TryAdd(upgraded))
+                QR.Error($"{this} couldn't dock the upgraded {upgraded}");
+            return upgraded;
         }
 
         /// <summary>
@@ -292,7 +338,12 @@ namespace Quadrunner
             if (!Spawned)
                 return;
             if (this.IsHashIntervalTick(Props.dispatchInterval))
+            {
+                // Done, or its dog gone or reassigned.
+                foreach (Bill_UpgradeDog bill in BillStack.Bills.OfType<Bill_UpgradeDog>().Where(b => !b.Pending).ToList())
+                    BillStack.Delete(bill);
                 TryDispatch();
+            }
             if (docked.Count == 0 || !CanCharge)
                 return;
             foreach (Pawn dog in docked.InnerListForReading)

@@ -17,7 +17,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T8** (Combatdog tiers 2–4). Decisions recorded 2026-10-20: slot guns from a fixed list of built-in guns (assault rifle default, LMG; T4 minigun; T3 slot 2 the new flamethrower), Tier 3 switches weapons by range, upgrades are stable bills. T7 done (Run all 05:26).
+- Next: **T8**, in progress (see `docs/handoff/20261020-0141-t8-first-run.md`): defs, tiers, upgrade bill, Overview tab UI and two scenarios written; first run 05:40 failed on def names ending in a digit, renamed to `QR_CombatdogTwo/Three/Four` (built? no: rebuild and rerun `Tier,Assemble Combatdog`).
 - Open flake: **Haul and clean** failed in the 05:26 Run all (and at 03:26, before T7): after the reload both dogs docked unfinished and the stable sent nothing for 29k ticks. It passes alone; the summary now prints the raid state and the stable logs "found no work", so the next Run all should show which branch it is.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
@@ -143,6 +143,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Glow textures have no alpha.** `Things/Mote/LightningGlow` is meant for the additive `MoteGlow` shader; with `Transparent` it draws a dark square, and additive alone hardly shows on bright ground. The siren uses its own lamp texture with alpha.
 - **Targeter re-arming.** `Targeter` calls `StopTargeting()` after the click action, so begin the next targeting from `actionWhenFinished` (guarded by a flag set in the action, since right-click also calls it).
 - **Battery drains as soon as a dog walks.** "Full and out" never holds past the dispatch tick: check full while docked, then spawned.
+- **No digit at the end of a ThingDef name.** ThingIDs append a number to the defName, so `QR_Combatdog2` broke save/load reference resolution ("ends with a numerical digit" config errors, then overflowed IDs); tiers are `QR_CombatdogTwo/Three/Four`.
 - **Vanilla undrafts after 10000 idle ticks.** `AutoUndrafter` undrafts a colonist after 10000 ticks of `Wait_Combat` with no hostile around; a long scenario then had colonists hauling and building. `Scenario.Check` resets it each frame (`Notify_Drafted` through `AccessTools.FieldRefAccess`).
 - **Drafted colonists shoot ~25 cells out.** Scenarios draft every colonist, so raiders meant for a Combatdog go 30+ cells from the stable.
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*

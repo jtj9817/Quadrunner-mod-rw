@@ -42,6 +42,16 @@ namespace Quadrunner
                 Messages.Message("Click a Quadrunner stable.", MessageTypeDefOf.RejectInput, historical: false);
         }
 
+        /// <summary>Every docked Combatdog of the clicked stable goes up a tier at once, with no bill.</summary>
+        [DebugAction(Category, "Upgrade Combatdog", actionType = DebugActionType.ToolMap,
+            allowedGameStates = AllowedGameStates.PlayingOnMap)]
+        private static void UpgradeCombatdogs()
+        {
+            if (StableAt(UI.MouseCell()) is Building_Stable stable)
+                foreach (Pawn dog in stable.Docked.Where(d => CombatTier.Of(d)?.next != null).ToList())
+                    stable.Upgrade(dog);
+        }
+
         [DebugAction(Category, "Undock all", actionType = DebugActionType.ToolMap,
             allowedGameStates = AllowedGameStates.PlayingOnMap)]
         private static void UndockAll()
