@@ -23,6 +23,12 @@ namespace Quadrunner
             ("Charging room rules", ChargingRoomRules),
             ("Batteries drain mid-charge", BatteriesDrainMidCharge),
             ("Stable or conduit", StableOrConduit),
+            ("Haul and clean", HaulAndClean),
+            ("Two stables", TwoStables),
+            ("Raid: finish and dock", RaidFinishAndDock),
+            ("Stable power loss", StablePowerLoss),
+            ("Stable fire with docked dogs", StableFire),
+            ("Stable uninstall and reinstall", StableUninstall),
         };
 
         /// <summary>
@@ -67,11 +73,14 @@ namespace Quadrunner
         /// out before they are destroyed. Powered: a conduit under it, with dev unlimited power for the scenario or, with
         /// <paramref name="battery"/>, its own full battery.
         /// </summary>
-        private static Building_Stable SpawnStable(Scenario s, bool powered, bool battery = false)
+        private static Building_Stable SpawnStable(Scenario s, bool powered, bool battery = false, IntVec3? near = null,
+            float minDist = 0f, float maxDist = 40f)
         {
             Map map = Find.CurrentMap;
-            IntVec3 cell = FindClearArea(map, map.Center, 40f,
-                c => GenAdj.OccupiedRect(c, Rot4.South, QR_DefOf.QR_Stable.size).ExpandedBy(4));
+            IntVec3 from = near ?? map.Center;
+            IntVec3 cell = FindClearArea(map, from, maxDist,
+                c => GenAdj.OccupiedRect(c, Rot4.South, QR_DefOf.QR_Stable.size).ExpandedBy(4),
+                c => c.DistanceTo(from) >= minDist);
             var stable = (Building_Stable)ThingMaker.MakeThing(QR_DefOf.QR_Stable);
             stable.SetFaction(Faction.OfPlayer);
             s.Track(GenSpawn.Spawn(stable, cell, map, Rot4.South));
@@ -86,9 +95,11 @@ namespace Quadrunner
                     return stable;
                 }
                 SpawnBuilding(s, ThingDefOf.PowerConduit, null, cell, Rot4.North);
-                bool prev = DebugSettings.unlimitedPower;
-                DebugSettings.unlimitedPower = true;
-                s.OnFinish(() => DebugSettings.unlimitedPower = prev);
+                if (!DebugSettings.unlimitedPower)
+                {
+                    DebugSettings.unlimitedPower = true;
+                    s.OnFinish(() => DebugSettings.unlimitedPower = false);
+                }
             }
             return stable;
         }

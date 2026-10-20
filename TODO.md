@@ -73,6 +73,12 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Batteries are transmitters.** A vanilla `Battery` (`transmitsPower`) joins a net only through a conduit it touches; the 6-cell connect radius is for consumers like the stable. A battery two cells from a conduit is its own net.
 - **`DebugSettings.unlimitedPower` refills batteries.** It makes every net's gain rate 100000, so any battery on a net fills each tick; scenarios that measure battery energy power the stable from its own battery instead.
 - **Batteries self-discharge 5 W** (`CompPowerBattery.CompTick`); negligible in a scenario, but expect it in energy sums.
+- **Dogs need Manipulation to haul.** `HaulAIUtility.PawnCanAutomaticallyHaulFast` wants `CapableOf(Manipulation)`, which comes from a `ManipulationLimbCore` part (animals: the jaw); hence the gripper jaw.
+- **Construction work givers read `pawn.workSettings`.** `GenConstruct.CanConstruct(…, WorkTypeDef, …)` dereferences it unless forced (and forced also ignores reservations), so robodogs need the Harmony prefix.
+- **FilthMaker refuses dirt on natural ground** (`CanMakeFilth`); scenarios spawn `Filth_Dirt` with `GenSpawn` instead. The quicktest map has its own filth (rock rubble) in the home area, so dogs clean that too: assert on your own targets, not on "the dog stayed docked".
+- **Rain washes outdoor filth** (`FilthProperties.rainWashes`): a scenario's dirt vanished with no dog involved; `SpawnFilth` roofs the cell.
+- **Damage can be deflected** by armor: to injure a dog in a scenario, add the injury hediff (`DamageDefOf.Blunt.hediff`) with a severity instead of `TakeDamage`.
+- **Drafting changes the colonist lists.** Iterate `FreeColonistsSpawned.ToList()` when drafting or undrafting.
 - **Forcing a bill in a scenario.** `WorkGiverDef.Worker.JobOnThing(colonist, stable, forced: true)` then `jobs.TryTakeOrderedJob`; also finish the recipe's research first.
 
 

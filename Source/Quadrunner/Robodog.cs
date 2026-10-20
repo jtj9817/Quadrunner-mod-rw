@@ -38,6 +38,16 @@ namespace Quadrunner
 
         public bool PoweredDown => Dog.health.hediffSet.HasHediff(QR_DefOf.QR_PoweredDown);
 
+        /// <summary>Per-cell drain multiplier: <see cref="RobodogWork.raidDrainFactor"/> for a working dog during a raid.</summary>
+        public float DrainFactor
+        {
+            get
+            {
+                RobodogWork work = RobodogWork.Of(parent);
+                return work != null && stable != null && parent.Spawned && Raid.Active(parent.Map) ? work.raidDrainFactor : 1f;
+            }
+        }
+
         public static CompRobodog Of(Thing thing) => (thing as Pawn)?.TryGetComp<CompRobodog>();
 
         public static bool IsRobodog(Thing thing) => Of(thing) != null;
@@ -78,7 +88,7 @@ namespace Quadrunner
             // One step at a time is walking; a longer jump is a teleport (dev tools, scenarios) and costs nothing.
             float moved = lastCell.IsValid ? cell.DistanceTo(lastCell) : 0f;
             if (moved > 0f && moved < 1.5f && battery > 0f)
-                SetBattery(battery - Props.drainPerCell * moved);
+                SetBattery(battery - Props.drainPerCell * moved * DrainFactor);
             lastCell = cell;
         }
 

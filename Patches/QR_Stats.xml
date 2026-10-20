@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Patch>
+
+  <!-- During a raid, working robodogs finish their task faster (RobodogWork.raidSpeedFactor). -->
+  <Operation Class="PatchOperationAdd">
+    <xpath>Defs/StatDef[defName="MoveSpeed"]/parts</xpath>
+    <value>
+      <li Class="Quadrunner.StatPart_RobodogRaid" />
+    </value>
+  </Operation>
+
+</Patch>

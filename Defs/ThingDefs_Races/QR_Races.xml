@@ -88,6 +88,29 @@
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
     <description>A four-legged utility robot. It docks at a stable, which sends it out to haul, clean and supply construction, and repairs and recharges it between jobs.</description>
+    <modExtensions>
+      <!-- Vanilla work givers, in priority order; jobs other than the listed ones are refused (a blocked blueprint
+           would otherwise ask for plant cutting). Map-wide ones ignore the stable's service radius. -->
+      <li Class="Quadrunner.RobodogWork">
+        <workGivers>
+          <li>DeliverResourcesToFrames</li>
+          <li>DeliverResourcesToBlueprints</li>
+          <li>HaulGeneral</li>
+          <li>CleanFilth</li>
+        </workGivers>
+        <mapWide>
+          <li>DeliverResourcesToFrames</li>
+          <li>DeliverResourcesToBlueprints</li>
+        </mapWide>
+        <jobs>
+          <li>HaulToCell</li>
+          <li>HaulToContainer</li>
+          <li>Clean</li>
+        </jobs>
+        <raidSpeedFactor>3</raidSpeedFactor>
+        <raidDrainFactor>2</raidDrainFactor>
+      </li>
+    </modExtensions>
   </ThingDef>
 
   <PawnKindDef>

@@ -2,25 +2,38 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace Quadrunner
 {
     public class StableProps : DefModExtension
     {
         public int capacity = 15;
+        public float serviceRadius = 40f;
+        public int dispatchInterval = 250;
+        /// <summary>Ticks to wait after a dispatch found no work.</summary>
+        public int idleBackoff = 1000;
+        /// <summary>Hit points healed per tick on a docked dog's injuries while powered.</summary>
+        public float repairPerTick = 0.02f;
     }
 
     /// <summary>
-    /// Docks robodogs (despawned into <see cref="docked"/>) and runs the dog bills. A dog belongs to the stable its
-    /// <see cref="CompRobodog.stable"/> names, whether docked or out; all of them share <see cref="Capacity"/> slots.
+    /// Docks robodogs (despawned into <see cref="docked"/>), sends them out to work, repairs and charges them while
+    /// powered, and runs the dog bills. A dog belongs to the stable its <see cref="CompRobodog.stable"/> names, whether
+    /// docked or out; all of them share <see cref="Capacity"/> slots.
     /// </summary>
     public class Building_Stable : Building_WorkTable, IThingHolder
     {
         private ThingOwner<Pawn> docked;
+        // Not saved: after a load the stable just checks again.
+        private int nextDispatchTick;
+        private bool destroying;
 
         public Building_Stable() => docked = new ThingOwner<Pawn>(this);
 
-        public int Capacity => def.GetModExtension<StableProps>().capacity;
+        private StableProps Props => def.GetModExtension<StableProps>();
+
+        public int Capacity => Props.capacity;
 
         public IReadOnlyList<Pawn> Docked => docked.InnerListForReading;
 
@@ -30,11 +43,24 @@ namespace Quadrunner
 
         public bool HasFreeSlot => Dogs().Count < Capacity;
 
-        /// <summary>Docked dogs charge only while the stable has power.</summary>
+        /// <summary>Docked dogs charge and get repaired only while the stable has power.</summary>
         public bool CanCharge => this.TryGetComp<CompPowerTrader>()?.PowerOn ?? true;
 
+        /// <summary>Within the service radius (construction delivery ignores it).</summary>
+        public bool Covers(IntVec3 cell) => cell.InHorDistOf(Position, Props.serviceRadius);
+
+        /// <summary>A docked dog that could be sent out now: a worker, not waiting for a charge.</summary>
+        public bool HasIdleDog => IdleDog() != null;
+
+        private Pawn IdleDog() => docked.InnerListForReading
+            .Where(d => RobodogWork.Of(d) != null && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
+            .OrderByDescending(d => CompRobodog.Of(d).Battery)
+            .FirstOrDefault();
+
         /// <summary>Docks <paramref name="dog"/>, assigning it to this stable first if it isn't yet.</summary>
-        public bool TryDock(Pawn dog)
+        public bool TryDock(Pawn dog) => TryDock(dog, log: true);
+
+        private bool TryDock(Pawn dog, bool log)
         {
             CompRobodog comp = CompRobodog.Of(dog);
             if (comp == null || docked.Contains(dog))
@@ -53,7 +79,8 @@ namespace Quadrunner
             }
             if (wasSelected)
                 Find.Selector.Select(this, playSound: false);
-            QR.Log($"{dog} docked at {this} ({docked.Count} docked, {Dogs().Count}/{Capacity} assigned)");
+            if (log)
+                QR.Log($"{dog} docked at {this} ({docked.Count} docked, {Dogs().Count}/{Capacity} assigned)");
             return true;
         }
 
@@ -82,9 +109,34 @@ namespace Quadrunner
             return dog;
         }
 
+        /// <summary>
+        /// Sends out one idle dog if there is work for it. The work search needs a spawned dog, so the dog steps out
+        /// and, if it finds nothing, docks again in the same tick; the stable then waits <see cref="StableProps.idleBackoff"/>.
+        /// </summary>
+        private void TryDispatch()
+        {
+            int now = Find.TickManager.TicksGame;
+            if (now < nextDispatchTick || Raid.Active(Map))
+                return;
+            Pawn dog = IdleDog();
+            if (dog == null || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
+                return;
+            Job job = DogWork.FindJob(dog);
+            if (job == null)
+            {
+                TryDock(dog, log: false);
+                nextDispatchTick = now + Props.idleBackoff;
+                return;
+            }
+            dog.jobs.StartJob(job, JobCondition.InterruptForced);
+            QR.Log($"{this} dispatched {dog} ({CompRobodog.Of(dog).Battery:P0}): {job.def.defName} {job.targetA}");
+        }
+
         protected override void Tick()
         {
             base.Tick();
+            if (this.IsHashIntervalTick(Props.dispatchInterval))
+                TryDispatch();
             if (docked.Count == 0 || !CanCharge)
                 return;
             foreach (Pawn dog in docked.InnerListForReading)
@@ -92,6 +144,8 @@ namespace Quadrunner
                 CompRobodog comp = CompRobodog.Of(dog);
                 if (comp != null && comp.Battery < 1f)
                     comp.Charge(comp.Props.stableChargePerTick);
+                Hediff_Injury injury = dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().FirstOrDefault();
+                injury?.Heal(Props.repairPerTick);
             }
         }
 
@@ -100,11 +154,28 @@ namespace Quadrunner
         public void GetChildHolders(List<IThingHolder> outChildren) =>
             ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
 
+        public override void Destroy(DestroyMode mode = DestroyMode.Vanish)
+        {
+            // Minifying despawns with the same mode as a destroy but never calls Destroy, so this tells them apart.
+            destroying = true;
+            base.Destroy(mode);
+        }
+
         public override void DeSpawn(DestroyMode mode = DestroyMode.Vanish)
         {
-            // Destroyed or uninstalled: docked dogs come out instead of vanishing with the stable (T3 refines this).
+            // Docked dogs come out. Destroyed: they lose their stable and wait in the nearest room (or adopt another
+            // stable); uninstalled: they keep it, wait, and walk to it once it is installed again.
+            Map map = Map;
             if (docked.Count > 0)
-                docked.TryDropAll(InteractionCell, Map, ThingPlaceMode.Near);
+                docked.TryDropAll(InteractionCell, map, ThingPlaceMode.Near);
+            if (destroying)
+            {
+                foreach (Pawn dog in map.mapPawns.AllPawns.Where(p => CompRobodog.Of(p)?.stable == this))
+                    CompRobodog.Of(dog).stable = null;
+                QR.Log($"{this} destroyed; its dogs are unassigned");
+            }
+            else
+                QR.Log($"{this} despawned (uninstalled?); its {Dogs().Count} dogs wait for it");
             base.DeSpawn(mode);
         }
 
