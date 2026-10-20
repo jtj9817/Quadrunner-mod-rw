@@ -53,6 +53,11 @@ namespace Quadrunner
             ("Walk animation", WalkAnimation),
             ("Rescue animation", RescueAnimation),
             ("Combat animation", CombatAnimation),
+            ("Tier 2 weapon demo", () => WeaponDemo(2, new DemoRound(QR_DefOf.QR_Gun_AssaultRifle, 1, 11f, 14f),
+                new DemoRound(QR_DefOf.QR_Gun_LMG, 1, 11f, 14f))),
+            ("Tier 3 weapon demo", () => WeaponDemo(3, new DemoRound(QR_DefOf.QR_Gun_AssaultRifle, 1, 11f, 14f),
+                new DemoRound(QR_DefOf.QR_Gun_Flamethrower, 1, 4f, 6f))),
+            ("Tier 4 weapon demo", () => WeaponDemo(4, new DemoRound(QR_DefOf.QR_Gun_Minigun, 3, 12f, 16f))),
             ("Prepare removal", RemovalSave),
         };
 

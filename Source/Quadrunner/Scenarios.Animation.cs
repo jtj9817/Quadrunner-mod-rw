@@ -13,7 +13,11 @@ namespace Quadrunner
     public static partial class Scenarios
     {
         /// <summary>Pauses once <paramref name="ready"/> holds, then saves a screenshot, as <see cref="CaptureArtwork"/>.</summary>
-        private static void CaptureWhen(Scenario s, string name, Func<bool> ready, Func<Pawn> framed)
+        private static void CaptureWhen(Scenario s, string name, Func<bool> ready, Func<Pawn> framed) =>
+            CaptureWhen(s, name, ready, () => Find.CameraDriver.SetRootPosAndSize(framed().DrawPos, 4f));
+
+        /// <summary>As above, with the camera placed by <paramref name="pose"/>.</summary>
+        private static void CaptureWhen(Scenario s, string name, Func<bool> ready, Action pose)
         {
             s.Expect("pause for " + name, () =>
             {
@@ -22,7 +26,7 @@ namespace Quadrunner
                 Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                 return true;
             });
-            CaptureArtwork(s, name, () => Find.CameraDriver.SetRootPosAndSize(framed().DrawPos, 4f));
+            CaptureArtwork(s, name, pose);
             s.Do("resume", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Normal);
         }
 
@@ -70,13 +74,15 @@ namespace Quadrunner
             void Sample()
             {
                 Pawn medic = Medic();
+                // Off screen a pawn isn't pre-drawn and its draw requests keep the last on-screen matrices.
+                Find.CameraDriver.JumpToCurrentMapLoc(medic.DrawPos);
                 if (CompRobodog.Of(medic).Rescuing && CompRobodog.SirenPhaseLit)
                     sirenFrames++;
                 if (!Carrying() || SincePickup() > Props().scoopTicks)
                     return;
                 flipFrames++;
                 maxTurn = Mathf.Max(maxTurn, Mathf.Abs(Turn()));
-                if (Drawn(medic, "Body") is not Matrix4x4 body)
+                if (Drawn(medic, "Body") is not Matrix4x4 body || (body.Position() - medic.DrawPos).Yto0().magnitude > 0.5f)
                     return;
                 maxDuck = Mathf.Max(maxDuck, medic.DrawPos.z - body.Position().z);
                 if (medic.Rotation.IsHorizontal)
