@@ -192,7 +192,7 @@ namespace Quadrunner
     /// <summary>
     /// A robodog's whole-body action, recomputed every frame from vanilla state (the stance and its start tick) and the
     /// pickup tick: a pounce on each melee strike, a recoil kick on each shot over a braced, crouched stance while it
-    /// aims and fires, and a head dip to scoop up a pawn. Tunables on the tree's root, <see cref="PawnRenderNodeProperties_Pose"/>.
+    /// aims and fires, and a head dip (and a duck) to scoop up a pawn. Tunables on the tree's root, <see cref="PawnRenderNodeProperties_Pose"/>.
     /// </summary>
     public struct RobodogPose
     {
@@ -256,7 +256,12 @@ namespace Quadrunner
             {
                 float u = Since(CompRobodog.Of(dog)?.CarriedSince(patient) ?? int.MinValue / 2) / p.scoopTicks;
                 if (u < 1f)
-                    pose.tilt += p.scoopTilt * Pulse(u, 0.2f);
+                {
+                    // Nose-down in profile; head-on the body ducks over its legs instead.
+                    float k = Pulse(u, 0.2f);
+                    pose.tilt += p.scoopTilt * k;
+                    pose.crouch = Mathf.Max(pose.crouch, k);
+                }
             }
             return pose;
         }

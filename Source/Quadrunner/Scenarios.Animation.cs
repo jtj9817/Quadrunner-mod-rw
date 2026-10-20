@@ -29,17 +29,19 @@ namespace Quadrunner
         /// <summary>Larger captures and a closer zoom than the private instance's default, until the scenario ends.</summary>
         private static void CloseUpCaptures(Scenario s)
         {
-            CameraMapConfig config = Find.CameraDriver.config;
-            float minSize = config.sizeRange.min;
+            float minSize = Find.CameraDriver.config.sizeRange.min;
             int width = Screen.width, height = Screen.height;
-            config.sizeRange.min = 2f;
+            CloseUp();
             Screen.SetResolution(1280, 720, false);
             s.OnFinish(() =>
             {
-                config.sizeRange.min = minSize;
+                Find.CameraDriver.config.sizeRange.min = minSize;
                 Screen.SetResolution(width, height, false);
             });
         }
+
+        /// <summary>Lets the camera zoom in for <see cref="CloseUpCaptures"/>; again after a reload, which makes a new camera.</summary>
+        private static void CloseUp() => Find.CameraDriver.config.sizeRange.min = 2f;
 
         /// <summary>The distance of <paramref name="label"/>'s drawn center from the pawn's draw position, toward <paramref name="target"/>.</summary>
         private static float DrawnToward(Pawn dog, string label, Thing target) =>
@@ -47,7 +49,7 @@ namespace Quadrunner
                 ? Vector3.Dot((m.Position() - dog.DrawPos).Yto0(), (target.DrawPos - dog.DrawPos).Yto0().normalized) : 0f;
 
         /// <summary>
-        /// A Medirunner sent to a downed colonist, at normal speed: its tail siren flashes on the run, it dips its head,
+        /// A Medirunner sent to a downed colonist, at normal speed: its tail siren flashes on the run, it dips its head (ducks, head-on),
         /// flips the colonist up over it onto its back (the patient's drawn angle turns half a circle, then lies along the
         /// back) and takes it to bed. After a reload mid-carry the patient stays put, with no second flip.
         /// </summary>
@@ -56,7 +58,8 @@ namespace Quadrunner
             var s = new Scenario("Rescue animation", 8000);
             string medicId = null, patientId = null;
             int sirenFrames = 0, flipFrames = 0;
-            float minTurn = 0f, maxTurn = 0f, maxDip = 0f;
+            float maxTurn = 0f, maxDip = 0f, maxDuck = 0f;
+            bool profile = false;
             Pawn Medic() => (Pawn)Scenario.ById(medicId);
             Pawn Patient() => (Pawn)Scenario.ById(patientId);
             PawnRenderNodeProperties_Pose Props() => RobodogPose.Props(Medic());
@@ -72,11 +75,15 @@ namespace Quadrunner
                 if (!Carrying() || SincePickup() > Props().scoopTicks)
                     return;
                 flipFrames++;
-                float turn = Turn();
-                minTurn = Mathf.Min(minTurn, turn);
-                maxTurn = Mathf.Max(maxTurn, turn);
-                if (medic.Rotation.IsHorizontal && Drawn(medic, "Body") is Matrix4x4 body)
+                maxTurn = Mathf.Max(maxTurn, Mathf.Abs(Turn()));
+                if (Drawn(medic, "Body") is not Matrix4x4 body)
+                    return;
+                maxDuck = Mathf.Max(maxDuck, medic.DrawPos.z - body.Position().z);
+                if (medic.Rotation.IsHorizontal)
+                {
+                    profile = true;
                     maxDip = Mathf.Max(maxDip, Mathf.Abs(Yaw(body)));
+                }
             }
             s.Do("a stable with a Medirunner and a medical bed; a colonist down 20–26 cells out", () =>
                 {
@@ -125,14 +132,18 @@ namespace Quadrunner
                 })
                 .Do("checked: head dipped, the patient turned half a circle and came to rest", () =>
                 {
-                    if (flipFrames < 8 || maxTurn - minTurn < 150f || Mathf.Abs(Turn()) > 0.01f)
-                        throw new InvalidOperationException($"flip over {flipFrames} frames: turned {minTurn:F0}° to {maxTurn:F0}°, " +
+                    if (flipFrames < 8 || maxTurn < 150f || Mathf.Abs(Turn()) > 0.01f)
+                        throw new InvalidOperationException($"flip over {flipFrames} frames: turned up to {maxTurn:F0}°, " +
                             $"now {Turn():F1}° from resting");
-                    if (maxDip < 5f)
-                        throw new InvalidOperationException($"head dip {maxDip:F1}°");
+                    if (maxDuck < 0.03f || profile && maxDip < 5f)
+                        throw new InvalidOperationException($"ducked {maxDuck:F3} cells, head dip {maxDip:F1}° (profile seen: {profile})");
                 })
                 .SaveAndReload()
-                .Do("normal speed", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Normal)
+                .Do("normal speed, close-ups again", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    CloseUp();
+                })
                 .Expect("still on its back after the reload, no second flip", () =>
                 {
                     if (!Carrying())
@@ -143,8 +154,8 @@ namespace Quadrunner
                 });
             CaptureWhen(s, "art-rescue-carry", () => Carrying() && Medic().pather.Moving, Medic);
             s.Expect("the patient in bed; the siren off", () => Patient().InBed() && !CompRobodog.Of(Medic()).Rescuing)
-                .Summary(() => $"siren lit on {sirenFrames} frames; flip over {flipFrames} frames, patient turned {minTurn:F0}° to " +
-                    $"{maxTurn:F0}°, head dip {maxDip:F1}°; inspect .devlog/screens/art-rescue-*.png")
+                .Summary(() => $"siren lit on {sirenFrames} frames; flip over {flipFrames} frames, patient turned up to " +
+                    $"{maxTurn:F0}°, ducked {maxDuck:F3} cells, head dip {maxDip:F1}° (profile seen: {profile}); inspect .devlog/screens/art-rescue-*.png")
                 .Start();
         }
 
