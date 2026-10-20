@@ -17,7 +17,8 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T8**, in progress (see `docs/handoff/20261020-0141-t8-first-run.md`): defs, tiers, upgrade bill, Overview tab UI and two scenarios written; first run 05:40 failed on def names ending in a digit, renamed to `QR_CombatdogTwo/Three/Four` (built? no: rebuild and rerun `Tier,Assemble Combatdog`).
+- Next: **T8**: both T8 scenarios pass (05:45, 0 new errors); the T7 combat scenarios are stable again after scenario fixes (06:04–06:07). Run all to finish T8, then tick boxes 1–3 and start **T9**.
+- Balance, worth raising with the user in T9: a Tier 1 Combatdog sent through three fist fights in a row, with no dock between, died in about half the Ping chain runs (thorax). The scenarios now use Melee 0 raiders, so they no longer show it.
 - Open flake: **Haul and clean** failed in the 05:26 Run all (and at 03:26, before T7): after the reload both dogs docked unfinished and the stable sent nothing for 29k ticks. It passes alone; the summary now prints the raid state and the stable logs "found no work", so the next Run all should show which branch it is.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
@@ -105,6 +106,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Pawn kinds for spawning hostiles.** The vanilla `Pirate` FactionDef has no `basicMemberKind` (null → NRE in `PawnGenerationRequest`). Use `faction.def.basicMemberKind ?? PawnKindDefOf.Pirate`. *(QB)*
 - **Explosions land over several ticks**, so a target stays valid for a tick or two after the blast is spawned. Expect the same lag when a Combatdog checks "downed or dead". *(QB)*
 
+- **Built-in guns and stances.** Vanilla's `CancelBusyStanceSoft` ends only a warmup: a gun destroyed or switched mid-cooldown leaves a `Stance_Cooldown` on its verb, which the next save can't resolve ("referenced but not deep-saved"). `CompBuiltInGun.Notify_Unequipped` ends it.
+
 ### Log
 
 - **No timestamps.** Player.log has none, so `autotest.py` cuts per launch instead: it moves the live log to `.devlog/runs/<launch>/` before every restart, and reads a run's errors from the byte offset at which it sent `run`. *(QB)*
@@ -151,6 +154,9 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Screenshots: one window only.** Capture by exact window class `RimWorldLinux` on the instance's own `DISPLAY` (read from `/proc/<pid>/environ`); a title match also hits browser tabs about RimWorld. Never `import -window root`. *(QB)*
 - **`build.sh` always restamps the DLL**, even for XML-only changes, so every build needs a fresh launch. Fine for the test instance. *(QB)*
 - **`[TweakValue]` only works on static fields.** Rider draw offsets live in XML; to tune them live, mirror them into static TweakValue fields in dev mode. *(QB)*
+
+- **"Gone" in a summary can mean dead:** a killed pawn's corpse has another ThingID, so `ById` finds nothing. Robodog deaths are logged (`killed by <instigator> (<damage>, <weapon>, <part>)`).
+- **At Ultrafast one frame is ~20 ticks:** a state that lasts a tick or two (docked at 100% before the stable dispatches it, a short walk home from a nearby bed, a retreat that ends docked) can fall between two checks. Latch flags across frames, use thresholds (battery ≥ 98%), or accept the end state.
 
 ### Assets
 

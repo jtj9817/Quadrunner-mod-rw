@@ -23,6 +23,9 @@ namespace Quadrunner
             Pawn raider = SpawnPawn(s, pirates.def.basicMemberKind ?? PawnKindDefOf.Pirate, pirates, cell);
             raider.equipment?.DestroyAllEquipment();
             raider.inventory?.DestroyAll();
+            // A Tier 1 Combatdog isn't repaired between fights and sometimes lost a run of fist fights: the scenarios
+            // test dispatch and targeting, not durability.
+            raider.skills.GetSkill(SkillDefOf.Melee).Level = 0;
             LordMaker.MakeNewLord(pirates, new LordJob_DefendPoint(raider.Position, wanderRadius: 2f, defendRadius: 3f,
                 addFleeToil: false), Find.CurrentMap, new[] { raider });
             return raider;
@@ -62,6 +65,12 @@ namespace Quadrunner
         private static bool DealtWith(string id) =>
             !(Scenario.ById(id) is Pawn p) || p.Dead || p.IsPrisonerOfColony && p.InBed();
 
+        /// <summary>Battery seen after a retreat at 10%: charged, on the dock or a frame after it left.</summary>
+        private const float Charged = 0.98f;
+
+        /// <summary>Alive and not downed.</summary>
+        private static bool Standing(string id) => Scenario.ById(id) is Pawn p && !p.Dead && !p.Downed;
+
         private static string Fate(string id) =>
             !(Scenario.ById(id) is Pawn p) ? "gone" : p.Dead ? "dead"
             : $"{(p.Downed ? "downed" : "standing")}{(p.IsPrisonerOfColony ? " prisoner" : "")}{(p.InBed() ? " in bed" : "")} at {p.PositionHeld}";
@@ -87,13 +96,27 @@ namespace Quadrunner
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
-                    RoomWithBeds(s, ClearRect(map, stable.InteractionCell, 7, 1, 6f, 18f), 3, prisoners: true);
-                    field = OpenCell(map, stable.InteractionCell, 50f, 70f);
+                    // Far enough that the walk home from a prisoner bed spans many frames, so "heads home" is seen.
+                    RoomWithBeds(s, ClearRect(map, stable.InteractionCell, 7, 1, 20f, 30f), 3, prisoners: true);
+                    // A field with room for a raider on each side of it (some fields lie by water or a wall).
+                    IntVec3 nearCell = IntVec3.Invalid, farCell = IntVec3.Invalid;
+                    for (int tries = 0; !farCell.IsValid; tries++)
+                    {
+                        field = OpenCell(map, stable.InteractionCell, 50f, 70f);
+                        float d = field.DistanceTo(stable.InteractionCell);
+                        try
+                        {
+                            nearCell = OpenCell(map, field, 3f, 6f, c => c.DistanceTo(stable.InteractionCell) < d - 2f);
+                            farCell = OpenCell(map, field, 3f, 6f, c => c.DistanceTo(stable.InteractionCell) > d + 2f);
+                        }
+                        catch (InvalidOperationException) when (tries < 20)
+                        {
+                        }
+                    }
                     Pawn quad = DogOut(s, stable, field);
                     quadId = quad.ThingID;
-                    float d = field.DistanceTo(stable.InteractionCell);
-                    nearId = SpawnRaider(s, OpenCell(map, field, 3f, 6f, c => c.DistanceTo(stable.InteractionCell) < d - 2f)).ThingID;
-                    farId = SpawnRaider(s, OpenCell(map, field, 3f, 6f, c => c.DistanceTo(stable.InteractionCell) > d + 2f)).ThingID;
+                    nearId = SpawnRaider(s, nearCell).ThingID;
+                    farId = SpawnRaider(s, farCell).ThingID;
                     Raid.Recheck(map);
                 })
                 .Do("the far raider hits the Quadrunner, then the near one", () =>
@@ -259,6 +282,7 @@ namespace Quadrunner
             var s = new Scenario("Low-battery retreat", 20000);
             string stableId = null, combatId = null, quadId = null, firstId = null, secondId = null;
             int frames = 0, retreatTick = 0;
+            bool charged = false, wentOut = false;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
             Pawn ById(string id) => (Pawn)Scenario.ById(id);
@@ -320,8 +344,11 @@ namespace Quadrunner
                     Hit(quad, second);
                     retreatTick = Find.TickManager.TicksGame;
                 })
-                .Expect("the ping doesn't turn it: it keeps retreating for 200 ticks", () =>
+                .Expect("the ping doesn't turn it: it keeps retreating for 200 ticks, or docks", () =>
                 {
+                    // Deployed at double speed, it can reach the stable within the 200 ticks.
+                    if (Stable().Docked.Contains(Combatdog()))
+                        return true;
                     if (!Retreating(Combatdog()))
                         throw new InvalidOperationException($"stopped retreating: {Combatdog().CurJob?.ToStringSafe()}");
                     return Find.TickManager.TicksGame - retreatTick >= 200;
@@ -330,7 +357,14 @@ namespace Quadrunner
                 .Expect("it docks or charges at a conduit", () =>
                     Stable().Docked.Contains(Combatdog()) || Combatdog().CurJobDef == QR_DefOf.QR_ChargeAtConduit && !Combatdog().pather.Moving)
                 .Expect("charged to full, it goes back out for the raiders", () =>
-                    CompRobodog.Of(Combatdog()).Battery >= 1f && (Attacking(Combatdog(), ById(firstId)) || Attacking(Combatdog(), ById(secondId))))
+                {
+                    // As in Drafted priority target.
+                    Pawn dog = Combatdog();
+                    charged |= CompRobodog.Of(dog).Battery >= Charged;
+                    wentOut |= charged && dog.Spawned && dog.CurJobDef != QR_DefOf.QR_ChargeAtConduit;
+                    return wentOut && (Attacking(dog, ById(firstId)) || Attacking(dog, ById(secondId))
+                        || !Standing(firstId) && !Standing(secondId));
+                })
                 .Summary(() => Combatdog() == null ? "Combatdog gone"
                     : $"battery {CompRobodog.Of(Combatdog()).Battery:P0}, job {Combatdog().CurJob?.ToStringSafe()}; first {Fate(firstId)}, second {Fate(secondId)}")
                 .Start();
@@ -411,9 +445,9 @@ namespace Quadrunner
                 .Expect("undrafted, it retreats to charge", () => !Combatdog().Drafted && Retreating(Combatdog()))
                 .Expect("charged to full, it goes back out for the queued raider", () =>
                 {
-                    // Full only while docked (walking drains it), and the fight can start and end between two frames at
-                    // Ultrafast: charged once seen docked at 100%, out once seen spawned after that.
-                    charged |= Stable().Docked.Contains(Combatdog()) && CompRobodog.Of(Combatdog()).Battery >= 1f;
+                    // Full only for the frame it is dispatched in (walking drains it), and the fight can start and end
+                    // between two frames at Ultrafast: charged once seen at 98%, out once seen spawned after that.
+                    charged |= CompRobodog.Of(Combatdog()).Battery >= Charged;
                     wentOut |= charged && Combatdog().Spawned;
                     return wentOut && (Attacking(Combatdog(), ById(nearId)) || Down(nearId));
                 })

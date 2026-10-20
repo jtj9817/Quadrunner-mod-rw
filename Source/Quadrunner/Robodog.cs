@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -149,7 +150,8 @@ namespace Quadrunner
         public override void Notify_Killed(Map prevMap, DamageInfo? dinfo = null)
         {
             base.Notify_Killed(prevMap, dinfo);
-            QR.Log($"{Dog} killed by {dinfo?.Instigator.ToStringSafe()} ({dinfo?.Def?.defName}, {dinfo?.Weapon?.defName})");
+            QR.Log($"{Dog} killed by {dinfo?.Instigator.ToStringSafe()} ({dinfo?.Def?.defName}, {dinfo?.Weapon?.defName}, {dinfo?.HitPart?.LabelShort}); "
+                + $"destroyed: {string.Join(", ", Dog.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part.LabelShort))}");
         }
 
         public override IEnumerable<Gizmo> CompGetGizmosExtra()
