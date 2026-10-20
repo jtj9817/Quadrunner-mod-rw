@@ -6,19 +6,19 @@ using Verse;
 
 namespace Quadrunner
 {
-    /// <summary>Debug actions → Quadrunner. Dev mode only; the same scenarios tools/autotest.py runs.</summary>
+    /// <summary>Debug actions → Quadrunner. Dev mode only; live scenarios omit automated persistence checks.</summary>
     public static class DebugActions
     {
         private const string Category = "Quadrunner";
 
         [DebugAction(Category, "Scenario: Run all", allowedGameStates = AllowedGameStates.PlayingOnMap)]
-        private static void RunAll() => Scenarios.RunAll("", null);
+        private static void RunAll() => Scenarios.RunAll("", testSaveLoad: false, done: null);
 
         [DebugAction(Category, "Scenario...", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         private static void PickScenario()
         {
             List<FloatMenuOption> options = Scenarios.All
-                .Select(s => new FloatMenuOption(s.name, () => s.setUp()))
+                .Select(s => new FloatMenuOption(s.name, () => Scenario.RunAll(new[] { s }, testSaveLoad: false, done: null)))
                 .ToList();
             Find.WindowStack.Add(new FloatMenu(options));
         }

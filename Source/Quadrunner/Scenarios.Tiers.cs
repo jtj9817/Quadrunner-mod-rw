@@ -36,10 +36,11 @@ namespace Quadrunner
             Pawn Dog() => Stable()?.Dogs().FirstOrDefault();
             s.Do("a powered stable with a docked Tier 1 Combatdog and the Tier 2 upgrade's materials", () =>
                 {
+                    DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     Find.ResearchManager.FinishProject(QR_DefOf.MicroelectronicsBasics);
-                    Pawn dog = stable.AddNewDog(QR_DefOf.QR_Combatdog);
+                    Pawn dog = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog));
                     oldId = dog.ThingID;
                     name = dog.LabelShort;
                     SpawnAssembleMaterials(s, stable, CombatTier.Of(dog).upgrade);
@@ -60,7 +61,10 @@ namespace Quadrunner
                 {
                     Pawn crafter = Crafter() ?? throw new InvalidOperationException("no colonist can craft");
                     Verse.AI.Job job = BillJob(crafter, Stable());
-                    return job != null && crafter.jobs.TryTakeOrderedJob(job);
+                    if (job == null)
+                        return false;
+                    crafter.drafter.Drafted = false;
+                    return crafter.jobs.TryTakeOrderedJob(job);
                 })
                 .Expect("the dog is docked as Tier 2, with its name and the built-in assault rifle", () =>
                     Dog() is Pawn dog && dog.def == QR_DefOf.QR_CombatdogTwo.race && Stable().Docked.Contains(dog)
@@ -117,12 +121,12 @@ namespace Quadrunner
         private static void Tier3And4Weapons()
         {
             var s = new Scenario("Tier 3 and 4 weapons", 20000);
-            string stableId = null, farId = null, nearId = null, name = null;
+            string stableId = null, dogId = null, farId = null, nearId = null, name = null;
             bool rifled = false, flamed = false;
             float speed3 = 0f, speed4 = 0f;
             CellRect field = default;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
-            Pawn Dog() => Stable()?.Dogs().FirstOrDefault();
+            Pawn Dog() => Scenario.ById(dogId) as Pawn;
             float Deployed(Pawn dog) => dog.GetStatValue(StatDefOf.MoveSpeed);
             s.Do("a powered stable with a Combatdog upgraded twice to Tier 3; a bare field 35–50 cells out", () =>
                 {
@@ -133,7 +137,7 @@ namespace Quadrunner
                     Pawn dog = stable.AddNewDog(QR_DefOf.QR_Combatdog);
                     name = dog.LabelShort;
                     dog = stable.Upgrade(stable.Upgrade(dog));
-                    s.Track(dog);
+                    dogId = s.Track(dog).ThingID;
                     field = ClearRect(map, stable.InteractionCell, 15, 1, 35f, 50f);
                     // The flamethrower sets things alight: no fire outlives the scenario.
                     s.OnFinish(() =>
@@ -184,9 +188,11 @@ namespace Quadrunner
                 .Do("dock it; the debug upgrade to Tier 4", () =>
                 {
                     Pawn dog = Dog();
-                    if (!Stable().TryDock(dog) || Stable().Upgrade(dog) == null)
-                        throw new InvalidOperationException("couldn't upgrade to Tier 4");
-                    s.Track(Dog());
+                    if (!Stable().TryDock(dog))
+                        throw new InvalidOperationException("couldn't dock for the Tier 4 upgrade");
+                    Pawn upgraded = Stable().Upgrade(dog)
+                        ?? throw new InvalidOperationException("couldn't upgrade to Tier 4");
+                    dogId = s.Track(upgraded).ThingID;
                 })
                 .Expect("Tier 4, same name, holding the minigun", () =>
                     Dog() is Pawn dog && dog.def == QR_DefOf.QR_CombatdogFour.race && dog.LabelShort == name

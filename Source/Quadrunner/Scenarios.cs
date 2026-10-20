@@ -56,12 +56,13 @@ namespace Quadrunner
         /// <summary>
         /// Runs the scenarios whose names contain any comma-separated part of <paramref name="filter"/>
         /// (case-insensitive; empty = all), then calls <paramref name="done"/> with the PASS count and verdicts.
+        /// Live Run all omits the dedicated persistence scenario; it can still be selected explicitly.
         /// </summary>
-        public static void RunAll(string filter, Action<int, List<string>> done)
+        public static void RunAll(string filter, bool testSaveLoad, Action<int, List<string>> done)
         {
             string[] parts = (filter ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToArray();
-            Scenario.RunAll(All.Where(s => parts.Length == 0 ||
-                parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0)), done);
+            Scenario.RunAll(All.Where(s => (testSaveLoad || s.setUp != SaveAndReload) && (parts.Length == 0 ||
+                parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))), testSaveLoad, done);
         }
 
         private static IntVec3 FreeCellNearCenter(Map map)
@@ -288,7 +289,7 @@ namespace Quadrunner
             s.Do("spawn 40 steel", () => id = SpawnSteel(s, 40).ThingID)
                 .Wait(120)
                 .Do("note the tick", () => savedAt = Find.TickManager.TicksGame)
-                .SaveAndReload()
+                .SaveAndReload(always: true)
                 .Expect("steel survived the reload", () => Scenario.ById(id)?.stackCount == 40)
                 .Expect("the loaded game resumed at the saved tick", () => Find.TickManager.TicksGame >= savedAt)
                 .Wait(300)

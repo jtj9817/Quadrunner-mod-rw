@@ -11,12 +11,15 @@ namespace Quadrunner
     /// <summary>T3: dispatch and work, raids, and a stable that loses power, burns or is moved.</summary>
     public static partial class Scenarios
     {
-        /// <summary>Drafted colonists don't work, so every job in the scenario is a dog's. Undrafted at the end.</summary>
+        /// <summary>Drafted colonists neither work nor shoot, so only the dogs act. Undrafted at the end.</summary>
         private static void DraftColonists(Scenario s)
         {
             // ToList: drafting changes the colonist lists.
             foreach (Pawn p in Find.CurrentMap.mapPawns.FreeColonistsSpawned.Where(p => p.drafter != null && !p.Downed).ToList())
+            {
                 p.drafter.Drafted = true;
+                p.drafter.FireAtWill = false;
+            }
             s.OnFinish(() =>
             {
                 foreach (Pawn p in Find.CurrentMap.mapPawns.FreeColonistsSpawned.Where(p => p.drafter != null).ToList())

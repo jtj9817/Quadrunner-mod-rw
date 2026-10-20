@@ -32,6 +32,7 @@ namespace Quadrunner
         private static readonly List<string> runAllVerdicts = new List<string>();
         private static Action<int, List<string>> runAllDone;
         private static bool runningAll;
+        private static bool reloadSaves;
 
         private readonly string name;
         private readonly int timeoutTicks;
@@ -86,9 +87,11 @@ namespace Quadrunner
 
         public Scenario Wait(int ticks) => Expect($"wait {ticks} ticks", () => Now - stepStartTick >= ticks);
 
-        /// <summary>Saves the game, loads that save, and continues once the loaded map is up.</summary>
-        public Scenario SaveAndReload()
+        /// <summary>Checks persistence in automated runs, or when explicitly requested; live scenarios keep the map.</summary>
+        public Scenario SaveAndReload(bool always = false)
         {
+            if (!reloadSaves && !always)
+                return this;
             Game before = null;
             return Do("save and load", () =>
                 {
@@ -108,17 +111,19 @@ namespace Quadrunner
         }
 
         /// <summary>Starts each scenario when the previous one ends, then calls <paramref name="done"/>.</summary>
-        public static void RunAll(IEnumerable<(string name, Action setUp)> scenarios, Action<int, List<string>> done)
+        public static void RunAll(IEnumerable<(string name, Action setUp)> scenarios, bool testSaveLoad,
+            Action<int, List<string>> done)
         {
             runningAll = false;
             runAllQueue.Clear();
             current?.Finish("aborted: Run all started");
             runAllVerdicts.Clear();
+            reloadSaves = testSaveLoad;
             foreach ((string, Action) s in scenarios)
                 runAllQueue.Enqueue(s);
             runAllDone = done;
             runningAll = true;
-            QR.Log($"SCENARIO Run all: start, {runAllQueue.Count} scenarios");
+            QR.Log($"SCENARIO Run all: start, {runAllQueue.Count} scenarios ({(testSaveLoad ? "with save/load" : "live, no automatic reloads")})");
             StartNext();
         }
 
@@ -142,6 +147,7 @@ namespace Quadrunner
                 AutoTest.Event("scenario", ("name", name), ("verdict", "FAIL"), ("detail", "didn't start"));
             }
             runningAll = false;
+            reloadSaves = false;
             int passed = runAllVerdicts.Count(v => v.EndsWith(" PASS"));
             QR.Log($"SCENARIO Run all: {passed}/{runAllVerdicts.Count} PASS: {string.Join(", ", runAllVerdicts)}");
             Action<int, List<string>> done = runAllDone;

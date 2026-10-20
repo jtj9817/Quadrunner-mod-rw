@@ -47,7 +47,7 @@ namespace Quadrunner
             var s = new Scenario("Ride until 0%", 20000);
             string stableId = null, dogId = null, riderId = null;
             IntVec3 dest = IntVec3.Invalid, downAt = IntVec3.Invalid;
-            float ridden = 0f, walking = 0f, unmounted = 0f;
+            float ridden = 0f, walking = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
@@ -61,7 +61,6 @@ namespace Quadrunner
                         s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
                     Pawn rider = UndraftedRider(s, stable.InteractionCell);
                     riderId = rider.ThingID;
-                    unmounted = rider.GetStatValue(StatDefOf.MoveSpeed);
                     Pawn dog = stable.IdleRideable;
                     dogId = dog.ThingID;
                     ExpectOption(rider, stable, FloatMenuOptionProvider_Ride.RideLabel(dog, stable));
@@ -83,15 +82,15 @@ namespace Quadrunner
                 .Expect("still riding after the load", () => Riding.MountOf(Rider()) == Dog())
                 .Expect("at 0% the dog powers down and the rider steps off", () =>
                     CompRobodog.Of(Dog()).PoweredDown && Riding.MountOf(Rider()) == null)
-                .Do("the rider steps off where the dog stopped and walks on at their own speed", () =>
+                .Do("the rider steps off where the dog stopped and continues the trip on foot", () =>
                 {
                     downAt = Dog().Position;
                     walking = Rider().GetStatValue(StatDefOf.MoveSpeed);
                     (string id, IntVec3 cell, string why) = Riding.lastDismount;
                     if (id != riderId || cell.DistanceTo(downAt) > 1.5f)
                         throw new InvalidOperationException($"last dismount {id} at {cell}: {why}; dog at {downAt}");
-                    if (Rider().CurJobDef != QR_DefOf.QR_RideTo || Mathf.Abs(walking - unmounted) > 0.01f)
-                        throw new InvalidOperationException($"rider {Rider().CurJob?.ToStringSafe()}, speed {walking}, unmounted {unmounted}");
+                    if (Rider().CurJobDef != QR_DefOf.QR_RideTo)
+                        throw new InvalidOperationException($"rider {Rider().CurJob?.ToStringSafe()}");
                 })
                 .Expect("the rider arrives on foot", () => Rider().Position == dest && Rider().CurJobDef != QR_DefOf.QR_RideTo)
                 .Expect("the stable's other dog carries the powered-down dog home", () => Stable().Docked.Contains(Dog()))

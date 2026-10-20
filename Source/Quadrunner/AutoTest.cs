@@ -116,7 +116,7 @@ namespace Quadrunner
             switch (verb)
             {
                 case "run":
-                    Scenarios.RunAll(arg, (passed, verdicts) =>
+                    Scenarios.RunAll(arg, testSaveLoad: true, (passed, verdicts) =>
                         Event("result", ("id", id), ("passed", passed), ("total", verdicts.Count), ("verdicts", verdicts)));
                     break;
                 case "restart":

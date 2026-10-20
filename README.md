@@ -53,6 +53,8 @@ tools/autotest.py --timeout 3600 pkg-run  # cold-launch the package, run every s
 tools/autotest.py stop
 ```
 
+In Dev mode, **Debug actions → Quadrunner → Scenario: Run all** runs sequentially on the current map: each scenario spawns its fixtures, makes its calls and cleans up its tracked objects, without automatically saving/reloading the colony. **Scenario...** uses the same live mode for individual scenarios. The dedicated **Save and reload** scenario is excluded from live Run all; select it explicitly to check persistence. `tools/autotest.py run` still includes every persistence check. Use a disposable development colony: these fixtures change colony state, and **Prepare removal** deliberately saves and removes mod content.
+
 `removal-check` requires an export from the **Prepare removal** scenario (`tools/autotest.py run "Prepare removal"`), not an arbitrary player save. The observer loads the export, ticks 600, saves/reloads and ticks another 600 while checking expected vanilla contents and absence of the Quadrunner assembly. The harness rejects any new errors. Tests use only `.devlog/` data and a private Xvfb display, never the player's profile or window.
 
 Automated quicktest starts use flat, low-swampiness, inland temperate forest without rivers, retaining a random world seed. Scenarios build their own rooms and obstacles; this supplies a consistent building-space prerequisite, not a claim of coverage for every biome. Ordinary games are unaffected.

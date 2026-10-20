@@ -359,6 +359,7 @@ namespace Quadrunner
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             s.Do("a powered stable whose dog is destroyed beside it; steel and plasteel; a rebuild bill", () =>
                 {
+                    DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     Find.ResearchManager.FinishProject(QR_DefOf.MicroelectronicsBasics);
@@ -380,7 +381,10 @@ namespace Quadrunner
                 {
                     Pawn crafter = Crafter() ?? throw new InvalidOperationException("no colonist can craft");
                     Job job = BillJob(crafter, Stable());
-                    return job != null && crafter.jobs.TryTakeOrderedJob(job);
+                    if (job == null)
+                        return false;
+                    crafter.drafter.Drafted = false;
+                    return crafter.jobs.TryTakeOrderedJob(job);
                 })
                 .Expect("the same dog docks into the stable", () => Stable().Docked.Any(d => d.ThingID == dogId))
                 .SaveAndReload()
