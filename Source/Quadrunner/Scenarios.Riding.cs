@@ -38,7 +38,7 @@ namespace Quadrunner
         private static bool Free(Pawn dog) => dog.CurJobDef != QR_DefOf.QR_BeingRidden && Riding.RiderOf(dog) == null;
 
         /// <summary>
-        /// The plan's scenario: a colonist takes a 4% Quadrunner from its stable for a ride longer than its battery, at
+        /// The plan's scenario: a colonist takes a 1.5% Quadrunner from its stable for a ride longer than its battery, at
         /// the ridden speed, across a reload; at 0% the dog powers down, the rider steps off and walks on, and the stable's
         /// other dog carries it home.
         /// </summary>
@@ -51,7 +51,7 @@ namespace Quadrunner
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
-            s.Do("a powered stable with two Quadrunners; a colonist rides one from the stable 70–90 cells out, the dog at 4%", () =>
+            s.Do("a powered stable with two Quadrunners; a colonist rides one from the stable 70–90 cells out, the dog at 1.5%", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
@@ -68,7 +68,7 @@ namespace Quadrunner
                     dest = OpenCell(map, stable.InteractionCell, 70f, 90f);
                     if (!Riding.Ride(rider, dog, stable, dest))
                         throw new InvalidOperationException("the ride order failed");
-                    CompRobodog.Of(dog).SetBattery(0.04f);
+                    CompRobodog.Of(dog).SetBattery(0.015f);
                 })
                 .Expect("the colonist mounts", () => Riding.MountOf(Rider()) == Dog())
                 .Expect("the rider moves at the ridden speed, the dog under them", () =>
@@ -78,7 +78,7 @@ namespace Quadrunner
                         && Dog().Position.DistanceTo(Rider().Position) < 1.5f;
                 })
                 .Expect("the dog's battery drains as it carries", () =>
-                    Riding.MountOf(Rider()) == Dog() && CompRobodog.Of(Dog()).Battery < 0.035f)
+                    Riding.MountOf(Rider()) == Dog() && CompRobodog.Of(Dog()).Battery < 0.0125f)
                 .SaveAndReload()
                 .Expect("still riding after the load", () => Riding.MountOf(Rider()) == Dog())
                 .Expect("at 0% the dog powers down and the rider steps off", () =>

@@ -9,7 +9,7 @@ namespace Quadrunner
 {
     public class CompProperties_Robodog : CompProperties
     {
-        public float drainPerCell = 0.000667f;
+        public float drainPerCell = 0.0002857143f;
         public float seekChargeAt = 0.1f;
         public float conduitChargePerTick = 0.0004f;
         public float stableChargePerTick = 0.0012f;

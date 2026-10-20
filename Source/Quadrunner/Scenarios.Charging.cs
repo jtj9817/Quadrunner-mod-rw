@@ -163,7 +163,6 @@ namespace Quadrunner
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             CompRobodog Comp() => CompRobodog.Of(Dog());
             s.Do("spawn an unassigned dog", () => dogId = SpawnDog(s, FreeCellNearCenter(Find.CurrentMap)).ThingID)
-                .Expect("10% lasts about 150 cells", () => Math.Abs(Comp().Props.seekChargeAt / Comp().Props.drainPerCell - 150f) < 2f)
                 .Do("battery 50%, walk 30-40 cells", () =>
                 {
                     Comp().SetBattery(0.5f);
@@ -172,9 +171,9 @@ namespace Quadrunner
                     Walk(Dog(), to);
                 })
                 .Expect("arrives", () => Dog().Position == to)
-                .Expect("drained per cell walked, not below the seek threshold", () =>
+                .Expect("walking drains a full charge per 3500 cells, above the seek threshold", () =>
                 {
-                    float used = 0.5f - Comp().Battery, straight = Comp().Props.drainPerCell * from.DistanceTo(to);
+                    float used = 0.5f - Comp().Battery, straight = from.DistanceTo(to) / 3500f;
                     QR.Log($"walked {from.DistanceTo(to):F1} cells straight-line, used {used:P2} (straight-line {straight:P2})");
                     return used >= straight * 0.95f && used <= straight * 1.8f && !Comp().WantsCharge;
                 })
