@@ -21,9 +21,9 @@ namespace Quadrunner
         /// <summary>A guarding Combatdog walks back once it is farther than this from its stable.</summary>
         private const float GuardRadius = 4f;
 
-        /// <summary>Out without a target (heading home or guarding), with battery to spare: a ping can redirect it.</summary>
+        /// <summary>Out without a target (heading home, guarding or patrolling), not drafted, with battery to spare: a ping can redirect it.</summary>
         public static bool Answers(Pawn dog) =>
-            CompRobodog.Of(dog) is CompRobodog c && !c.WantsCharge && !c.PoweredDown
+            CompRobodog.Of(dog) is CompRobodog c && !c.WantsCharge && !c.PoweredDown && !dog.Drafted
             && (dog.CurJob == null || dog.CurJobDef == QR_DefOf.QR_Dock || dog.CurJobDef == JobDefOf.Wait
                 || dog.CurJobDef == JobDefOf.Goto);
 

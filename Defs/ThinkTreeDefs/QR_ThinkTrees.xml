@@ -12,6 +12,18 @@
           <treeDef>Downed</treeDef>
         </li>
         <li Class="ThinkNode_QueuedJob" />
+        <!-- Drafted (Combatdogs): hold position between the player's orders, as vanilla's mechanoid tree does. -->
+        <li Class="ThinkNode_ConditionalOfPlayerFaction">
+          <subNodes>
+            <li Class="ThinkNode_Tagger">
+              <tagToGive>DraftedOrder</tagToGive>
+              <subNodes>
+                <li Class="JobGiver_MoveToStandable" />
+                <li Class="JobGiver_Orders" />
+              </subNodes>
+            </li>
+          </subNodes>
+        </li>
         <li Class="ThinkNode_Subtree">
           <treeDef>LordDuty</treeDef>
         </li>

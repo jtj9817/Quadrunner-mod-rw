@@ -45,6 +45,7 @@ namespace Quadrunner
             ("Ping chain", PingChain),
             ("Combatdog sweep", CombatdogSweep),
             ("Low-battery retreat", LowBatteryRetreat),
+            ("Drafted priority target", DraftedPriorityTarget),
         };
 
         /// <summary>

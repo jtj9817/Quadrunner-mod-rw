@@ -17,8 +17,8 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T7** last slice, **drafting with priority targets** (Harmony) and the **Drafted priority target** scenario; then Run all and tick box 7. Boxes 1–5 ticked (runs 2026-10-20 04:51–05:09): race, pings, capture, patrol waypoints (stable gizmo), low-battery retreat with the siren lamp.
-- Drafting research: a drafter needs a postfix on `PawnComponentsUtility.AddAndRemoveDynamicComponents` (vanilla gives one only to humanlikes, colony mechs and mutants); right-click move orders need `Pawn.CanTakeOrder` (getter); vanilla's melee option is blocked separately in `FloatMenuUtility.GetMeleeAttackAction` (`IsColonistPlayerControlled`), so priority targets need a third patch or our own gizmo; the draft toggle can come from `CompRobodog.CompGetGizmosExtra` (`Pawn.GetGizmos` includes comps); the think tree `QR_Robodog` needs a drafted branch (XML). Three gameplay patches so far (construction, kidnap, draw offset) of about six.
+- Next: run **Drafted priority target** (built, not run; the user asked to close the test instance at 05:11, so wait for their OK before launching), then the T7 Run all and tick box 7. Boxes 1–5 ticked (runs 2026-10-20 04:51–05:09): race, pings, capture, patrol waypoints (stable gizmo), low-battery retreat with the siren lamp.
+- Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
 - Last run: 2026-10-20 05:09, build `dc08c02-dirty.20261020T050850Z`, Combatdog sweep 1/1 PASS (and 05:08: Ping chain, Low-battery retreat PASS), 0 new errors, map 200.

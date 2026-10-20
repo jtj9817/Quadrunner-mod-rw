@@ -335,5 +335,85 @@ namespace Quadrunner
                     : $"battery {CompRobodog.Of(Combatdog()).Battery:P0}, job {Combatdog().CurJob?.ToStringSafe()}; first {Fate(firstId)}, second {Fate(secondId)}")
                 .Start();
         }
+
+        /// <summary>
+        /// A Combatdog heading for a pinged raider is drafted (the comp's draft toggle) and holds position; vanilla's melee
+        /// order sends it at a farther raider that nobody pinged, past the queued one. Still drafted after a reload, it
+        /// leaves the queued raider alone; at 10% it is undrafted and retreats; charged, it goes back for the queued one.
+        /// </summary>
+        private static void DraftedPriorityTarget()
+        {
+            var s = new Scenario("Drafted priority target", 20000);
+            string stableId = null, combatId = null, nearId = null, farId = null;
+            int holdTick = 0;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
+            Pawn ById(string id) => (Pawn)Scenario.ById(id);
+            bool Down(string id) => !(ById(id) is Pawn p) || p.Dead || p.Downed;
+            s.Do("a stable with a docked Combatdog; a Quadrunner 20–25 cells out hit by a raider; another raider 35–45 cells out the other way", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
+                    IntVec3 field = OpenCell(map, stable.InteractionCell, 20f, 25f);
+                    Pawn quad = DogOut(s, stable, field);
+                    Pawn near = SpawnRaider(s, OpenCell(map, field, 2f, 4f));
+                    nearId = near.ThingID;
+                    farId = SpawnRaider(s, OpenCell(map, stable.InteractionCell, 35f, 45f, c => c.DistanceTo(field) > 30f)).ThingID;
+                    Raid.Recheck(map);
+                    Hit(quad, near);
+                })
+                .Expect("the Combatdog heads for the pinged raider", () => Attacking(Combatdog(), ById(nearId)))
+                .Do("draft it with its draft toggle", () =>
+                {
+                    Pawn dog = Combatdog();
+                    Command_Toggle toggle = dog.GetGizmos().OfType<Command_Toggle>().FirstOrDefault(c => c.icon == TexCommand.Draft)
+                        ?? throw new InvalidOperationException($"no draft toggle (drafter {(dog.drafter == null ? "missing" : "present")})");
+                    toggle.toggleAction();
+                })
+                .Expect("drafted, it holds position and takes orders", () =>
+                    Combatdog().Drafted && Combatdog().CurJobDef == JobDefOf.Wait_Combat && Combatdog().CanTakeOrder)
+                .Do("order a melee attack on the far raider (vanilla's order)", () =>
+                {
+                    Action attack = FloatMenuUtility.GetMeleeAttackAction(Combatdog(), ById(farId), out string fail)
+                        ?? throw new InvalidOperationException($"melee order refused: {fail}");
+                    attack();
+                })
+                .Expect("it attacks the far raider, past the queued one", () =>
+                {
+                    if (Attacking(Combatdog(), ById(nearId)))
+                        throw new InvalidOperationException("went for the queued raider instead");
+                    return Attacking(Combatdog(), ById(farId));
+                })
+                .SaveAndReload()
+                .Expect("still drafted; the far raider dead or down", () =>
+                {
+                    if (!Combatdog().Drafted)
+                        throw new InvalidOperationException("undrafted by the reload");
+                    if (Down(farId))
+                    {
+                        holdTick = Find.TickManager.TicksGame;
+                        return true;
+                    }
+                    return false;
+                })
+                .Expect("drafted, it holds position for 300 ticks, leaving the queued raider alone", () =>
+                {
+                    if (!Combatdog().Drafted || Attacking(Combatdog(), ById(nearId)))
+                        throw new InvalidOperationException($"drafted {Combatdog().Drafted}, job {Combatdog().CurJob?.ToStringSafe()}");
+                    return Find.TickManager.TicksGame - holdTick >= 300;
+                })
+                .Do("its battery drops to 10%", () => CompRobodog.Of(Combatdog()).SetBattery(0.1f))
+                .Expect("undrafted, it retreats to charge", () => !Combatdog().Drafted && Retreating(Combatdog()))
+                .Expect("charged to full, it goes back out for the queued raider", () =>
+                    CompRobodog.Of(Combatdog()).Battery >= 1f && Attacking(Combatdog(), ById(nearId)))
+                .Expect("the queued raider dead or down; the Combatdog docks", () =>
+                    Down(nearId) && Stable().Docked.Contains(Combatdog()))
+                .Summary(() => $"near {Fate(nearId)}, far {Fate(farId)}; Combatdog " + (Combatdog() == null ? "gone"
+                    : $"drafted {Combatdog().Drafted}, {Combatdog().CurJob?.ToStringSafe()}, battery {CompRobodog.Of(Combatdog()).Battery:P0}"))
+                .Start();
+        }
     }
 }

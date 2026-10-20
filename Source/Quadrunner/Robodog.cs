@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -76,8 +77,14 @@ namespace Quadrunner
             {
                 wantsCharge = true;
                 // Mid-fight or guarding: retreat now, not when the job next expires. A capture already under way finishes.
+                // Drafted: undrafted, so it retreats rather than powering down where the player left it (agent, 2026-10-20).
                 JobDef job = Dog.CurJobDef;
-                if (RobodogWork.Of(parent)?.combat == true && parent.Spawned
+                if (Dog.Drafted)
+                {
+                    QR.Log($"{Dog} at {battery:P0}: undrafted to charge");
+                    Dog.drafter.Drafted = false;
+                }
+                else if (RobodogWork.Of(parent)?.combat == true && parent.Spawned
                     && (job == JobDefOf.AttackMelee || job == JobDefOf.Wait || job == JobDefOf.Goto))
                 {
                     QR.Log($"{Dog} at {battery:P0}: retreats from {job.defName} to charge");
@@ -124,6 +131,14 @@ namespace Quadrunner
             if (dinfo.Instigator is Pawn attacker && attacker.HostileTo(Faction.OfPlayer) && stable != null
                 && parent.Spawned && !Dog.Dead)
                 stable.Ping(attacker, Dog);
+        }
+
+        public override IEnumerable<Gizmo> CompGetGizmosExtra()
+        {
+            foreach (Gizmo g in base.CompGetGizmosExtra())
+                yield return g;
+            foreach (Gizmo g in Drafting.Gizmos(Dog))
+                yield return g;
         }
 
         public override void PostDraw()
