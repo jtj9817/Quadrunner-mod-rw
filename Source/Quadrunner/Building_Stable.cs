@@ -263,7 +263,10 @@ namespace Quadrunner
             if (!sent && !raid)
                 sent = TrySend(IdleDog(Worker), ref tried);
             if (!sent && tried)
+            {
                 nextDispatchTick = now + Props.idleBackoff;
+                QR.Log($"{this} found no work (raid {raid}); next try at tick {nextDispatchTick}");
+            }
         }
 
         private bool TrySend(Pawn dog, ref bool tried)

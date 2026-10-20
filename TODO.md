@@ -11,17 +11,18 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - [x] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
 - [x] **T5**: Medirunner (rescue order, triage)
 - [x] **T6**: Riding (stat part, ridden job, dismount rules, draw offset)
-- [ ] **T7**: Combatdog Tier 1, pings and patrols
+- [x] **T7**: Combatdog Tier 1, pings and patrols
 - [ ] **T8**: Combatdog tiers 2–4
 - [ ] **T9**: Polish and release
 
 ## Current state
 
-- Next: **T7 Run all** (shared code changed: think tree, `DogWork.FindJob` → `Combat`, stable dispatch, `Scenario.Resume`), then tick box 7 (all four T7 scenarios have passed alone: Ping chain, Low-battery retreat 05:08, Combatdog sweep 05:09, Drafted priority target 05:18) and T7 in Progress; then T8. Boxes 1–6 ticked.
+- Next: **T8** (Combatdog tiers 2–4). Decisions recorded 2026-10-20: slot guns from a fixed list of built-in guns (assault rifle default, LMG; T4 minigun; T3 slot 2 the new flamethrower), Tier 3 switches weapons by range, upgrades are stable bills. T7 done (Run all 05:26).
+- Open flake: **Haul and clean** failed in the 05:26 Run all (and at 03:26, before T7): after the reload both dogs docked unfinished and the stable sent nothing for 29k ticks. It passes alone; the summary now prints the raid state and the stable logs "found no work", so the next Run all should show which branch it is.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 05:18, build `a8e36e1-dirty.20261020T051811Z`, Drafted priority target 1/1 PASS, 0 new errors, beside the user's open game.
+- Last run: 2026-10-20 05:28, build `4fe545a-dirty.20261020T052758Z`, Haul and clean 1/1 PASS; before it Run all 05:26, 33/34 PASS, 0 new errors, 336 s, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
@@ -142,6 +143,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Glow textures have no alpha.** `Things/Mote/LightningGlow` is meant for the additive `MoteGlow` shader; with `Transparent` it draws a dark square, and additive alone hardly shows on bright ground. The siren uses its own lamp texture with alpha.
 - **Targeter re-arming.** `Targeter` calls `StopTargeting()` after the click action, so begin the next targeting from `actionWhenFinished` (guarded by a flag set in the action, since right-click also calls it).
 - **Battery drains as soon as a dog walks.** "Full and out" never holds past the dispatch tick: check full while docked, then spawned.
+- **Vanilla undrafts after 10000 idle ticks.** `AutoUndrafter` undrafts a colonist after 10000 ticks of `Wait_Combat` with no hostile around; a long scenario then had colonists hauling and building. `Scenario.Check` resets it each frame (`Notify_Drafted` through `AccessTools.FieldRefAccess`).
 - **Drafted colonists shoot ~25 cells out.** Scenarios draft every colonist, so raiders meant for a Combatdog go 30+ cells from the stable.
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*
 - **One defend point clusters pawns.** A single `LordJob_DefendPoint` for several pawns gathers them at one spot. Give each hostile its own lord. *(QB)*

@@ -158,7 +158,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 - [x] Stable patrol waypoints walked in order while deployed (**Combatdog sweep**, run 2026-10-20 05:09: waypoints 1, 2, 3, 1 across a reload, 0 new errors)
 - [x] Low battery mid-fight: retreat with the yellow siren light, ignore pings until charged (**Low-battery retreat**, run 2026-10-20 05:08; siren seen in `.devlog/screens/siren.png` from run 05:05, 0 new errors)
 - [x] Draftable with priority targets (Harmony) (**Drafted priority target**, run 2026-10-20 05:18, 0 new errors)
-- [ ] Scenarios pass: **Ping chain**, **Combatdog sweep** (captures with and without a free bed, patrol), **Low-battery retreat**, **Drafted priority target**
+- [x] Scenarios pass: **Ping chain**, **Combatdog sweep** (captures with and without a free bed, patrol), **Low-battery retreat**, **Drafted priority target** (Run all 2026-10-20 05:26: all four PASS in sequence, 0 new errors; 33/34, the one FAIL the older T3 flake in Haul and clean)
 
 ### T8: Combatdog tiers 2–4
 

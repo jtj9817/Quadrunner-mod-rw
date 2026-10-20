@@ -21,6 +21,9 @@ namespace Quadrunner
 
         private static Scenario current;
 
+        private static readonly HarmonyLib.AccessTools.FieldRef<Pawn_DraftController, AutoUndrafter> AutoUndrafterOf =
+            HarmonyLib.AccessTools.FieldRefAccess<Pawn_DraftController, AutoUndrafter>("autoUndrafter");
+
         /// <summary>A scenario is running (Run all included, between its scenarios).</summary>
         public static bool Running => current != null;
 
@@ -225,6 +228,11 @@ namespace Quadrunner
             }
             if (!AutoTest.MapReady)
                 return;
+            // Vanilla undrafts a colonist after 10000 ticks of waiting with no hostile around; scenarios keep them
+            // drafted so that only the dogs work.
+            foreach (Pawn p in Find.CurrentMap.mapPawns.FreeColonistsSpawned)
+                if (p.Drafted)
+                    AutoUndrafterOf(p.drafter).Notify_Drafted();
             if (stepIndex == steps.Count)
                 Finish($"PASS in {Now - startTick} ticks");
             else if (Now - startTick >= timeoutTicks)

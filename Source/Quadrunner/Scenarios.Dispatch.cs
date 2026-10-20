@@ -162,7 +162,7 @@ namespace Quadrunner
                 .Summary(() =>
                 {
                     Thing gold = Scenario.ById(farGoldId);
-                    return $"far gold from {farGoldCell}: {(gold == null ? "gone" : $"{gold.stackCount} at {gold.PositionHeld} in {gold.ParentHolder.ToStringSafe()}")}; "
+                    return $"raid {Raid.Active(Find.CurrentMap)}; near gold in the pile {CountIn(pile, ThingDefOf.Gold)}; far gold from {farGoldCell}: {(gold == null ? "gone" : $"{gold.stackCount} at {gold.PositionHeld} in {gold.ParentHolder.ToStringSafe()}")}; "
                         + ColonistStates();
                 })
                 .Start();
