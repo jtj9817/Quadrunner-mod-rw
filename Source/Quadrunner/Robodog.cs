@@ -42,13 +42,14 @@ namespace Quadrunner
 
         public bool PoweredDown => Dog.health.hediffSet.HasHediff(QR_DefOf.QR_PoweredDown);
 
-        /// <summary>Per-cell drain multiplier: <see cref="RobodogWork.raidDrainFactor"/> for a working dog during a raid.</summary>
+        /// <summary>Per-cell drain multiplier: <see cref="RobodogWork.raidDrainFactor"/> for a working dog during a raid (not while ridden).</summary>
         public float DrainFactor
         {
             get
             {
                 RobodogWork work = RobodogWork.Of(parent);
-                return work != null && stable != null && parent.Spawned && Raid.Active(parent.Map) ? work.raidDrainFactor : 1f;
+                return work != null && stable != null && parent.Spawned && Riding.RiderOf(Dog) == null && Raid.Active(parent.Map)
+                    ? work.raidDrainFactor : 1f;
             }
         }
 

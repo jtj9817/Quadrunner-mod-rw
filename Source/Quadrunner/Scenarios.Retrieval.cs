@@ -178,7 +178,9 @@ namespace Quadrunner
                 .Expect("then the battery: charged to full on the spot", () =>
                     CompRobodog.Of(Dog()).Battery >= 1f && !CompRobodog.Of(Dog()).PoweredDown)
                 .Expect("both items used", () => OnMap(QR_DefOf.QR_RobodogBattery) == 0 && OnMap(QR_DefOf.QR_RobodogRepairKit) == 0)
-                .Summary(() => $"health {healthBefore:P0} -> {Dog()?.health.summaryHealth.SummaryHealthPercent:P0}")
+                .Summary(() => $"health {healthBefore:P0} -> {Dog()?.health.summaryHealth.SummaryHealthPercent:P0}; colonists: "
+                    + string.Join(", ", Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p =>
+                        $"{p.LabelShort} {p.CurJob?.ToStringSafe()}{(p.Drafted ? " drafted" : "")}{(p.InMentalState ? " " + p.MentalStateDef.defName : "")}")))
                 .Start();
         }
 

@@ -9,4 +9,12 @@
     </value>
   </Operation>
 
+  <!-- A mounted rider moves at the dog's ridden speed (Rideable.riddenMoveSpeed); last, so it sets the final value. -->
+  <Operation Class="PatchOperationAdd">
+    <xpath>Defs/StatDef[defName="MoveSpeed"]/parts</xpath>
+    <value>
+      <li Class="Quadrunner.StatPart_Riding" />
+    </value>
+  </Operation>
+
 </Patch>

@@ -93,7 +93,7 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
-    <description>A four-legged utility robot. It docks at a stable, which sends it out to haul, clean and supply construction, and repairs and recharges it between jobs.</description>
+    <description>A four-legged utility robot. It docks at a stable, which sends it out to haul, clean and supply construction, and repairs and recharges it between jobs. A colonist can ride it: right-click it, or its stable, and pick a destination.</description>
     <modExtensions>
       <!-- Vanilla work givers, in priority order; jobs other than the listed ones are refused (a blocked blueprint
            would otherwise ask for plant cutting). Map-wide ones ignore the stable's service radius. -->
@@ -115,6 +115,15 @@
         </jobs>
         <raidSpeedFactor>3</raidSpeedFactor>
         <raidDrainFactor>2</raidDrainFactor>
+      </li>
+      <!-- Riding (user, 2026-10-20): the rider moves at 7 cells/s (a colonist walks 4.6); the rider's draw offset from
+           the dog per facing, x right and z up the screen, tuned with the "Quadrunner riding" tweak values. -->
+      <li Class="Quadrunner.Rideable">
+        <riddenMoveSpeed>7</riddenMoveSpeed>
+        <offsetNorth>(0, 0, 0.42)</offsetNorth>
+        <offsetEast>(-0.08, 0, 0.36)</offsetEast>
+        <offsetSouth>(0, 0, 0.45)</offsetSouth>
+        <offsetWest>(0.08, 0, 0.36)</offsetWest>
       </li>
     </modExtensions>
   </ThingDef>

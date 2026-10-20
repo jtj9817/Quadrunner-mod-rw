@@ -35,6 +35,9 @@ namespace Quadrunner
 
         public static bool Enabled => dir != null;
 
+        /// <summary>The harness directory (<c>.devlog/autotest</c>), or null outside an automated run.</summary>
+        public static string Dir => dir;
+
         public static bool MapReady =>
             Current.ProgramState == ProgramState.Playing && Find.CurrentMap != null && !LongEventHandler.ShouldWaitForEvent;
 

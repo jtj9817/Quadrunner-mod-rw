@@ -288,7 +288,10 @@ namespace Quadrunner
                 .Expect("move speed was 3x during the raid", () => Math.Abs(raidSpeed / calmSpeed - 3f) < 0.01f)
                 .Expect("all gold stored, the dog docked", () =>
                     CountIn(pile, ThingDefOf.Gold) == 60 && Stable().Docked.Contains(Dog()))
-                .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}")
+                .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; gold " + string.Join(", ",
+                    goldIds.Select(id => Scenario.ById(id) ?? Dog()?.carryTracker.CarriedThing).Where(t => t != null)
+                        .Select(t => $"{t.stackCount} at {t.PositionHeld}{(pile.Contains(t.PositionHeld) ? " (pile)" : "")}"))
+                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}")
                 .Start();
         }
 

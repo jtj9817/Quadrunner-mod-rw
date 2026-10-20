@@ -28,4 +28,18 @@
     <reportString>bringing TargetA to TargetB.</reportString>
   </JobDef>
 
+  <JobDef>
+    <defName>QR_RideTo</defName>
+    <driverClass>Quadrunner.JobDriver_RideTo</driverClass>
+    <reportString>riding TargetA.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
+  <JobDef>
+    <defName>QR_BeingRidden</defName>
+    <driverClass>Quadrunner.JobDriver_BeingRidden</driverClass>
+    <reportString>carrying TargetA.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
 </Defs>

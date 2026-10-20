@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -52,9 +53,13 @@ namespace Quadrunner
         /// <summary>A docked worker (not a medic) that could be sent out now, not waiting for a charge.</summary>
         public bool HasIdleDog => IdleDog(medic: false) != null;
 
-        private Pawn IdleDog(bool medic) => docked.InnerListForReading
-            .Where(d => RobodogWork.Of(d) is RobodogWork w && w.rescue == medic
-                && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
+        /// <summary>The docked dog a colonist would ride: rideable, the fullest not waiting for a charge.</summary>
+        public Pawn IdleRideable => IdleDog(d => Rideable.Of(d) != null);
+
+        private Pawn IdleDog(bool medic) => IdleDog(d => RobodogWork.Of(d) is RobodogWork w && w.rescue == medic);
+
+        private Pawn IdleDog(Func<Pawn, bool> kind) => docked.InnerListForReading
+            .Where(d => kind(d) && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown)
             .OrderByDescending(d => CompRobodog.Of(d).Battery)
             .FirstOrDefault();
 
@@ -153,6 +158,9 @@ namespace Quadrunner
         protected override void Tick()
         {
             base.Tick();
+            // A minified stable still ticks inside its MinifiedThing, with no map.
+            if (!Spawned)
+                return;
             if (this.IsHashIntervalTick(Props.dispatchInterval))
                 TryDispatch();
             if (docked.Count == 0 || !CanCharge)
