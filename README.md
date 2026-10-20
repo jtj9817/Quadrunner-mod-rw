@@ -6,7 +6,7 @@ Robot dogs for RimWorld: **Quadrunners** haul, clean, supply construction and ca
 
 ![Quadrunner — haul, ride, rescue and defend](About/Preview.png)
 
-Complete for personal use, including the post-T9 lore, liveries, walking, rescue and combat animations, and weapon demonstrations. This is a private source backup and personal mod, not a community project or Workshop release. Issues, pull requests, discussions, projects and the wiki are disabled; no contributions or public support are solicited.
+Complete for personal use, including the post-T9 lore, liveries, walking, rescue and combat animations, and weapon demonstrations. The source is publicly viewable, but this remains a personal mod, not a community project or Workshop release. Issues, pull requests, discussions, projects and the wiki are disabled; no contributions or public support are solicited.
 
 No DLC is required. DLC-enabled configurations and arbitrary mod combinations have not been verified. The saved-game package ID remains `josh9817.quadrunner`; the author name does not change that identity.
 
