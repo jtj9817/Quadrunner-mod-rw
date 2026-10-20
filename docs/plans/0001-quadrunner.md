@@ -174,7 +174,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 ### T9: Polish and release
 
 - [x] Art for every dog, the stable and the UI (SVG in `Art/`, `tools/export-textures.sh`), preview and icon: sources/previews inspected before integration; **Artwork showcase**, **Rider pose**, **Low-battery retreat**, tier weapon scenarios and actual private-window screenshots inspected (runs 2026-10-20 07:04, 07:13, 07:19; 0 new errors)
-- [x] Removing the mod from a save is clean: confirmed backup/export; **Prepare removal** retains a mounted rider, carried patient, injury and map/docked/caravan cargo, and removes a wreck, packed stable, blueprint and frame. Independent process with no Quadrunner assembly loads, ticks 600, saves/reloads and ticks 600 with 0 new errors (run 2026-10-20 07:41)
+- [x] Removing the mod from a save is clean: backup/export retains rider, patient, injuries and map/docked/caravan cargo; removes wrecks, packed stables, construction and mod-related shots while retaining an unrelated vanilla shot. Optional owned battle metadata is cleared without deleting surviving history IDs. Independent no-Quadrunner process loads, resolves battle text, ticks 600, saves/reloads and ticks 600, 0 new errors (run 2026-10-20 08:13)
 - [ ] **Run all** passes on the packaged copy (Core + Harmony; DLC-tester requirement explicitly waived by the user, 2026-10-20)
 
 ## Open questions

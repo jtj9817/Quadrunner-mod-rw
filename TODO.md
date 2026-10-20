@@ -20,11 +20,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - **T9 in progress**, resumed from `docs/handoff/20261020-0615-t8-done.md`. Original sci-fi robodog SVGs were rendered and inspected before export/integration; actual private-game art, ride poses, mounted guns, items, stable rotations, Overview and removal dialogs have been inspected.
 - **Raid: finish and dock** fixture corrected: the old raw log did show docking, but the predicate required exactly 30 gold and the pile already held 60. [INFERENCE] Vanilla's opportunistic extra-stack hauling explains the extra delivery; old target coordinates were not logged. Targets now sit outside the 8-cell duplicate-haul radius; strict 30/60 delivery and post-reload docking checks PASS in two fresh launches.
 - **Tier 1 balance**, user-approved: sharp/blunt armor 0.30/0.15 and health scale 1.6, higher tiers unchanged. Four sampled dogs each won three real unarmed Melee-6 fights without repair; controlled six-hit damage with reload also PASS. This is a sample, not a guaranteed win rate.
-- **Core-only release**, user-approved: DLC-owning tester gate waived, no DLC compatibility claim. Confirmed backup/export and independent no-Quadrunner load → 600 ticks → save/reload → 600 ticks PASS, 0 new errors (07:33). Packaged Run all remains; its first launch crashed in native Mono GC before ready, not in a scenario.
+- **Core-only release**, user-approved: DLC-owning tester gate waived, no DLC compatibility claim. Confirmed backup/export and independent no-Quadrunner load → 600 ticks → save/reload → 600 ticks PASS, including retained battle records and their actual text-render path (08:13). Packaged Run all remains.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 07:58, build `dd9ce4d-dirty.20261020T075656Z`: Ping chain and Prepare removal **2/2 PASS**, 0 new errors. Strict return/third-ping turnaround retained; the removal save is genuinely mid-ride across reload. Next: rebuild package and Run all.
+- Last run: 2026-10-20 08:13, build `b05760b-dirty.20261020T081239Z`: expanded Prepare removal **1/1 PASS**, then independent **LOADED CLEAN**, 0 new errors in both. Historical weapon/cover references and live-shot ownership covered; vanilla history IDs and cargo retained. Next: rebuild package and final Run all.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
@@ -164,6 +164,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Exact-haul fixtures need separated piles.** Vanilla hauling opportunistically collects duplicate stacks within 8 cells inside one job. Space intended first/second deliveries at least 12 cells apart; do not weaken exact quantities or infer docking from the cargo count.
 - **Observe short transitions at normal speed.** At ultrafast, an entire Combatdog return can fit between frame-level scenario checks; Ping chain now observes captures/return at normal speed, retaining QR_Dock → third-ping turnaround rather than accepting an already-docked dog.
 - **Stage the saved ride last.** Prepare removal's other setup jobs can outlast a 40–60-cell ride in Run all. Keep the rider drafted until they are ready, then order the ride and pause while mounted before saving.
+- **Battle history outlives its launcher.** Discarding a dog does not necessarily remove old RangedImpact weapon/cover Def metadata. The clean export clears only optional owned metadata, retaining record IDs and wounds; mod-sourced/targeted Core projectiles must also be removed without deleting unrelated vanilla shots.
+- **Equipment fixtures need a Combatdog.** A worker Quadrunner has no equipment tracker. Launch built-in-gun projectiles from a real Tier-2 Combatdog equipped through `Tiers.Arm`, not by adding equipment to a hauler.
 
 ### Assets
 

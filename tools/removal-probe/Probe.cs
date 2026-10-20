@@ -117,6 +117,12 @@ namespace QuadrunnerRemovalProbe
                     ids.Add(thing.ThingID);
                 }
             }
+            foreach (LogEntry entry in Find.BattleLog.Battles.SelectMany(b => b.Entries))
+            {
+                ids.Add(entry.GetUniqueLoadID());
+                // Exercise the history's actual grammar/render text path after optional weapon/cover removal.
+                entry.ToGameStringFromPOV(entry.GetConcerns().FirstOrDefault());
+            }
             foreach (string id in File.ReadAllLines(Path.Combine(Dir, "expected.txt")))
                 if (!ids.Contains(id)) throw new InvalidOperationException("Vanilla content was lost: " + id);
         }

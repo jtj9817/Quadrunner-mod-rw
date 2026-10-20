@@ -26,6 +26,7 @@ namespace Quadrunner
             var s = new Scenario("Prepare removal", 12000);
             string stableId = null, riderId = null, rideDogId = null, downDogId = null, walkDogId = null, crafterId = null;
             string patientId = null, cargoId = null, dockCargoId = null, travelerId = null, worldCargoId = null, backup = null;
+            string vanillaShotId = null;
             string[] removedIds = null;
             float woundSeverity = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
@@ -160,7 +161,25 @@ namespace Quadrunner
                         field.CenterCell + new IntVec3(-4, 0, -4), map, Rot4.North, Faction.OfPlayer, null));
                     Thing frame = SpawnBuilding(s, QR_DefOf.QR_Stable.frameDef, null,
                         field.CenterCell + new IntVec3(4, 0, -4), Rot4.North);
-                    removedIds = new[] { wreck.ThingID, mini.ThingID, blueprint.ThingID, frame.ThingID };
+                    // Real Core projectiles share the same vanilla Def: only the mod-sourced shot is removed.
+                    Pawn gunner = s.Track(Stable().AddNewDog(QR_DefOf.QR_CombatdogTwo));
+                    Stable().TryUndock(gunner);
+                    Tiers.Arm(gunner, QR_DefOf.QR_Gun_AssaultRifle);
+                    ThingWithComps gun = gunner.equipment.Primary;
+                    ThingDef bulletDef = gun.def.Verbs[0].defaultProjectile;
+                    var shot = (Projectile)s.Track(GenSpawn.Spawn(ThingMaker.MakeThing(bulletDef), gunner.Position, map));
+                    shot.Launch(gunner, field.CenterCell, field.CenterCell, ProjectileHitFlags.None, equipment: gun);
+                    var vanillaShot = (Projectile)s.Track(GenSpawn.Spawn(ThingMaker.MakeThing(bulletDef), Rider().Position, map));
+                    vanillaShot.Launch(Rider(), field.CenterCell, field.CenterCell, ProjectileHitFlags.None);
+                    vanillaShotId = vanillaShot.ThingID;
+                    removedIds = new[] { wreck.ThingID, mini.ThingID, blueprint.ThingID, frame.ThingID, shot.ThingID };
+                    // A historical impact can have no surviving launcher, yet still name its built-in gun/cover.
+                    // Keep both this record and a vanilla control record through the independent no-mod reload.
+                    var impact = new BattleLogEntry_RangedImpact(null, null, Rider(), gun.def, bulletDef, QR_DefOf.QR_Stable);
+                    var vanillaImpact = new BattleLogEntry_RangedImpact(Rider(), null, Rider(),
+                        DefDatabase<ThingDef>.GetNamed("Gun_AssaultRifle"), bulletDef, null);
+                    Find.BattleLog.Add(impact);
+                    Find.BattleLog.Add(vanillaImpact);
                     Hediff wound = Rider().health.AddHediff(HediffDefOf.Cut, Rider().RaceProps.body.corePart);
                     wound.Severity = woundSeverity = 2f;
                     wound.sourceDef = QR_DefOf.QR_Gun_AssaultRifle;
@@ -168,7 +187,8 @@ namespace Quadrunner
                     if (AutoTest.Dir != null)
                         File.WriteAllLines(Path.Combine(AutoTest.Dir, "removal-expected.txt"),
                             map.mapPawns.FreeColonistsSpawned.Select(p => p.ThingID)
-                                .Concat(new[] { cargoId, dockCargoId, travelerId, worldCargoId }));
+                                .Concat(new[] { cargoId, dockCargoId, travelerId, worldCargoId,
+                                    impact.GetUniqueLoadID(), vanillaImpact.GetUniqueLoadID() }));
                 })
                 .Expect("rider and carried patient survive, cargo is kept, mod objects and jobs are gone", () =>
                 {
@@ -177,6 +197,7 @@ namespace Quadrunner
                         && Scenario.ById(patientId) is Pawn patient && patient.Spawned && patient.Downed
                         && Scenario.ById(cargoId) is Thing cargo && cargo.Spawned && cargo.stackCount == 20
                         && Scenario.ById(dockCargoId) is Thing dockCargo && dockCargo.Spawned && dockCargo.stackCount == 7
+                        && Scenario.ById(vanillaShotId) is Projectile
                         && remaining.OfType<Pawn>().Any(p => p.ThingID == travelerId
                             && p.GetCaravan() != null && p.inventory.innerContainer.Any(t =>
                                 t.ThingID == worldCargoId && t.stackCount == 9))

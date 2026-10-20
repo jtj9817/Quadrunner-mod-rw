@@ -22,7 +22,7 @@ Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled con
 
 1. With the colony loaded and Quadrunner still enabled, open **Options → Mod settings → Quadrunner**.
 2. Choose **Prepare save for removing Quadrunner...** and read the destructive confirmation.
-3. The action first writes `QR_before_removal_<timestamp>`. It releases riders, carried patients and vanilla cargo, removes Quadrunner content on all maps and in the world, and creates `QR_removed_<timestamp>`. Mod content is not refunded; surviving injuries are not healed.
+3. The action first writes `QR_before_removal_<timestamp>`. It releases riders, carried patients and vanilla cargo, removes Quadrunner content and related in-flight shots on all maps and in the world, and creates `QR_removed_<timestamp>`. Mod content is not refunded; surviving injuries are not healed. Surviving battle records keep their IDs, with removed weapon/cover metadata cleared.
 4. Note the cleaned save's exact name. **Quit without saving again**, disable Quadrunner, restart and load that cleaned save. The changed-mod-list warning is expected.
 5. Keep the backup. To undo removal, re-enable Quadrunner and load the `QR_before_removal_…` backup.
 

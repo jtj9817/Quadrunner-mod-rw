@@ -96,7 +96,7 @@ namespace Quadrunner
             if (File.Exists(path)) File.Delete(path);
             GameDataSaveLoader.SaveGame(cleanName);
             if (!File.Exists(path)) throw new IOException("The cleaned save was not written.");
-            CleanFilterReferences(path);
+            CleanExportReferences(path);
             QR.Log($"removal prepared: {cleanName}; untouched backup {backup}");
             return backup;
         }
@@ -160,14 +160,16 @@ namespace Quadrunner
             || thing is Corpse corpse && CompRobodog.IsRobodog(corpse.InnerPawn)
             || thing is MinifiedThing minified && IsModThing(minified.InnerThing)
             || thing is Blueprint blueprint && Owned(blueprint.def.entityDefToBuild)
-            || thing is Frame frame && Owned(frame.def.entityDefToBuild));
+            || thing is Frame frame && Owned(frame.def.entityDefToBuild)
+            || thing is Projectile shot && (Owned(shot.EquipmentDef) || Owned(shot.Launcher?.def)
+                || Owned(shot.usedTarget.Thing?.def) || Owned(shot.intendedTarget.Thing?.def)));
 
         private static bool UsesMod(Job job) => Owned(job.def) || IsModThing(job.targetA.Thing)
             || IsModThing(job.targetB.Thing) || IsModThing(job.targetC.Thing)
             || job.targetQueueA?.Any(t => IsModThing(t.Thing)) == true
             || job.targetQueueB?.Any(t => IsModThing(t.Thing)) == true;
 
-        private static void CleanFilterReferences(string path)
+        private static void CleanExportReferences(string path)
         {
             var names = new HashSet<string>(LoadedModManager.RunningMods
                 .Where(m => m.PackageId == QR.PackageId).SelectMany(m => m.AllDefs).Select(d => d.defName));
@@ -178,6 +180,13 @@ namespace Quadrunner
             // Change only those list entries, not arbitrary XML values or surviving vanilla objects.
             foreach (XmlNode node in doc.SelectNodes("//allowedDefs/li").Cast<XmlNode>().ToList())
                 if (names.Contains(node.InnerText)) node.ParentNode.RemoveChild(node);
+            // Core battle records can outlive their launcher. Keep the record and its load ID (wounds may refer
+            // to it), but clear optional ThingDef metadata whose content is being removed. Core handles these nulls.
+            foreach (XmlNode node in doc.SelectNodes("//battleLog/battles/li/entries/li/*").Cast<XmlNode>())
+                if ((node.Name == "weaponDef" || node.Name == "projectileDef" || node.Name == "coverDef"
+                        || node.Name == "recipientThing" || node.Name == "originalTargetThing" || node.Name == "ownerDef")
+                    && names.Contains(node.InnerText))
+                    node.InnerText = "null";
             foreach (XmlNode node in doc.SelectNodes("//*").Cast<XmlNode>())
             {
                 if (node.Attributes?["Class"]?.Value.StartsWith("Quadrunner.", StringComparison.Ordinal) == true
