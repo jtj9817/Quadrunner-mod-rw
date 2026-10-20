@@ -120,7 +120,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T2: Battery and charging
 
-- [x] Battery drain per cell (normal full charge about 3,500 cells, about 350 cells for 10%), seek at 10%, power down at 0% (**Battery drain and power-down**, range increase verified 2026-10-20 17:44)
+- [x] Battery drain per cell (normal full charge about 3,500 cells, about 350 cells for 10%), seek at 10%, power down at 0% (**Battery drain and power-down**, range increase verified 2026-10-20 17:44; packaged Run all 39/39 PASS, 0 new errors at 17:51)
 - [x] Charge-spot search with all five rules and the scoring, cached per map and rebuilt on conduit, turbine or room changes; debug actions highlight valid spots and dump the cache (**Conduit charging**, **Charging maze**; room changes without a building change are checked per query, see Decisions)
 - [x] Stable charging much faster than a conduit; a low dog picks whichever fills it soonest, travel included (**Stable or conduit**: 3×, stable at 10%, conduit at 97%)
 - [x] Edge cases: no valid spot (go to the stable), batteries empty mid-charge (search again), room stops qualifying (get up, search again), prisons never, bedrooms only when unused, freezers allowed, allowed areas respected (**Charging maze**, **Batteries drain mid-charge**, **Charging room rules**)

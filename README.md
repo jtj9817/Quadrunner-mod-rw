@@ -4,7 +4,7 @@ A RimWorld 1.6 mod (Core only, requires Harmony): robot dogs dispatched from a s
 
 Core + Harmony release for RimWorld **1.6**. No DLC is required; DLC-enabled configurations have not been verified. Progress and exact verification runs are recorded in [TODO.md](TODO.md) and [docs/test-runs.md](docs/test-runs.md).
 
-The local T9 release is `dist/Quadrunner`, build `a149eeb.20261020T085856Z`. On 2026-10-20 its packaged **Run all passed 39/39 with zero new errors**; the cleaned export also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for evidence.
+The local release is `dist/Quadrunner`, build `4137037.20261020T174523Z`. Its packaged **Run all passed 39/39 with zero new errors** on 2026-10-20 after the 3,500-cell battery-range update. The original T9 release also passed an independent load, 600 ticks, save/reload and another 600 ticks **without the Quadrunner assembly**. See [the run log](docs/test-runs.md) for the separate range-update and removal evidence.
 
 ## Install and play
 
