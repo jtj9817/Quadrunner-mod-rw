@@ -11,6 +11,7 @@ The run's full log stays in `.devlog/runs/<timestamp>/` (local, git-ignored); co
 
 | Run (UTC) | Target | Build | Scenarios | Result | Finding | Next |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-20 22:45 | Package | 3b2d6e7.20261020T224226Z | pkg-run: Rescue animation, Tier 2, 3, 4 weapon demos | 4/4 PASS, 0 new errors | Actual package with the demos; BUILD and modRoot checked, dev link restored. An earlier cold launch (22:43) died in Mono's `GC_mark_from` before ready, as at 21:45 | Report |
 | 2026-10-20 22:41 | Demos | ee5d1a3-dirty.20261020T224115Z | Tier 3 weapon demo | 1/1 PASS, 0 new errors | Rifle raider down in 22.9 s, flamethrower raider in 4.1 s; `demo-t3-*.png` frame dog and raider | Commit; package |
 | 2026-10-20 22:40 | Demos | ee5d1a3-dirty.20261020T223916Z | Tier 2, 3, 4 weapon demos | 2/3 PASS, 0 new errors | Raiders beside the dog, 11–16 cells: T2 rifle 19.6 s, LMG 14.3 s; T4 minigun 3 raiders in 28.5 s, tracers on `demo-t4-minigun.png`. T3: no cell 4–6 cells from the dog and > 40 from the stable (field can lie 35 out) | Stable cut 32 cells (colonists reach ~25) |
 | 2026-10-20 22:38 | Demos | ee5d1a3-dirty.20261020T223711Z | Tier 2 weapon demo | 1/1 PASS, 0 new errors | Camera now on the midpoint of the cells; both pawns on screen but small at 14–20 cells | Raiders closer and beside the dog |
