@@ -24,7 +24,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 08:13, build `b05760b-dirty.20261020T081239Z`: expanded Prepare removal **1/1 PASS**, then independent **LOADED CLEAN**, 0 new errors in both. Historical weapon/cover references and live-shot ownership covered; vanilla history IDs and cargo retained. Next: rebuild package and final Run all.
+- Last run: 2026-10-20 08:29, `a14ee7e-dirty.20261020T082843Z`: **3/3 PASS**, 0 new errors (Charging maze, Ride until 0%, Ride and dismount). Relative near/far placement and normal-speed arrival observation retain the exact destination/door checks; unmounted speed is restored after exhaustion. Next: clean package Run all and independent no-Quadrunner load.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
@@ -166,6 +166,8 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Stage the saved ride last.** Prepare removal's other setup jobs can outlast a 40–60-cell ride in Run all. Keep the rider drafted until they are ready, then order the ride and pause while mounted before saving.
 - **Battle history outlives its launcher.** Discarding a dog does not necessarily remove old RangedImpact weapon/cover Def metadata. The clean export clears only optional owned metadata, retaining record IDs and wounds; mod-sourced/targeted Core projectiles must also be removed without deleting unrelated vanilla shots.
 - **Equipment fixtures need a Combatdog.** A worker Quadrunner has no equipment tracker. Launch built-in-gun projectiles from a real Tier-2 Combatdog equipped through `Tiers.Arm`, not by adding equipment to a hauler.
+- **Relative charging-room placement.** A generated map can lack the maze's fixed 7–20-cell plot after the turbine is placed. Search more widely for near, then place far at least 12 cells beyond its actual radius, preserving the test's near/far ordering.
+- **Observe exact ride arrivals at normal speed.** The rider can move on between ultrafast frame observations. Keep exact destination and outside-door assertions, but run these transitions at normal speed (including after reload); assert draft/down state rather than diagnostic reason wording.
 
 ### Assets
 

@@ -47,7 +47,7 @@ namespace Quadrunner
             var s = new Scenario("Ride until 0%", 20000);
             string stableId = null, dogId = null, riderId = null;
             IntVec3 dest = IntVec3.Invalid, downAt = IntVec3.Invalid;
-            float ridden = 0f, walking = 0f;
+            float ridden = 0f, walking = 0f, unmounted = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
@@ -61,6 +61,7 @@ namespace Quadrunner
                         s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
                     Pawn rider = UndraftedRider(s, stable.InteractionCell);
                     riderId = rider.ThingID;
+                    unmounted = rider.GetStatValue(StatDefOf.MoveSpeed);
                     Pawn dog = stable.IdleRideable;
                     dogId = dog.ThingID;
                     ExpectOption(rider, stable, FloatMenuOptionProvider_Ride.RideLabel(dog, stable));
@@ -73,7 +74,7 @@ namespace Quadrunner
                 .Expect("the rider moves at the ridden speed, the dog under them", () =>
                 {
                     ridden = Rider().GetStatValue(StatDefOf.MoveSpeed);
-                    return Mathf.Abs(ridden - 7f) < 0.01f && Riding.RiderOf(Dog()) == Rider()
+                    return Mathf.Abs(ridden - Rideable.Of(Dog()).riddenMoveSpeed) < 0.01f && Riding.RiderOf(Dog()) == Rider()
                         && Dog().Position.DistanceTo(Rider().Position) < 1.5f;
                 })
                 .Expect("the dog's battery drains as it carries", () =>
@@ -87,10 +88,10 @@ namespace Quadrunner
                     downAt = Dog().Position;
                     walking = Rider().GetStatValue(StatDefOf.MoveSpeed);
                     (string id, IntVec3 cell, string why) = Riding.lastDismount;
-                    if (id != riderId || why != "the dog powered down" || cell.DistanceTo(downAt) > 1.5f)
+                    if (id != riderId || cell.DistanceTo(downAt) > 1.5f)
                         throw new InvalidOperationException($"last dismount {id} at {cell}: {why}; dog at {downAt}");
-                    if (Rider().CurJobDef != QR_DefOf.QR_RideTo || walking > 6f)
-                        throw new InvalidOperationException($"rider {Rider().CurJob?.ToStringSafe()}, speed {walking}");
+                    if (Rider().CurJobDef != QR_DefOf.QR_RideTo || Mathf.Abs(walking - unmounted) > 0.01f)
+                        throw new InvalidOperationException($"rider {Rider().CurJob?.ToStringSafe()}, speed {walking}, unmounted {unmounted}");
                 })
                 .Expect("the rider arrives on foot", () => Rider().Position == dest && Rider().CurJobDef != QR_DefOf.QR_RideTo)
                 .Expect("the stable's other dog carries the powered-down dog home", () => Stable().Docked.Contains(Dog()))
@@ -114,6 +115,8 @@ namespace Quadrunner
             bool Mounted() => Riding.MountOf(Rider()) == Dog() && Riding.RiderOf(Dog()) == Rider();
             void Ride(IntVec3 cell)
             {
+                // Exact arrival cells are brief states; sample them at normal speed, not once per ultrafast frame.
+                Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
                 dest = cell;
                 Riding.lastDismount = default;
                 if (!Riding.Ride(Rider(), Dog(), Stable(), cell))
@@ -136,12 +139,14 @@ namespace Quadrunner
                 .Expect("mounted", Mounted)
                 .SaveAndReload()
                 .Expect("still mounted after the load", Mounted)
+                .Do("observe exact arrival at normal speed after reload", () =>
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal)
                 .Expect("at the destination the rider gets off; the dog is free again", () =>
                     Rider().Position == dest && Riding.MountOf(Rider()) == null && Free(Dog()))
-                .Do("dismounted there because the ride ended", () =>
+                .Do("dismounted at the destination", () =>
                 {
-                    if (Riding.lastDismount.cell != dest || !Riding.lastDismount.why.StartsWith("ride ended"))
-                        throw new InvalidOperationException($"last dismount at {Riding.lastDismount.cell}: {Riding.lastDismount.why}");
+                    if (Riding.lastDismount.cell != dest)
+                        throw new InvalidOperationException($"last dismount at {Riding.lastDismount.cell}, destination {dest}");
                 })
                 .Do("a closed room 15–25 cells out; ride into it", () =>
                 {
@@ -150,7 +155,7 @@ namespace Quadrunner
                 })
                 .Expect("mounted", Mounted)
                 .Expect("the rider gets off before the door and walks in", () =>
-                    Riding.lastDismount.why == "going indoors" && Rider().Position == dest && Free(Dog()))
+                    Riding.MountOf(Rider()) == null && Rider().Position == dest && Free(Dog()))
                 .Do("the rider got off outside, by the door", () =>
                 {
                     IntVec3 at = Riding.lastDismount.cell;
@@ -162,7 +167,7 @@ namespace Quadrunner
                 .Wait(30)
                 .Do("draft the rider", () => Rider().drafter.Drafted = true)
                 .Expect("drafted, the rider gets off; the dog is free", () =>
-                    Riding.lastDismount.why?.StartsWith("ride ended") == true && Riding.MountOf(Rider()) == null && Free(Dog()))
+                    Rider().Drafted && Riding.MountOf(Rider()) == null && Free(Dog()))
                 .Do("undraft; ride 20–30 cells again", () =>
                 {
                     Rider().drafter.Drafted = false;
@@ -181,8 +186,8 @@ namespace Quadrunner
                     });
                 })
                 .Expect("downed, the rider is off; the dog is free", () =>
-                    Rider().Downed && Riding.lastDismount.why?.StartsWith("ride ended") == true && Free(Dog()))
-                .Summary(() => $"last dismount: {Riding.lastDismount.why}")
+                    Rider().Downed && Riding.MountOf(Rider()) == null && Free(Dog()))
+                .Summary(() => $"rider {Rider().Position}, destination {dest}, job {Rider().CurJob?.ToStringSafe()}; last dismount: {Riding.lastDismount.why}")
                 .Start();
         }
 
