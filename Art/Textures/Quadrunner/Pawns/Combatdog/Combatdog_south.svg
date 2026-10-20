@@ -1,30 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <!-- Combatdog, south. Cyan optics; 1 tier bars and reinforced chassis. West mirrors east in game. -->
+  <defs>
+    <!-- Woodland camo, tiled in sprite pixels: olive base, dark green and khaki blobs, black streaks. -->
+    <pattern id="camo" patternUnits="userSpaceOnUse" width="48" height="48">
+      <rect width="48" height="48" fill="#5f6c3b"/>
+      <path d="M1 7c6-6 16-4 18 3s-5 11-11 9S-4 12 1 7Z M27 23c8-4 18 0 17 8s-11 9-16 6-9-10-1-14Z M5 34c5-3 12 0 11 6s-9 7-12 3-4-7 1-9Z" fill="#3a4526"/>
+      <path d="M21 2c6-2 12 2 11 6s-8 6-12 3-4-8 1-9Z M9 20c5-3 11-1 11 3s-7 7-10 4-4-5-1-7Z M33 39c5-2 10 0 10 4s-7 5-10 3-3-5 0-7Z" fill="#9a9460"/>
+      <path d="M35 5c4-1 9 2 7 6s-8 2-9 0 0-5 2-6Z M16 28c3-1 8 1 7 4s-6 4-8 1-1-4 1-5Z M1 43c4-1 7 0 7 2s-5 3-7 1Z M40 18c2-1 5 0 4 2s-4 2-5 0Z" fill="#22261a"/>
+    </pattern>
+    <!-- The same blobs a shade lighter, for the armor plates. -->
+    <pattern id="camoLight" patternUnits="userSpaceOnUse" width="48" height="48" patternTransform="translate(17 9)">
+      <rect width="48" height="48" fill="#76834a"/>
+      <path d="M1 7c6-6 16-4 18 3s-5 11-11 9S-4 12 1 7Z M27 23c8-4 18 0 17 8s-11 9-16 6-9-10-1-14Z M5 34c5-3 12 0 11 6s-9 7-12 3-4-7 1-9Z" fill="#4c5a31"/>
+      <path d="M21 2c6-2 12 2 11 6s-8 6-12 3-4-8 1-9Z M9 20c5-3 11-1 11 3s-7 7-10 4-4-5-1-7Z M33 39c5-2 10 0 10 4s-7 5-10 3-3-5 0-7Z" fill="#b0a873"/>
+      <path d="M35 5c4-1 9 2 7 6s-8 2-9 0 0-5 2-6Z M16 28c3-1 8 1 7 4s-6 4-8 1-1-4 1-5Z M1 43c4-1 7 0 7 2s-5 3-7 1Z M40 18c2-1 5 0 4 2s-4 2-5 0Z" fill="#2c3121"/>
+    </pattern>
+  </defs>
+  <!-- Combatdog, south. Green woodland camo, olive plates; cyan optics; 1 tier bars. West mirrors east in game. -->
   <g stroke="#17232c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <g id="part-frontFar">
-      <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#637b87"/>
-      <path d="M33 104 31 110 M39 104V110 M45 104 47 110" stroke="#b7c8ca" stroke-width="2"/>
+      <path d="M36 55 31 76 36 95 32 105 46 105 48 97 43 77 48 58Z" fill="#56603a"/>
+      <path d="M33 104 31 110 M39 104V110 M45 104 47 110" stroke="#7b8148" stroke-width="2"/>
     </g>
     <g id="part-frontNear">
-      <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#637b87"/>
-      <path d="M79 104 77 110 M85 104V110 M91 104 93 110" stroke="#b7c8ca" stroke-width="2"/>
+      <path d="M79 55 74 76 79 95 75 105 89 105 91 97 86 77 91 58Z" fill="#56603a"/>
+      <path d="M79 104 77 110 M85 104V110 M91 104 93 110" stroke="#7b8148" stroke-width="2"/>
     </g>
     <g id="part-body">
-      <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#566d79"/>
-      <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="#7e939c"/>
-      <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="#b7c8ca"/>
-      <path d="M52 83H75 M53 88H74" stroke="#4a626f" stroke-width="2"/>
-      <path d="M32 43 44 37 49 42 47 66 34 69Z M80 42 84 37 95 43 93 69 80 66Z" fill="#b7c8ca"/>
+      <path d="M60 77 58 95 53 108 59 111 67 98 70 79" fill="#454e2c"/>
+      <path d="M36 43 47 34 80 34 91 44 88 81 78 93 48 93 37 81Z" fill="url(#camo)"/>
+      <path d="M46 38H80L83 71 75 80H52L44 71Z" fill="url(#camoLight)"/>
+      <path d="M52 83H75 M53 88H74" stroke="#2f3520" stroke-width="2"/>
+      <path d="M32 43 44 37 49 42 47 66 34 69Z M80 42 84 37 95 43 93 69 80 66Z" fill="url(#camoLight)"/>
       <path d="M51 45H77" stroke="#f19155" stroke-width="4"/>
       <path d="M54 69v5" stroke="#f19155" stroke-width="3"/>
-      <path d="M44 60 43 44 53 49 64 45 75 49 85 44 83 62 79 79 69 87H57L47 79Z" fill="#7e939c"/>
-      <path d="M44 59 43 44 54 53 M74 53 85 44 83 61" fill="#b7c8ca"/>
+      <path d="M44 60 43 44 53 49 64 45 75 49 85 44 83 62 79 79 69 87H57L47 79Z" fill="url(#camo)"/>
+      <path d="M44 59 43 44 54 53 M74 53 85 44 83 61" fill="#7b8148"/>
       <path d="M47 63 58 59H70L81 63 77 71H51Z" fill="#263a46"/>
       <path d="M51 65H60 M68 65H77" stroke="#76e5ed" stroke-width="3"/>
-      <path d="M55 74H73L76 82 68 89H60L52 82Z" fill="#b7c8ca"/>
+      <path d="M55 74H73L76 82 68 89H60L52 82Z" fill="#7b8148"/>
       <path d="M59 75H69L70 79H58Z" fill="#172b36" stroke="none"/>
-      <circle cx="43" cy="78" r="5" fill="#2d444f"/><circle cx="43" cy="78" r="1.5" fill="#f19155" stroke="none"/>
-      <circle cx="85" cy="78" r="5" fill="#2d444f"/><circle cx="85" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+      <circle cx="43" cy="78" r="5" fill="#262a1b"/><circle cx="43" cy="78" r="1.5" fill="#f19155" stroke="none"/>
+      <circle cx="85" cy="78" r="5" fill="#262a1b"/><circle cx="85" cy="78" r="1.5" fill="#f19155" stroke="none"/>
     </g>
   </g>
 </svg>
