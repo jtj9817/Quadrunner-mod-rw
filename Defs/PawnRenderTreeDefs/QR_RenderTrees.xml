@@ -3,12 +3,31 @@
   <!-- Core's Misc tree, with its virtual carried-thing worker replaced. No Harmony or humanlike render cache.
        The sprite is split into the body and four legs (Art/: id="part-…"), which walk under the body
        (Quadrunner.PawnRenderNodeWorker_Gait). The hind legs show only in profile. The never-drawn Whole node keeps
-       the whole sprite as the pawn's body graphic, which Core's icons (info card, inspector) show. -->
+       the whole sprite as the pawn's body graphic, which Core's icons (info card, inspector) show.
+       The root moves the whole dog in action (Quadrunner.RobodogPose): a pounce on a melee strike, a braced crouch and
+       a recoil kick per shot when firing, a head dip and flip onto the back when it picks up a pawn. -->
   <PawnRenderTreeDef>
     <defName>QR_RobodogRenderTree</defName>
-    <root Class="PawnRenderNodeProperties_Parent">
+    <root Class="Quadrunner.PawnRenderNodeProperties_Pose">
       <debugLabel>Root</debugLabel>
       <tagDef>Root</tagDef>
+      <workerClass>Quadrunner.PawnRenderNodeWorker_Pose</workerClass>
+      <pounceTicks>24</pounceTicks>
+      <pounceReach>0.3</pounceReach>
+      <pounceHop>0.1</pounceHop>
+      <pounceTilt>12</pounceTilt>
+      <recoilTicks>10</recoilTicks>
+      <recoilKick>0.08</recoilKick>
+      <recoilTilt>5</recoilTilt>
+      <braceStretch>0.35</braceStretch>
+      <braceTicks>8</braceTicks>
+      <scoopTicks>45</scoopTicks>
+      <scoopTilt>14</scoopTilt>
+      <scoopReach>0.6</scoopReach>
+      <scoopHeight>0.55</scoopHeight>
+      <patientNorth>(0, 0, 0.05)</patientNorth>
+      <patientEast>(-0.05, 0, 0.15)</patientEast>
+      <patientSouth>(0, 0, 0.15)</patientSouth>
       <children>
         <li>
           <debugLabel>Whole</debugLabel>
@@ -19,7 +38,9 @@
         <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
           <debugLabel>Body</debugLabel>
           <nodeClass>Quadrunner.PawnRenderNode_RobodogPart</nodeClass>
+          <workerClass>Quadrunner.PawnRenderNodeWorker_Gait</workerClass>
           <part>Body</part>
+          <crouch>0.04</crouch>
           <useRottenColor>true</useRottenColor>
           <children>
             <li>
@@ -53,6 +74,7 @@
           <swing>22</swing>
           <lift>0.06</lift>
           <hip>(44, 69)</hip>
+          <stretch>25</stretch>
         </li>
         <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
           <debugLabel>Leg FrontFar</debugLabel>
@@ -66,6 +88,7 @@
           <swing>22</swing>
           <lift>0.06</lift>
           <hip>(82, 68)</hip>
+          <stretch>-30</stretch>
         </li>
         <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
           <debugLabel>Leg HindNear</debugLabel>
@@ -80,6 +103,7 @@
           <swing>22</swing>
           <lift>0.06</lift>
           <hip>(40, 73)</hip>
+          <stretch>25</stretch>
         </li>
         <li Class="Quadrunner.PawnRenderNodeProperties_Gait">
           <debugLabel>Leg FrontNear</debugLabel>
@@ -93,6 +117,7 @@
           <swing>22</swing>
           <lift>0.06</lift>
           <hip>(84, 72)</hip>
+          <stretch>-30</stretch>
         </li>
         <li Class="PawnRenderNodeProperties_Carried">
           <debugLabel>Carried thing or built-in mount</debugLabel>

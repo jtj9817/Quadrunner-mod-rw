@@ -51,6 +51,8 @@ namespace Quadrunner
             ("Combatdog endurance", CombatdogEndurance),
             ("Artwork showcase", ArtworkShowcase),
             ("Walk animation", WalkAnimation),
+            ("Rescue animation", RescueAnimation),
+            ("Combat animation", CombatAnimation),
             ("Prepare removal", RemovalSave),
         };
 

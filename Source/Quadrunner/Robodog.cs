@@ -37,6 +37,10 @@ namespace Quadrunner
         public int waypointsReached;
         // Combatdogs: the built-in gun picked for each weapon slot (null: the slot's default), see Tiers.
         private ThingDef gun1, gun2;
+        // What the dog carries and since when, for the flip onto its back (RobodogPose). Not saved: a dog loaded or
+        // spawned with a pawn on its back has had it there all along.
+        private Thing carried;
+        private int carriedSince = int.MinValue / 2;
 
         public CompProperties_Robodog Props => (CompProperties_Robodog)props;
 
@@ -112,6 +116,12 @@ namespace Quadrunner
 
         public ThingDef PickedGun(int slot) => slot == 0 ? gun1 : gun2;
 
+        /// <summary>
+        /// The tick the dog picked up <paramref name="thing"/>, which it carries: now, when not yet seen (comps tick before
+        /// the job that picks it up).
+        /// </summary>
+        public int CarriedSince(Thing thing) => thing == carried ? carriedSince : Find.TickManager.TicksGame;
+
         public void PickGun(int slot, ThingDef gun)
         {
             if (slot == 0)
@@ -123,12 +133,24 @@ namespace Quadrunner
         /// <summary>Adds <paramref name="amount"/> (0–1) of charge.</summary>
         public void Charge(float amount) => SetBattery(battery + amount);
 
+        public override void PostSpawnSetup(bool respawningAfterLoad)
+        {
+            base.PostSpawnSetup(respawningAfterLoad);
+            carried = Dog.carryTracker?.CarriedThing;
+        }
+
         public override void CompTick()
         {
             if (!parent.Spawned)
             {
                 lastCell = IntVec3.Invalid;
                 return;
+            }
+            Thing nowCarried = Dog.carryTracker?.CarriedThing;
+            if (nowCarried != carried)
+            {
+                carried = nowCarried;
+                carriedSince = Find.TickManager.TicksGame;
             }
             IntVec3 cell = parent.Position;
             // One step at a time is walking; a longer jump is a teleport (dev tools, scenarios) and costs nothing.
@@ -162,18 +184,19 @@ namespace Quadrunner
                 yield return g;
         }
 
+        /// <summary>A Medirunner on a rescue run, to the patient and on to the bed: its tail siren flashes.</summary>
+        public bool Rescuing => parent.Spawned && !PoweredDown
+            && (Dog.CurJobDef == JobDefOf.Rescue || Dog.CurJobDef == JobDefOf.TakeWoundedPrisonerToBed);
+
         public override void PostDraw()
         {
             base.PostDraw();
-            if (!Retreating || !SirenPhaseLit)
+            if (!SirenPhaseLit)
                 return;
-            Vector3 pos = Dog.DrawPos + new Vector3(0f, 0f, 0.35f);
-            pos.y = AltitudeLayer.MetaOverlays.AltitudeFor();
-            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(0.5f, 1f, 0.5f)),
-                Siren.Core, 0);
-            pos.y += 0.01f;
-            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(1.2f, 1f, 1.2f)),
-                Siren.Glow, 0);
+            if (Retreating)
+                Siren.Draw(Dog.DrawPos + new Vector3(0f, 0f, 0.35f), Siren.Core, Siren.Glow, 0.5f);
+            else if (parent.def.GetModExtension<TailSiren>() is TailSiren tail && Rescuing)
+                Siren.Draw(Dog.DrawPos + tail.OffsetFor(Dog.Rotation), Siren.RescueCore, Siren.RescueGlow, tail.size);
         }
 
         public override void PostExposeData()
@@ -194,7 +217,8 @@ namespace Quadrunner
 
     /// <summary>
     /// The retreat siren's light: a yellow lamp (<c>Quadrunner/Things/Siren</c>, with alpha) under vanilla's lightning
-    /// glow tinted yellow, drawn additive around it (the glow alone hardly shows on bright ground).
+    /// glow tinted yellow, drawn additive around it (the glow alone hardly shows on bright ground). The Medirunner's
+    /// tail siren is the same lamp in red.
     /// </summary>
     [StaticConstructorOnStartup]
     public static class Siren
@@ -202,5 +226,33 @@ namespace Quadrunner
         public static readonly Material Core = MaterialPool.MatFrom("Quadrunner/Things/Siren", ShaderDatabase.Transparent);
         public static readonly Material Glow =
             MaterialPool.MatFrom("Things/Mote/LightningGlow", ShaderDatabase.MoteGlow, new Color(1f, 0.85f, 0.1f));
+        public static readonly Material RescueCore =
+            MaterialPool.MatFrom("Quadrunner/Things/Siren", ShaderDatabase.Transparent, new Color(1f, 0.25f, 0.3f));
+        public static readonly Material RescueGlow =
+            MaterialPool.MatFrom("Things/Mote/LightningGlow", ShaderDatabase.MoteGlow, new Color(1f, 0.1f, 0.15f));
+
+        /// <summary>The lamp <paramref name="size"/> cells wide at <paramref name="at"/>, its glow 2.4 times that, over everything.</summary>
+        public static void Draw(Vector3 at, Material core, Material glow, float size)
+        {
+            at.y = AltitudeLayer.MetaOverlays.AltitudeFor();
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(at, Quaternion.identity, new Vector3(size, 1f, size)), core, 0);
+            at.y += 0.01f;
+            Graphics.DrawMesh(MeshPool.plane10,
+                Matrix4x4.TRS(at, Quaternion.identity, new Vector3(size * 2.4f, 1f, size * 2.4f)), glow, 0);
+        }
+    }
+
+    /// <summary>
+    /// A siren lamp on the dog's tail (<c>Art/</c>: the Medirunner's red dome), flashing while it rescues
+    /// (<see cref="CompRobodog.Rescuing"/>). Offsets in cells from the dog's center, per facing; west mirrors east.
+    /// </summary>
+    public class TailSiren : DefModExtension
+    {
+        public Vector3 north, east, south;
+        public float size = 0.3f;
+
+        public Vector3 OffsetFor(Rot4 facing) =>
+            facing == Rot4.North ? north : facing == Rot4.South ? south
+            : facing == Rot4.East ? east : new Vector3(-east.x, east.y, east.z);
     }
 }

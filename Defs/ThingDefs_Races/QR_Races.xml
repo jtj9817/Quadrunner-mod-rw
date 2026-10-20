@@ -140,6 +140,12 @@
         <raidSpeedFactor>1</raidSpeedFactor>
         <raidDrainFactor>1</raidDrainFactor>
       </li>
+      <!-- The red dome on the tail tip (Art/…/Medirunner_*.svg), in cells at drawSize 1.4: (px / 128 - 0.5) * 1.4. -->
+      <li Class="Quadrunner.TailSiren">
+        <north>(-0.08, 0, -0.42)</north>
+        <east>(-0.5, 0, 0.38)</east>
+        <south>(0.07, 0, 0.52)</south>
+      </li>
     </modExtensions>
   </ThingDef>
 
