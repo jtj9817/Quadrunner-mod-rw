@@ -43,6 +43,8 @@ tools/autotest.py stop
 
 `removal-check` requires an export from the **Prepare removal** scenario (`tools/autotest.py run "Prepare removal"`), not an arbitrary player save. The observer loads the export, ticks 600, saves/reloads and ticks another 600 while checking expected vanilla contents and absence of the Quadrunner assembly. The harness rejects any new errors. Tests use only `.devlog/` data and a private Xvfb display, never the player's profile or window.
 
+Automated quicktest starts use flat, low-swampiness, inland temperate forest without rivers, retaining a random world seed. Scenarios build their own rooms and obstacles; this supplies a consistent building-space prerequisite, not a claim of coverage for every biome. Ordinary games are unaffected.
+
 - Design snapshot: [docs/design.md](docs/design.md)
 - Plan and decisions: [docs/plans/0001-quadrunner.md](docs/plans/0001-quadrunner.md)
 - Automated work loop and tool reference: [AGENTS.md](AGENTS.md)

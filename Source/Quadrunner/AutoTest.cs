@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using RimWorld;
+using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
@@ -206,17 +207,28 @@ namespace Quadrunner
     }
 
     /// <summary>
-    /// Test instance only: <c>-quadrunner-mapsize=N</c> sets the quicktest map's size, which vanilla fixes at 250
-    /// (<c>Root_Play.SetupForQuickTestPlay</c>). A smaller map costs less per tick, so scenarios run faster.
+    /// Test instance only: choose open temperate ground for fixtures, retaining the random world seed.
+    /// <c>-quadrunner-mapsize=N</c> overrides vanilla's 250-cell quicktest map for faster scenario ticks.
     /// </summary>
     [HarmonyLib.HarmonyPatch(typeof(Root_Play), nameof(Root_Play.SetupForQuickTestPlay))]
     public static class Patch_Root_Play_SetupForQuickTestPlay
     {
         public static void Postfix()
         {
-            if (AutoTest.Enabled && GenCommandLine.TryGetCommandLineArg(AutoTest.MapSizeArg, out string value)
+            if (!AutoTest.Enabled)
+                return;
+            if (GenCommandLine.TryGetCommandLineArg(AutoTest.MapSizeArg, out string value)
                 && int.TryParse(value, out int size) && size >= 50)
                 Find.GameInitData.mapSize = size;
+            // Fixtures build their own rooms and obstacles. Random mountain/coastal starts can leave no space for them.
+            Find.GameInitData.startingTile = TileFinder.RandomSettlementTileFor(Faction.OfPlayer,
+                mustBeAutoChoosable: true, extraValidator: tile =>
+                {
+                    var ground = (SurfaceTile)Find.WorldGrid[tile];
+                    return ground.PrimaryBiome == BiomeDefOf.TemperateForest && ground.hilliness == Hilliness.Flat
+                        && ground.swampiness <= 0.1f && ground.Rivers.NullOrEmpty() && !ground.IsCoastal;
+                });
+            QR.Log($"autotest: fixture tile {Find.GameInitData.startingTile}: {Find.WorldGrid[Find.GameInitData.startingTile]}");
         }
     }
 }

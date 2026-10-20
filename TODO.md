@@ -24,10 +24,10 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 08:41, `1f8d31a-dirty.20261020T084046Z`: **3/3 PASS**, 0 new errors (Raid: finish and dock, Stable power loss, Combatdog sweep). Core departure during explicitly staged weapon cooldown survives subsequent reloads; bedroom-first placement preserves all capture/patrol checks. Next: clean package Run all and independent no-Quadrunner load.
+- Last run: 2026-10-20 08:58, `46be619-dirty.20261020T085247Z`: **39/39 PASS**, 0 new errors, 310 s. Shared private-map prerequisite proven on Core-selected flat TemperateForest tile 31227,0 (7.9% swampiness, no rivers), random seed retained. All charging, capture, patrol, riding, artwork and removal checks pass in sequence. Next: clean package Run all and independent no-Quadrunner load.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
-- `tools/selftest.sh`: **19 cases OK** (2026-10-20 T9), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
+- `tools/selftest.sh`: **19 cases OK** (2026-10-20 08:52), including packaged-source validation, dev-link restoration, observer cleanup, failed removal load and new-error rejection.
 
 ## Open questions
 
@@ -170,6 +170,7 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Observe exact ride arrivals at normal speed.** The rider can move on between ultrafast frame observations. Keep exact destination and outside-door assertions, but run these transitions at normal speed (including after reload); assert draft/down state rather than diagnostic reason wording.
 - **NPC departure is not destruction.** `Pawn.Destroy()` can destroy equipment while leaving a world pawn's cooldown verb referencing it. Use Core `ExitMap` when a fixture says the raider leaves; stage cooldown and save/reload after departure to cover this boundary.
 - **Place the nearer excluded room first.** Combatdog sweep must not put the empty room down first and squeeze its nearer bedroom into a tiny remaining radius. Derive the farther empty-room radius from the actual bedroom placement.
+- **Quicktest terrain is a fixture prerequisite.** Vanilla chooses any auto-choosable starting tile; one T9 map had 61.3% central roof coverage and thirteen placement failures. The existing test-only setup patch now selects flat, low-swampiness, inland temperate forest without rivers, retaining a random world seed. It does not alter normal games.
 
 ### Assets
 
