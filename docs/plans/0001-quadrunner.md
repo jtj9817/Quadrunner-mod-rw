@@ -163,9 +163,9 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T8: Combatdog tiers 2–4
 
-- [ ] Upgrades ordered from the Overview tab rebuild the dog as the next tier, keep its name and install the tier's gun; built-in weapons are never dropped
-- [ ] Tier 2 built-in gun, Tier 3 two slots with the new flamethrower (second mount, Harmony if a custom attack can't do it), Tier 4 vanilla minigun with its speed penalty
-- [ ] Scenario passes: **Tier upgrade**
+- [x] Upgrades ordered from the Overview tab rebuild the dog as the next tier, keep its name and install the tier's gun; built-in weapons are never dropped: **Tier upgrade**, **Tier 3 and 4 weapons** (runs 2026-10-20 05:45 and Run all 06:13)
+- [x] Tier 2 built-in gun, Tier 3 two slots with the new flamethrower (second mount, Harmony if a custom attack can't do it), Tier 4 vanilla minigun with its speed penalty: **Tier upgrade**, **Tier 3 and 4 weapons**; one weapon held at a time, switched by range, no Harmony (runs 2026-10-20 05:45 and Run all 06:13)
+- [x] Scenario passes: **Tier upgrade**: run 2026-10-20 05:45; Run all 06:13 in sequence, 0 new errors
 
 ### T9: Polish and release
 

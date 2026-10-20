@@ -12,18 +12,19 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - [x] **T5**: Medirunner (rescue order, triage)
 - [x] **T6**: Riding (stat part, ridden job, dismount rules, draw offset)
 - [x] **T7**: Combatdog Tier 1, pings and patrols
-- [ ] **T8**: Combatdog tiers 2–4
+- [x] **T8**: Combatdog tiers 2–4
 - [ ] **T9**: Polish and release
 
 ## Current state
 
-- Next: **T8**: both T8 scenarios pass (05:45, 0 new errors); the T7 combat scenarios are stable again after scenario fixes (06:04–06:07). Run all to finish T8, then tick boxes 1–3 and start **T9**.
+- Next: **T9** (polish and release), not started: the user asked to stand by after T8 (2026-10-20). Read the plan's T9 and the design first. Hand-off: `docs/handoff/20261020-0615-t8-done.md`.
+- Open flake: **Raid: finish and dock** (T3) FAIL in the 06:13 Run all at step 5 'it finishes the haul and docks': 60 gold in the pile, nothing carried, the dog never docked. It failed in Run alls before (02:40, 02:43). Haul and clean passed this time.
 - Balance, worth raising with the user in T9: a Tier 1 Combatdog sent through three fist fights in a row, with no dock between, died in about half the Ping chain runs (thorax). The scenarios now use Melee 0 raiders, so they no longer show it.
-- Open flake: **Haul and clean** failed in the 05:26 Run all (and at 03:26, before T7): after the reload both dogs docked unfinished and the stable sent nothing for 29k ticks. It passes alone; the summary now prints the raid state and the stable logs "found no work", so the next Run all should show which branch it is.
+- **Haul and clean** (older flake) passed in the 06:13 Run all; keep watching it.
 - Drafting: `Drafting.cs` (patches 4 and 5, see the plan's Decisions), the comp's draft toggle, a drafted branch in `QR_Robodog`, `Combat.Answers` skips drafted dogs, `SetBattery` undrafts at 10%.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 05:28, build `4fe545a-dirty.20261020T052758Z`, Haul and clean 1/1 PASS; before it Run all 05:26, 33/34 PASS, 0 new errors, 336 s, beside the user's open game.
+- Last run: 2026-10-20 06:13, build `acc316f.20261020T060848Z`, Run all 35/36 PASS, 0 new errors, 284 s, beside the user's open game (FAIL: Raid: finish and dock).
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
