@@ -66,8 +66,12 @@ namespace Quadrunner
                     downId = DownDog(s, stable, 15f, 25f).ThingID;
                 })
                 .Expect("the powered-down dog lies like a downed pawn", () => Down().Downed && CompRobodog.Of(Down()).PoweredDown)
-                .Expect("the stable sends its dog to carry it", () => Carrier().CurJobDef == QR_DefOf.QR_CarryToStable
-                    && Carrier().CurJob.targetA.Thing == Down())
+                .Do("the Force dispatch debug action sends the stable's dog to carry it at once", () =>
+                {
+                    DebugActions.ForceDispatchAt(Stable().Position);
+                    if (!Carrier().Spawned || Carrier().CurJobDef != QR_DefOf.QR_CarryToStable || Carrier().CurJob.targetA.Thing != Down())
+                        throw new InvalidOperationException($"not sent: {Carrier().CurJob?.ToStringSafe()}");
+                })
                 .Expect("it picks the dog up", () => Carrying(Carrier(), Down()))
                 .SaveAndReload()
                 .Expect("still carrying after the load, or already home", () =>
@@ -82,16 +86,22 @@ namespace Quadrunner
                     Pawn down = Down();
                     Stable().TryUndock(down);
                     Teleport(down, OpenCell(map, Stable().InteractionCell, 10f, 20f));
-                    CompRobodog.Of(down).SetBattery(0f);
+                    DebugActions.PowerDownAt(down.Position);
+                    if (!CompRobodog.Of(down).PoweredDown)
+                        throw new InvalidOperationException("the Power down debug action left the dog up");
                     Pawn colonist = Colonist() ?? throw new InvalidOperationException("no colonist can carry");
                     List<FloatMenuOption> options = FloatMenuMakerMap.GetOptions(new List<Pawn> { colonist },
                         down.DrawPos, out FloatMenuContext _);
-                    FloatMenuOption carry = options.FirstOrDefault(o => o.Label.StartsWith("Carry " + down.LabelShort))
+                    // Exact label: drafted colonists also get vanilla's "Carry <dog>" (CarryDownedPawnDrafted).
+                    FloatMenuOption carry = options.FirstOrDefault(o => o.Label == $"Carry {down.LabelShort} to {Stable().LabelShort}")
                         ?? throw new InvalidOperationException("no Carry to stable option: " +
                             string.Join(" | ", options.Select(o => o.Label)));
                     if (carry.Disabled)
                         throw new InvalidOperationException($"option disabled: {carry.Label}");
                     carry.action();
+                    if (colonist.CurJobDef != QR_DefOf.QR_CarryToStable)
+                        throw new InvalidOperationException($"{colonist} didn't take the job: now {colonist.CurJob?.ToStringSafe()}, " +
+                            $"{colonist.jobs.jobQueue.Count} queued, drafted {colonist.Drafted}");
                 })
                 .Expect("the colonist takes the job", () => Find.CurrentMap.mapPawns.FreeColonistsSpawned.Any(p =>
                     p.CurJobDef == QR_DefOf.QR_CarryToStable && p.CurJob.targetA.Thing == Down()))
@@ -294,7 +304,9 @@ namespace Quadrunner
             var s = new Scenario("Raider carries off a dog", 20000);
             string stableId = null, keptId = null, downId = null, raiderId = null;
             Pawn down = null;
-            Faction faction = null;
+            int factionId = -1;
+            // Re-found by load ID: the Faction object from before the reload is stale.
+            Faction RaiderFaction() => Find.FactionManager.AllFactionsListForReading.First(f => f.loadID == factionId);
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Raider() => (Pawn)Scenario.ById(raiderId);
             s.Do("a stable with a docked dog; another of its dogs at 0% 15–25 cells out; a raider 6–10 cells from it", () =>
@@ -306,9 +318,10 @@ namespace Quadrunner
                     keptId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                     down = DownDog(s, stable, 15f, 25f);
                     downId = down.ThingID;
-                    faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate) ?? Find.FactionManager.RandomEnemyFaction();
+                    Faction faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate) ?? Find.FactionManager.RandomEnemyFaction();
                     Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
                         faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
+                    factionId = faction.loadID;
                     raiderId = s.Track(GenSpawn.Spawn(raider, OpenCell(map, down.Position, 6f, 10f), map)).ThingID;
                     LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(raider.Position), map, new[] { raider });
                 })
@@ -331,7 +344,7 @@ namespace Quadrunner
                 .SaveAndReload()
                 .Expect("the raider leaves the map with it", () => Scenario.ById(raiderId) == null && Scenario.ById(downId) == null)
                 .Expect("the dog is kidnapped by the raider's faction", () =>
-                    faction.kidnapped.KidnappedPawnsListForReading.Any(p => p.ThingID == downId))
+                    RaiderFaction().kidnapped.KidnappedPawnsListForReading.Any(p => p.ThingID == downId))
                 .Start();
         }
 
@@ -346,8 +359,9 @@ namespace Quadrunner
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     Find.ResearchManager.FinishProject(QR_DefOf.MicroelectronicsBasics);
-                    Pawn dog = SpawnDog(s, OpenCell(Find.CurrentMap, stable.InteractionCell, 2f, 5f));
-                    CompRobodog.Of(dog).stable = stable;
+                    // A stable's own dog (named when it joins), out beside it.
+                    Pawn dog = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                    stable.TryUndock(dog);
                     dogId = dog.ThingID;
                     name = dog.Name.ToStringShort;
                     dog.Kill(null);

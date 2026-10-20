@@ -5,10 +5,10 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 ## Progress
 
 - [x] **T0**: Scaffold and the automated test loop (tools, mod skeleton, harness, baseline, first real runs, in-game restart, watchdog)
-- [ ] **T1**: Dogs and the stable (5 of 6 boxes; the debug actions box waits for T3–T4) (race, stable, assemble bill, docking, Overview tab, debug actions)
+- [x] **T1**: Dogs and the stable (race, stable, assemble bill, docking, Overview tab, debug actions)
 - [x] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [x] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
-- [ ] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
+- [x] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
 - [ ] **T5**: Medirunner (rescue order, triage)
 - [ ] **T6**: Riding (stat part, ridden job, dismount rules, draw offset)
 - [ ] **T7**: Combatdog Tier 1, pings and patrols
@@ -17,9 +17,10 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 
 ## Current state
 
-- Next: **T4** (power-down and retrieval): code and 6 scenarios written (commit "T4 WIP"), first run 2026-10-20 00:23 partly seen; see the newest hand-off doc. T3 done: all 6 boxes ticked on run 2026-10-20 00:21 (Run all 17/17 PASS, 0 new errors). T1's last box (debug actions: power down, dispatch) comes with T4. T2 done (run 2026-10-19 22:27), T0 done (run 2026-10-19 23:20).
+- Next: **T5** (Medirunner: recipe and race, rescue order, triage; scenario **Mass-casualty raid**). T4 done: all 6 boxes ticked on run 2026-10-20 01:12 (Run all 23/23 PASS, 0 new errors); T1's debug-actions box with it. T3 done (run 2026-10-20 00:21), T2 done (run 2026-10-19 22:27), T0 done (run 2026-10-19 23:20).
+- Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 00:21, build `f4f1996-dirty.20261020T001251Z`, Run all 17/17 PASS, 0 new errors, beside the user's open game.
+- Last run: 2026-10-20 01:12, build `8c69a2c-dirty.20261020T005934Z`, Run all 23/23 PASS, 0 new errors, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
@@ -59,8 +60,10 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Prefs that matter for a headless run** (`PrefsData`): `devMode`, `runInBackground` (keep ticking without focus), `pauseOnError`, `fullscreen`, `screenWidth`/`screenHeight`, `volumeMaster`, `resetModsConfigOnCrash` (default true: a crash could reset the test ModsConfig).
 
 - **Two version strings.** `Version.txt` says `1.6.4871 rev598`, the running game logs `RimWorld 1.6.4871 rev600` (the user's game too). Same build; `status.sh` compares `Version.txt`, so only a change there means an update.
+- **The in-game restart can segfault.** Once (2026-10-20 00:47) the relaunched process died in Mono at "Begin MonoManager ReloadAssembly", before mod code; `autotest.py` fell back to a cold start as designed. The log lands in `.devlog/runs/orphan-*`.
 - **A kill leaves a crash dump.** Killing an instance (baseline, watchdog) makes Steam's socket thread assert and breakpad writes `/tmp/dumps/assert_*.dmp` (upload fails: no libcurl). Harmless; the in-game quit and restart shut down cleanly with no dump.
 - **Other Xvfb displays aren't ours.** `Xvfb :99`–`:110` (started by `xvfb-run`) belong to other shells, `:100` to the agent's own. The harness uses `:90` and up and stops only the pid it recorded, after checking its name is `Xvfb`.
+- **Never fire the hand-off hook's Stop from a live session.** At Stop with a launched hand-off, `context-guard.py` SIGTERMs its nearest `claude` ancestor; a manual test run from the agent's shell killed the agent's own session (2026-10-20). Test it only on a separate tmux server (`tmux -L qrtest`) with a fake `claude` first on `PATH`.
 - **Permission check.** The auto-mode classifier refuses edits to `.claude/settings.json` and refused `tools/selftest.sh` once and `autotest.py --beside-user-game` (flag since removed); don't work around it, ask the user.
 - **Profile snapshot times.** `ls` prints local time (UTC−4), `find -printf %T@` and `autotest.py` UTC; convert before attributing a changed file to a run.
 
@@ -113,6 +116,9 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Scenario runner design that worked** *(QB)*: static, never-saved scenario state; `Expect(label, Func<bool>)` / `Do` / `Wait(ticks)` steps checked every tick; `SCENARIO <name>: start …` and `PASS/FAIL` lines with tick counts; **Run all** queues every scenario and logs one `n/m PASS` summary. Starting a scenario removes the previous one's things.
 - **Static state survives a reload.** Assemblies don't reload when a save loads, so a static scenario runner can save, reload and keep checking its steps. Re-find things by ID after the load; references from before it are stale.
 - **Ordered jobs race the stable.** A colonist's ordered carry and a stable dispatch in the same tick: the dog may reserve the target first. In scenarios, keep the stable's dogs busy (battery 1%: charging dogs aren't sent out).
+- **Objects from before a reload are stale.** `Faction`s (like things) captured before `SaveAndReload` belong to the old `Game`; re-find them by `loadID` / ThingID after it.
+- **Match float-menu options by exact label.** Drafted colonists also get vanilla's "Carry <pawn>" for any downed pawn, dogs included; a `StartsWith` match picked it over "Carry X to <stable>".
+- **Dogs need a name.** `PawnGenerator` gives a `QR_Quadrunner` no name; only `Building_Stable.AddNewDog` names it. Scenarios that read the name start from `AddNewDog`.
 - **Implied corpse defs.** XML can name `Corpse_<race defName>` (generated before the second cross-ref pass); `rwdefs.py lint` now knows them.
 - **Find clear ground by scanning, not sampling.** `CellFinder.TryFindRandomCellNear` (3000 random tries) missed the few clear 15×15 areas on a dense map; `FindClearArea` now checks every cell in range, nearest first.
 - **Quicktest maps differ per launch.** Each launch generates a new map (trees, chunks, crashlanded items near the center); setups must find clear ground with `Walkable` (trees aren't `Standable`) and clear plants and items themselves. Scenarios turn the storyteller off while they run (a random event once left a colonist's relation to an unsaved pawn: 2 red errors on save/load).

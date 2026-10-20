@@ -286,8 +286,9 @@ namespace Quadrunner
                     var zone = WindTurbineUtility.CalculateWindCells(turbine.Position, turbine.Rotation, turbine.def.size)
                         .Concat(turbine.OccupiedRect().Cells).ToList();
                     bool FarFromTurbine(CellRect r) => zone.All(z => r.ClosestCellTo(z).DistanceTo(z) > 10f);
-                    near = BuildRoom(s, ClearRect(map, start, 7, 3, 7f, 14f, FarFromTurbine));
-                    far = BuildRoom(s, ClearRect(map, start, 7, 3, 20f, 35f, FarFromTurbine));
+                    // Wide ranges (a dense map had no clear area within 14 cells); near stays nearer than far.
+                    near = BuildRoom(s, ClearRect(map, start, 7, 3, 7f, 20f, FarFromTurbine));
+                    far = BuildRoom(s, ClearRect(map, start, 7, 3, 24f, 45f, FarFromTurbine));
                     near.DoorThing.SetForbidden(true, warnOnFail: false);
                     dogId = SpawnDog(s, start).ThingID;
                 })

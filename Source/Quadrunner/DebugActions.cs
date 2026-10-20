@@ -71,15 +71,21 @@ namespace Quadrunner
 
         [DebugAction(Category, "Power down", actionType = DebugActionType.ToolMap,
             allowedGameStates = AllowedGameStates.PlayingOnMap)]
-        private static void PowerDown()
+        private static void PowerDown() => PowerDownAt(UI.MouseCell());
+
+        /// <summary>The Power down action on <paramref name="cell"/>; scenarios call it too.</summary>
+        internal static void PowerDownAt(IntVec3 cell)
         {
-            foreach (Pawn dog in UI.MouseCell().GetThingList(Find.CurrentMap).OfType<Pawn>().Where(CompRobodog.IsRobodog).ToList())
+            foreach (Pawn dog in cell.GetThingList(Find.CurrentMap).OfType<Pawn>().Where(CompRobodog.IsRobodog).ToList())
                 CompRobodog.Of(dog).SetBattery(0f);
         }
 
         [DebugAction(Category, "Force dispatch", actionType = DebugActionType.ToolMap,
             allowedGameStates = AllowedGameStates.PlayingOnMap)]
-        private static void ForceDispatch() => StableAt(UI.MouseCell())?.TryDispatch(force: true);
+        private static void ForceDispatch() => ForceDispatchAt(UI.MouseCell());
+
+        /// <summary>The Force dispatch action on <paramref name="cell"/>; scenarios call it too.</summary>
+        internal static void ForceDispatchAt(IntVec3 cell) => StableAt(cell)?.TryDispatch(force: true);
 
         [DebugAction(Category, "Highlight charge spots", allowedGameStates = AllowedGameStates.PlayingOnMap)]
         internal static void HighlightSpots()

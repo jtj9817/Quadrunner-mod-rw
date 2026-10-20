@@ -83,7 +83,7 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 - [x] Stable building (Microelectronics, 150 steel + 4 components): 15 shared slots, docks and undocks dogs, saves its docked dogs
 - [x] "Assemble Quadrunner" bill at the stable; the finished dog docks straight into it
 - [x] Overview tab: one row per assigned dog (type, battery, health, current job); battery column checked in **Stable full (16th dog)** (run 2026-10-19 22:27)
-- [ ] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch. Done: spawn docked, undock all, set battery % (T2; 0% powers a dog down); a dedicated power-down action and dispatch come with T4 and T3
+- [x] Debug actions: spawn a dog docked, set battery %, power down a dog, force a dispatch. **Carry home** calls the Power down and Force dispatch actions (through their cell helpers `PowerDownAt`, `ForceDispatchAt`); spawn docked and set battery % run the same `AddNewDog` / `SetBattery` every scenario uses (run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
 - [x] Scenarios pass, each with a save/load step: **Assemble and dock**, **Stable full (16th dog)** (also **Dock and undock**; run 2026-10-19 21:48)
 
 ### T2: Battery and charging
@@ -105,12 +105,12 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T4: Power-down and retrieval
 
-- [ ] Powered-down dogs lie like downed pawns; the stable spots them and sends a healthy dog to carry each to the nearest stable with a free slot; colonists get "Carry to stable"
-- [ ] Robodog battery and repair kit bills; colonists auto-deliver them to powered-down or damaged dogs in the field
-- [ ] Carrier hits 10% (finish if the stable is closer than a charge spot, else set down and charge), dog in a fire (put it out, then carry), unreachable (alert with jump-to)
-- [ ] Destroyed dog leaves a wreck, rebuilt at the stable for about half the recipe
-- [ ] Raiders can carry off a dog at 0% (Harmony)
-- [ ] Scenarios pass: **Field battery and repair kit**, **Raider carries off a dog**, **Retrieval under fire**
+- [x] Powered-down dogs lie like downed pawns; the stable spots them and sends a healthy dog to carry each to the nearest stable with a free slot; colonists get "Carry to stable" (**Carry home**, run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
+- [x] Robodog battery and repair kit bills; colonists auto-deliver them to powered-down or damaged dogs in the field (**Field battery and repair kit**, both items made by bill; run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
+- [x] Carrier hits 10% (finish if the stable is closer than a charge spot, else set down and charge), dog in a fire (put it out, then carry), unreachable (alert with jump-to) (**Carrier runs low**, **Retrieval under fire**; run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
+- [x] Destroyed dog leaves a wreck, rebuilt at the stable for about half the recipe (**Wreck rebuilt**, run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
+- [x] Raiders can carry off a dog at 0% (Harmony) (**Raider carries off a dog**, run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
+- [x] Scenarios pass: **Field battery and repair kit**, **Raider carries off a dog**, **Retrieval under fire**; added beside them: **Carry home**, **Carrier runs low**, **Wreck rebuilt** (run 2026-10-20 01:12, Run all 23/23 PASS, 0 new errors)
 
 ### T5: Medirunner
 
