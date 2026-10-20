@@ -24,6 +24,16 @@ namespace Quadrunner
             });
         }
 
+        /// <summary>For summaries: each colonist's job, drafted and mental state, and every bleeding pawn.</summary>
+        private static string ColonistStates()
+        {
+            Map map = Find.CurrentMap;
+            return "colonists: " + string.Join(", ", map.mapPawns.FreeColonistsSpawned.Select(p =>
+                    $"{p.LabelShort} {p.CurJob?.ToStringSafe()}{(p.Drafted ? " drafted" : "")}{(p.InMentalState ? " " + p.MentalStateDef.defName : "")}"))
+                + "; bleeding: " + string.Join(", ", map.mapPawns.AllPawnsSpawned.Where(p => p.health.hediffSet.BleedRateTotal > 0f)
+                    .Select(p => $"{p} at {p.Position}"));
+        }
+
         /// <summary>A free open cell <paramref name="minDist"/>–<paramref name="maxDist"/> from <paramref name="from"/>, reachable from it.</summary>
         private static IntVec3 OpenCell(Map map, IntVec3 from, float minDist, float maxDist, Predicate<IntVec3> extra = null)
         {
@@ -149,6 +159,12 @@ namespace Quadrunner
                 .Expect("the dirt is cleaned", () => filthIds.All(id => Scenario.ById(id) == null))
                 .Expect("both dogs dock again", () => Stable().Docked.Count == 2)
                 .Expect("the gold outside the radius stayed", () => Scenario.ById(farGoldId)?.Position == farGoldCell)
+                .Summary(() =>
+                {
+                    Thing gold = Scenario.ById(farGoldId);
+                    return $"far gold from {farGoldCell}: {(gold == null ? "gone" : $"{gold.stackCount} at {gold.PositionHeld} in {gold.ParentHolder.ToStringSafe()}")}; "
+                        + ColonistStates();
+                })
                 .Start();
         }
 
@@ -211,7 +227,7 @@ namespace Quadrunner
                     return filthIds.Skip(1).All(id => Scenario.ById(id) == null);
                 })
                 .Expect("both dogs docked", () => A().Docked.Contains(ADog()) && B().Docked.Contains(BDog()))
-                .Summary(() => $"A's dog {(aHelped ? "took the second spot" : "stayed docked")}")
+                .Summary(() => $"A's dog {(aHelped ? "took the second spot" : "stayed docked")}; " + ColonistStates())
                 .Start();
         }
 
@@ -291,7 +307,7 @@ namespace Quadrunner
                 .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; gold " + string.Join(", ",
                     goldIds.Select(id => Scenario.ById(id) ?? Dog()?.carryTracker.CarriedThing).Where(t => t != null)
                         .Select(t => $"{t.stackCount} at {t.PositionHeld}{(pile.Contains(t.PositionHeld) ? " (pile)" : "")}"))
-                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}")
+                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}; " + ColonistStates())
                 .Start();
         }
 

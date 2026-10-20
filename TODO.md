@@ -9,18 +9,18 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md). Tick a target only once **all
 - [x] **T2**: Battery and charging (drain, charge-spot search, stable charging, charging edge cases)
 - [x] **T3**: Dispatch and work (haul, clean, construction delivery, radii, raids, stable power/destroy/uninstall)
 - [x] **T4**: Power-down and retrieval (carry home, field battery and kit, wrecks, raider carry-off)
-- [ ] **T5**: Medirunner (rescue order, triage)
-- [ ] **T6**: Riding (stat part, ridden job, dismount rules, draw offset)
+- [x] **T5**: Medirunner (rescue order, triage)
+- [x] **T6**: Riding (stat part, ridden job, dismount rules, draw offset)
 - [ ] **T7**: Combatdog Tier 1, pings and patrols
 - [ ] **T8**: Combatdog tiers 2–4
 - [ ] **T9**: Polish and release
 
 ## Current state
 
-- Next: **T5** (Medirunner): code and 3 scenarios written (commit "T5 WIP"); Mass-casualty raid and Rescue order PASS (run 2026-10-20 01:40); Assemble Medirunner and a full Run all (26) on the final build not run yet; see the newest hand-off doc. T4 done (run 2026-10-20 01:12, Run all 23/23), T1 done with it; T3, T2, T0 done.
+- Next: **T7** (Combatdog T1, pings, patrols): T5 and T6 done (run 2026-10-20 04:07). First cut the test instance's CPU use (software rendering), then ask T7's design questions.
 - Hand-off at the context limit now replaces the old session in the same tmux pane (user, 2026-10-20).
 - Usage status line: `tools/statusline.py` written; wiring it into settings waits on the user.
-- Last run: 2026-10-20 01:12, build `8c69a2c-dirty.20261020T005934Z`, Run all 23/23 PASS, 0 new errors, beside the user's open game.
+- Last run: 2026-10-20 04:07, build `cc7ec0e-dirty.20261020T035232Z`, Run all 25/29 PASS (T2/T4 setup FAILs, fixed since but not rerun), 0 new errors, map 200, beside the user's open game.
 - Baseline: 8 signatures (2026-10-19, Harmony + Core).
 - User's saves backed up: `~/RimWorldBackups/20261019-171753.tar.gz` (44 saves).
 - `tools/selftest.sh`: all cases ok (2026-10-19 23:28, after removing `--beside-user-game`); stop the real test instance first, its stop/hang cases kill processes.
@@ -115,6 +115,9 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 
 - **Scenario runner design that worked** *(QB)*: static, never-saved scenario state; `Expect(label, Func<bool>)` / `Do` / `Wait(ticks)` steps checked every tick; `SCENARIO <name>: start …` and `PASS/FAIL` lines with tick counts; **Run all** queues every scenario and logs one `n/m PASS` summary. Starting a scenario removes the previous one's things.
 - **Static state survives a reload.** Assemblies don't reload when a save loads, so a static scenario runner can save, reload and keep checking its steps. Re-find things by ID after the load; references from before it are stale.
+- **The raid check is cached for a second.** A raider spawned this tick isn't seen by `Raid.Active` yet, so the stable may still dispatch; scenarios call `Raid.Recheck(map)` after spawning hostiles.
+- **The map center can be rock.** Searching "reachable from the map center" fails everywhere when the center is inside a mountain; `ClearRect` reaches from the nearest standable cell.
+- **Colonists are refreshed per scenario.** Scenarios keep colonists drafted, so over a long Run all they never ate or slept (slower walking, empty float menus); `Scenario.Start` refills needs and removes malnutrition, blood loss and fresh injuries.
 - **Ordered jobs race the stable.** A colonist's ordered carry and a stable dispatch in the same tick: the dog may reserve the target first. In scenarios, keep the stable's dogs busy (battery 1%: charging dogs aren't sent out).
 - **Objects from before a reload are stale.** `Faction`s (like things) captured before `SaveAndReload` belong to the old `Game`; re-find them by `loadID` / ThingID after it.
 - **Match float-menu options by exact label.** Drafted colonists also get vanilla's "Carry <pawn>" for any downed pawn, dogs included; a `StartsWith` match picked it over "Carry X to <stable>".
@@ -123,8 +126,10 @@ Add an entry here whenever something costs you more than one attempt. Keep each 
 - **Find clear ground by scanning, not sampling.** `CellFinder.TryFindRandomCellNear` (3000 random tries) missed the few clear 15×15 areas on a dense map; `FindClearArea` now checks every cell in range, nearest first.
 - **Quicktest maps differ per launch.** Each launch generates a new map (trees, chunks, crashlanded items near the center); setups must find clear ground with `Walkable` (trees aren't `Standable`) and clear plants and items themselves. Scenarios turn the storyteller off while they run (a random event once left a colonist's relation to an unsaved pawn: 2 red errors on save/load).
 - **Fail conditions run before the first toil.** `JobDriver.TryActuallyStartNextToil` checks the job's fail conditions before the toil's pre-init actions; set up what they test (the dog's waiting job) in `Notify_Starting`.
+- **Vanilla jobs queue extra targets.** `WorkGiver_CleanFilth.JobOnThing` queues all filth within ~5 cells of the first one, past any filter on the first target; `DogWork.FindJob` now drops queued targets that fail its own radius and nearest-stable checks.
 - **A minified building still ticks.** `MinifiedThing` ticks the building inside it, with no map: guard `Tick` with `Spawned`.
 - **Screenshots from a scenario.** `ScreenCapture.CaptureScreenshot` works on Xvfb; pause, `CameraDriver.SetRootPosAndSize`, then count frames (the runner checks steps once per frame, and no ticks pass while paused). Files land in `.devlog/screens/`.
+- **Test map size.** `SetupForQuickTestPlay` hard-codes 250; `-quadrunner-mapsize` (`QR_MAP_SIZE`, default 200) overrides it, and each scenario's result line ends with its wall time and ticks/s. Changing it needs `autotest.py stop` first.
 - **Run fast.** Scenarios ran at Ultrafast with vanilla's forced normal speed off via `DebugViewSettings.neverForceNormalSpeed`; Dev **Tweak values → UltraSpeedBoost** raises it further. *(QB)*
 - **One defend point clusters pawns.** A single `LordJob_DefendPoint` for several pawns gathers them at one spot. Give each hostile its own lord. *(QB)*
 - **Screenshots: one window only.** Capture by exact window class `RimWorldLinux` on the instance's own `DISPLAY` (read from `/proc/<pid>/environ`); a title match also hits browser tabs about RimWorld. Never `import -window root`. *(QB)*

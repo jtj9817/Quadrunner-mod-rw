@@ -48,7 +48,7 @@ namespace Quadrunner
                 .Select(c => (IntVec3?)c)
                 .FirstOrDefault(c => area(c.Value).Cells.All(x => ClearCell(x, map)) && (extra == null || extra(c.Value)));
             if (found == null)
-                throw new InvalidOperationException($"no clear area within {maxDist} cells of {near}");
+                throw new InvalidOperationException($"no clear area within {maxDist} cells of {near} (standable: {near.Standable(map)})");
             IntVec3 cell = found.Value;
             foreach (IntVec3 c in area(cell).Cells)
                 foreach (Thing t in c.GetThingList(map).Where(t => t.def.category == ThingCategory.Plant
@@ -65,12 +65,14 @@ namespace Quadrunner
             Func<CellRect, bool> extra = null)
         {
             CellRect RectAt(IntVec3 c) => new CellRect(c.x - size / 2, c.z - size / 2, size, size);
+            // The map center can be solid rock, from which nothing is reachable.
+            IntVec3 origin = near.Standable(map) ? near : CellFinder.StandableCellNear(near, map, maxDist);
             IntVec3 center = FindClearArea(map, near, maxDist, c => RectAt(c).ExpandedBy(margin), c =>
             {
                 float d = c.DistanceTo(near);
                 CellRect r = RectAt(c);
                 return d >= minDist && d <= maxDist && !r.ExpandedBy(margin).Contains(near) && (extra == null || extra(r))
-                    && map.reachability.CanReach(near, new IntVec3(c.x, 0, r.minZ - 2), PathEndMode.OnCell,
+                    && map.reachability.CanReach(origin, new IntVec3(c.x, 0, r.minZ - 2), PathEndMode.OnCell,
                         TraverseParms.For(TraverseMode.PassDoors));
             });
             return RectAt(center);
@@ -213,7 +215,7 @@ namespace Quadrunner
             s.Do("a roofed room with a conduit under its wall and a full battery; an unassigned dog outside", () =>
                 {
                     Map map = Find.CurrentMap;
-                    room = BuildRoom(s, ClearRect(map, map.Center, 7, 4, 0f, 40f));
+                    room = BuildRoom(s, ClearRect(map, map.Center, 7, 4, 0f, 60f));
                     dogId = SpawnDog(s, room.Door + IntVec3.South * 4).ThingID;
                 })
                 .Expect("the battery is on the conduit's net", () => room.OnNet)
@@ -343,7 +345,7 @@ namespace Quadrunner
             s.Do("a 9x9 room with a bed; a dog outside", () =>
                 {
                     Map map = Find.CurrentMap;
-                    room = BuildRoom(s, ClearRect(map, map.Center, 9, 4, 0f, 40f));
+                    room = BuildRoom(s, ClearRect(map, map.Center, 9, 4, 0f, 60f));
                     bedId = SpawnBuilding(s, ThingDefOf.Bed, ThingDefOf.Steel,
                         new IntVec3(room.rect.minX + 2, 0, room.rect.minZ + 2), Rot4.North).ThingID;
                     dogId = SpawnDog(s, room.Door + IntVec3.South * 4).ThingID;
@@ -412,7 +414,7 @@ namespace Quadrunner
             s.Do("a near room whose battery holds 30 Wd, a far one full; a dog by the near door", () =>
                 {
                     Map map = Find.CurrentMap;
-                    near = BuildRoom(s, ClearRect(map, map.Center, 7, 4, 0f, 40f), batteryPct: 0.05f);
+                    near = BuildRoom(s, ClearRect(map, map.Center, 7, 4, 0f, 60f), batteryPct: 0.05f);
                     IntVec3 start = near.Door + IntVec3.South * 4;
                     far = BuildRoom(s, ClearRect(map, start, 7, 3, 22f, 40f));
                     dogId = SpawnDog(s, start).ThingID;

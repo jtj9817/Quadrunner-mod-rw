@@ -35,6 +35,7 @@ namespace Quadrunner
         private Func<string> summary;
         private int stepIndex;
         private int startTick;
+        private float startRealtime;
         private int stepStartTick;
         private bool prevNeverForceNormalSpeed;
         private bool prevStoryteller;
@@ -153,6 +154,7 @@ namespace Quadrunner
             current?.Finish("aborted: another scenario started");
             current = this;
             startTick = stepStartTick = Now;
+            startRealtime = UnityEngine.Time.realtimeSinceStartup;
             // Hostiles make vanilla force normal speed; this dev setting turns that off for the run.
             prevNeverForceNormalSpeed = DebugViewSettings.neverForceNormalSpeed;
             DebugViewSettings.neverForceNormalSpeed = true;
@@ -160,8 +162,25 @@ namespace Quadrunner
             // whose pawns get discarded) would make results depend on luck.
             prevStoryteller = DebugSettings.enableStoryteller;
             DebugSettings.enableStoryteller = false;
+            RefreshColonists();
             Resume();
             QR.Log($"SCENARIO {name}: start ({(fast ? "Ultrafast" : "normal speed")}), {steps.Count} steps, timeout {timeoutTicks} ticks");
+        }
+
+        /// <summary>
+        /// Every colonist starts a scenario fed, rested and unhurt: scenarios keep them drafted, so in a long Run all they
+        /// would never eat or sleep, and malnutrition slowed later ones.
+        /// </summary>
+        private static void RefreshColonists()
+        {
+            foreach (Pawn p in Find.CurrentMap?.mapPawns.FreeColonistsSpawned ?? new List<Pawn>())
+            {
+                foreach (Need need in p.needs?.AllNeeds ?? new List<Need>())
+                    need.CurLevelPercentage = 1f;
+                foreach (Hediff h in p.health.hediffSet.hediffs.Where(h => h.def == HediffDefOf.Malnutrition
+                             || h.def == HediffDefOf.BloodLoss || h is Hediff_Injury injury && !injury.IsPermanent()).ToList())
+                    p.health.RemoveHediff(h);
+            }
         }
 
         private static void Resume() => Find.TickManager.CurTimeSpeed = fast ? TimeSpeed.Ultrafast : TimeSpeed.Normal;
@@ -201,6 +220,9 @@ namespace Quadrunner
         private void Finish(string verdict)
         {
             string extra = summary != null ? $"; {summary()}" : "";
+            // Wall time, to compare test-instance speed (map size, load beside the user's game); includes reloads.
+            float secs = UnityEngine.Time.realtimeSinceStartup - startRealtime;
+            extra += $"; {secs:F0} s, {(Now - startTick) / Math.Max(secs, 0.001f):F0} ticks/s";
             QR.Log($"SCENARIO {name}: {verdict}{extra}");
             foreach (string id in tracked)
                 ById(id)?.Destroy();

@@ -35,6 +35,9 @@ RW_DIR = Path(os.environ.get("RW_DIR", Path.home() / ".steam/debian-installation
 RW_DATA = Path(os.environ.get("RW_DATA", DEVLOG / "rwdata"))
 RW_LOG = RW_DATA / "Player.log"
 HARMONY_DIR = Path(os.environ.get("HARMONY_DIR", RW_DIR / "../../workshop/content/294100/2009463077"))
+# Quicktest map size (vanilla: 250; empty keeps it). 200 ran about twice as fast as 250 (2026-10-20). Takes effect at
+# the next cold start (`stop`, then `run`): an in-game restart reuses the old command line.
+MAP_SIZE = os.environ.get("QR_MAP_SIZE", "200")
 RW_EXPECTED_VERSION = "1.6."
 
 EXE = RW_DIR / "RimWorldLinux"
@@ -51,6 +54,7 @@ LAST_BUILD = DEVLOG / "last-build"
 PACKAGE_ID = "josh9817.quadrunner"
 CORE_MODS = ["brrainz.harmony", "ludeon.rimworld"]
 AUTOTEST_ARG = "-quadrunner-autotest"
+MAPSIZE_ARG = "-quadrunner-mapsize"
 
 EXIT_PASS, EXIT_FAIL, EXIT_HANG, EXIT_NOT_RUN = 0, 1, 2, 3
 
@@ -355,6 +359,8 @@ def launch(with_mod=True):
     argv = [str(EXE), f"-savedatafolder={RW_DATA}", "-logFile", str(RW_LOG), "-quicktest", "-disable-compute-shaders"]
     if with_mod:
         argv.append(f"{AUTOTEST_ARG}={CTL}")
+        if MAP_SIZE:
+            argv.append(f"{MAPSIZE_ARG}={MAP_SIZE}")
     proc = subprocess.Popen(argv, cwd=RW_DIR, env=env, stdin=subprocess.DEVNULL,
                             stdout=open(CTL / "stdout.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
     say(f"launched test instance pid {proc.pid} on {env['DISPLAY']}{'' if with_mod else ' (without Quadrunner)'}")

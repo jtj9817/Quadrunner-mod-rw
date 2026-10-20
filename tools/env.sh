@@ -14,6 +14,7 @@ RW_LOG="$RW_DATA/Player.log"
 USER_RW_DATA="${USER_RW_DATA:-$HOME/.config/unity3d/Ludeon Studios/RimWorld by Ludeon Studios}"
 RW_EXPECTED_VERSION="1.6."    # Version.txt prefix this project is built against
 HARMONY_DIR="${HARMONY_DIR:-$RW_DIR/../../workshop/content/294100/2009463077}"
+QR_MAP_SIZE="${QR_MAP_SIZE:-200}"   # test instance quicktest map size (empty: vanilla 250); read by autotest.py
 
 mkdir -p "$DEVLOG"
 

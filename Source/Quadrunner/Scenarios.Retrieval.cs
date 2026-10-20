@@ -178,9 +178,8 @@ namespace Quadrunner
                 .Expect("then the battery: charged to full on the spot", () =>
                     CompRobodog.Of(Dog()).Battery >= 1f && !CompRobodog.Of(Dog()).PoweredDown)
                 .Expect("both items used", () => OnMap(QR_DefOf.QR_RobodogBattery) == 0 && OnMap(QR_DefOf.QR_RobodogRepairKit) == 0)
-                .Summary(() => $"health {healthBefore:P0} -> {Dog()?.health.summaryHealth.SummaryHealthPercent:P0}; colonists: "
-                    + string.Join(", ", Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p =>
-                        $"{p.LabelShort} {p.CurJob?.ToStringSafe()}{(p.Drafted ? " drafted" : "")}{(p.InMentalState ? " " + p.MentalStateDef.defName : "")}")))
+                .Summary(() => $"health {healthBefore:P0} -> {Dog()?.health.summaryHealth.SummaryHealthPercent:P0}; "
+                    + ColonistStates())
                 .Start();
         }
 
@@ -326,6 +325,8 @@ namespace Quadrunner
                     factionId = faction.loadID;
                     raiderId = s.Track(GenSpawn.Spawn(raider, OpenCell(map, down.Position, 6f, 10f), map)).ThingID;
                     LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(raider.Position), map, new[] { raider });
+                    // Otherwise the stable may still see the cached "no raid" this tick and send its dog.
+                    Raid.Recheck(map);
                 })
                 .Expect("the raider's kidnap search finds the dog", () =>
                     KidnapAIUtility.TryFindGoodKidnapVictim(Raider(), 18f, out Pawn victim) && victim.ThingID == downId)

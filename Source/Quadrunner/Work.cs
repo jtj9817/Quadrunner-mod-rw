@@ -71,6 +71,8 @@ namespace Quadrunner
                 Job job = scanner.JobOnThing(dog, target);
                 if (job == null || !work.jobs.Contains(job.def))
                     continue;
+                // Vanilla queues more targets near the first one (Clean: all filth within ~5 cells); keep only ours.
+                job.GetTargetQueue(TargetIndex.A).RemoveAll(t => t.HasThing && t.Thing != target && !Valid(t.Thing));
                 job.workGiverDef = giver;
                 return job;
             }
@@ -101,6 +103,9 @@ namespace Quadrunner
             cache[map.uniqueID] = (now, active);
             return active;
         }
+
+        /// <summary>Forgets the cached answer, so the next check sees hostiles spawned this tick (scenarios).</summary>
+        public static void Recheck(Map map) => cache.Remove(map.uniqueID);
     }
 
     /// <summary>Move speed × <see cref="RobodogWork.raidSpeedFactor"/> for a working dog with a stable during a raid.</summary>

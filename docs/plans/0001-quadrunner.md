@@ -64,6 +64,9 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Riding: mounting | Right-click a Quadrunner that is out, or its stable, which undocks its fullest docked Quadrunner at the interaction cell; the colonist walks over and mounts (user, 2026-10-20) |
 | Riding: trip | "Ride to…" opens a targeter for the destination cell; the rider mounts, rides there and dismounts on arrival. A route into an indoor room dismounts the rider before its door, and they walk the rest (user, 2026-10-20) |
 | Ridden speed | A ridden move speed in XML (`riddenMoveSpeed` on the Quadrunner, default 7 cells/s, about 1.5× a colonist); the rider moves at it while mounted (stat part on MoveSpeed). Work speeds unchanged (user, 2026-10-20) |
+| Harmony patch 3 | Postfix on the `Pawn_DrawTracker.DrawPos` getter: a rider is drawn at the ridden dog's tweened position plus its per-facing offset (`Rideable` on the race, XML), one half altitude step above pawns, so it covers the dog; vanilla has no virtual for a pawn's draw position (agent, 2026-10-20) |
+| Riding: defaults | Only races with the `Rideable` extension (Quadrunners) can be ridden. The rider dismounts whenever its ride job ends for any reason (arrival, drafted, downed, another order) and before its next step enters a room that isn't outdoors, or a door into one; mounting indoors is allowed. The ridden dog drains per cell as when walking, with no raid factor, and keeps carrying below 10% until it powers down (the rider then walks on, retrieval starts). After the ride the dog goes back to work, or docks (agent, 2026-10-20) |
+| Test map size | The test instance's quicktest map is 200×200 instead of vanilla's fixed 250 (a postfix on `Root_Play.SetupForQuickTestPlay`, active only with the `-quadrunner-autotest` launch argument, so outside the gameplay patch budget); three scenarios ran in 64 s instead of 122 s (user's suggestion, size by measurement, 2026-10-20) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
 ## Targets
@@ -120,15 +123,15 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T5: Medirunner
 
-- [ ] Medirunner recipe and race; rescues the downed to a bed: colonists, then guests, prisoners, colony animals, never enemies; fastest-bleeding first; one Medirunner per patient; allowed under fire
-- [ ] Scenario passes: **Mass-casualty raid** (three downed colonists, one Medirunner)
+- [x] Medirunner recipe and race; rescues the downed to a bed: colonists, then guests, prisoners, colony animals, never enemies; fastest-bleeding first; one Medirunner per patient; allowed under fire (**Assemble Medirunner**, **Mass-casualty raid**, **Rescue order**; run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
+- [x] Scenario passes: **Mass-casualty raid** (three downed colonists, one Medirunner) (run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
 
 ### T6: Riding
 
-- [ ] Right-click "Ride" on a Quadrunner (`FloatMenuOptionProvider`); the rider moves at the dog's speed (stat part); the dog follows (being-ridden job)
-- [ ] Auto-dismount at the destination, indoors, when drafted or downed; dog at 0% while ridden (rider dismounts safely, retrieval starts)
-- [ ] Rider drawn on the dog's back, per-direction offsets in XML (Harmony), tuned with TweakValues and checked by screenshot
-- [ ] Scenario passes: **Ride until 0%**
+- [x] Right-click "Ride" on a Quadrunner (`FloatMenuOptionProvider`); the rider moves at the dog's speed (stat part); the dog follows (being-ridden job) (**Ride and dismount**: the option on the dog; **Ride until 0%**: from the stable, 7.0 c/s; run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
+- [x] Auto-dismount at the destination, indoors, when drafted or downed; dog at 0% while ridden (rider dismounts safely, retrieval starts) (**Ride and dismount**, **Ride until 0%**; run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
+- [x] Rider drawn on the dog's back, per-direction offsets in XML (Harmony), tuned with TweakValues and checked by screenshot (**Rider pose** captures all four facings to `.devlog/screens/ride-*.png`; tuned in XML from those screenshots, TweakValues "Quadrunner riding" available; run 2026-10-20 02:49, PASS again run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
+- [x] Scenario passes: **Ride until 0%** (run 2026-10-20 03:52, Run all 25/29 on the 200 map: every T5 and T6 scenario PASS, 0 new errors; the 4 FAILs were T2/T4 setups)
 
 ### T7: Combatdog Tier 1, pings and patrols
 

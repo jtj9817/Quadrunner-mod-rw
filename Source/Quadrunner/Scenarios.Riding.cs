@@ -5,6 +5,7 @@ using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI.Group;
 
 namespace Quadrunner
 {
@@ -27,7 +28,9 @@ namespace Quadrunner
         {
             List<FloatMenuOption> options = FloatMenuMakerMap.GetOptions(new List<Pawn> { rider }, clicked.DrawPos, out FloatMenuContext _);
             FloatMenuOption option = options.FirstOrDefault(o => o.Label == label)
-                ?? throw new InvalidOperationException($"no '{label}' option: " + string.Join(" | ", options.Select(o => o.Label)));
+                ?? throw new InvalidOperationException($"no '{label}' option: " + string.Join(" | ", options.Select(o => o.Label))
+                    + $"; {rider} at {rider.Position}, menu: {FloatMenuMakerMap.ShouldGenerateFloatMenuForPawn(rider).Reason ?? "ok"}, "
+                    + $"job {rider.CurJob.ToStringSafe()}, lord {rider.GetLord().ToStringSafe()}");
             if (option.Disabled)
                 throw new InvalidOperationException($"option disabled: {label}");
         }

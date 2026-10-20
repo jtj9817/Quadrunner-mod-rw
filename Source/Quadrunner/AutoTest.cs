@@ -23,6 +23,7 @@ namespace Quadrunner
     public class AutoTest : MonoBehaviour
     {
         private const string Arg = "quadrunner-autotest";
+        internal const string MapSizeArg = "quadrunner-mapsize";
 
         private static string dir;
         private static readonly int Pid = Process.GetCurrentProcess().Id;
@@ -194,6 +195,21 @@ namespace Quadrunner
                 }
             }
             return sb.Append('"').ToString();
+        }
+    }
+
+    /// <summary>
+    /// Test instance only: <c>-quadrunner-mapsize=N</c> sets the quicktest map's size, which vanilla fixes at 250
+    /// (<c>Root_Play.SetupForQuickTestPlay</c>). A smaller map costs less per tick, so scenarios run faster.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(Root_Play), nameof(Root_Play.SetupForQuickTestPlay))]
+    public static class Patch_Root_Play_SetupForQuickTestPlay
+    {
+        public static void Postfix()
+        {
+            if (AutoTest.Enabled && GenCommandLine.TryGetCommandLineArg(AutoTest.MapSizeArg, out string value)
+                && int.TryParse(value, out int size) && size >= 50)
+                Find.GameInitData.mapSize = size;
         }
     }
 }
