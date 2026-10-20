@@ -44,6 +44,7 @@ namespace Quadrunner
             ("Rider pose", RiderPose),
             ("Ping chain", PingChain),
             ("Combatdog sweep", CombatdogSweep),
+            ("Low-battery retreat", LowBatteryRetreat),
         };
 
         /// <summary>

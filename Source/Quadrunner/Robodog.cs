@@ -1,6 +1,7 @@
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 
 namespace Quadrunner
 {
@@ -57,13 +58,30 @@ namespace Quadrunner
 
         public static bool IsRobodog(Thing thing) => Of(thing) != null;
 
+        /// <summary>A Combatdog out of its stable walking off to charge: it flashes its yellow siren (design).</summary>
+        public bool Retreating => wantsCharge && stable != null && parent.Spawned && !PoweredDown
+            && RobodogWork.Of(parent)?.combat == true && Dog.pather.Moving;
+
+        /// <summary>The siren's flash phase (2 Hz, real time, so it shows while paused too).</summary>
+        public static bool SirenPhaseLit => (int)(Time.realtimeSinceStartup * 4f) % 2 == 0;
+
         public void SetBattery(float level)
         {
             battery = Mathf.Clamp01(level);
             if (battery >= 0.9999f)
                 battery = 1f;
-            if (battery <= Props.seekChargeAt)
+            if (battery <= Props.seekChargeAt && !wantsCharge)
+            {
                 wantsCharge = true;
+                // Mid-fight or guarding: retreat now, not when the job next expires. A capture already under way finishes.
+                JobDef job = Dog.CurJobDef;
+                if (RobodogWork.Of(parent)?.combat == true && parent.Spawned
+                    && (job == JobDefOf.AttackMelee || job == JobDefOf.Wait || job == JobDefOf.Goto))
+                {
+                    QR.Log($"{Dog} at {battery:P0}: retreats from {job.defName} to charge");
+                    Dog.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                }
+            }
             if (battery >= 1f)
                 wantsCharge = false;
             bool poweredDown = PoweredDown;
@@ -106,6 +124,17 @@ namespace Quadrunner
                 stable.Ping(attacker, Dog);
         }
 
+        public override void PostDraw()
+        {
+            base.PostDraw();
+            if (!Retreating || !SirenPhaseLit)
+                return;
+            Vector3 pos = Dog.DrawPos + new Vector3(0f, 0f, 0.35f);
+            pos.y = AltitudeLayer.MetaOverlays.AltitudeFor();
+            Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(0.9f, 1f, 0.9f)),
+                Siren.Material, 0);
+        }
+
         public override void PostExposeData()
         {
             base.PostExposeData();
@@ -117,5 +146,13 @@ namespace Quadrunner
         public override string CompInspectStringExtra() =>
             $"Battery: {battery.ToStringPercent()}{(wantsCharge ? " (wants a charge)" : "")}\n" +
             (stable == null ? "No stable" : $"Stable: {stable.LabelCap}");
+    }
+
+    /// <summary>The retreat siren's light: vanilla's lightning glow, tinted yellow.</summary>
+    [StaticConstructorOnStartup]
+    public static class Siren
+    {
+        public static readonly Material Material =
+            MaterialPool.MatFrom("Things/Mote/LightningGlow", ShaderDatabase.MoteGlow, new Color(1f, 0.85f, 0.1f));
     }
 }

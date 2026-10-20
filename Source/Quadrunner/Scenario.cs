@@ -188,7 +188,7 @@ namespace Quadrunner
             }
         }
 
-        private static void Resume() => Find.TickManager.CurTimeSpeed = fast ? TimeSpeed.Ultrafast : TimeSpeed.Normal;
+        public static void Resume() => Find.TickManager.CurTimeSpeed = fast ? TimeSpeed.Ultrafast : TimeSpeed.Normal;
 
         /// <summary>Called every frame by <see cref="AutoTest"/>; steps only run while a map is up.</summary>
         public static void Update()

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -188,6 +190,91 @@ namespace Quadrunner
                     return Stable().Docked.Contains(Combatdog()) && Stable().Targets(Stable().InteractionCell).Count == 0;
                 })
                 .Summary(() => "raiders " + string.Join(", ", downIds.Select(Fate)) + $"; dead one {Fate(deadId)}")
+                .Start();
+        }
+
+        private static bool Retreating(Pawn dog) =>
+            CompRobodog.Of(dog).Retreating && (dog.CurJobDef == QR_DefOf.QR_Dock || dog.CurJobDef == QR_DefOf.QR_ChargeAtConduit);
+
+        /// <summary>
+        /// A Combatdog fighting a pinged raider drops to 10%: it breaks off at once and walks home to charge with its
+        /// yellow siren flashing (saved to <c>.devlog/screens/siren.png</c> in an automated run); a second raider's ping
+        /// doesn't turn it; charged to full, it goes back out for them. Reload during the retreat.
+        /// </summary>
+        private static void LowBatteryRetreat()
+        {
+            var s = new Scenario("Low-battery retreat", 20000);
+            string stableId = null, combatId = null, quadId = null, firstId = null, secondId = null;
+            int frames = 0, retreatTick = 0;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
+            Pawn ById(string id) => (Pawn)Scenario.ById(id);
+            s.Do("a stable with a docked Combatdog; one of its Quadrunners 30–40 cells out, hit by an unarmed raider", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
+                    Pawn quad = DogOut(s, stable, OpenCell(map, stable.InteractionCell, 30f, 40f));
+                    quadId = quad.ThingID;
+                    Pawn first = SpawnRaider(s, OpenCell(map, quad.Position, 2f, 5f));
+                    firstId = first.ThingID;
+                    Raid.Recheck(map);
+                    Hit(quad, first);
+                })
+                .Expect("the Combatdog reaches the raider and fights", () =>
+                    Attacking(Combatdog(), ById(firstId)) && Combatdog().Position.InHorDistOf(ById(firstId).Position, 1.5f))
+                .Do("its battery drops to 10%", () => CompRobodog.Of(Combatdog()).SetBattery(0.1f))
+                .Expect("it breaks off and heads off to charge, siren on", () => Retreating(Combatdog()))
+                .Do("pause; camera on the Combatdog", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    CameraMapConfig config = Find.CameraDriver.config;
+                    float minSize = config.sizeRange.min;
+                    config.sizeRange.min = 4f;
+                    s.OnFinish(() => config.sizeRange.min = minSize);
+                    Find.CameraDriver.SetRootPosAndSize(Combatdog().DrawPos, 4f);
+                    Find.Selector.ClearSelection();
+                    frames = 0;
+                })
+                .Expect("the siren drawn and saved", () =>
+                {
+                    // Wait for a lit phase, two frames to draw it, then the capture, written at the end of its frame.
+                    if (frames == 0 && !CompRobodog.SirenPhaseLit)
+                        return false;
+                    frames++;
+                    if (frames == 3 && AutoTest.Dir != null)
+                    {
+                        string dir = Path.GetFullPath(Path.Combine(AutoTest.Dir, "..", "screens"));
+                        Directory.CreateDirectory(dir);
+                        ScreenCapture.CaptureScreenshot(Path.Combine(dir, "siren.png"));
+                    }
+                    return frames >= 6;
+                })
+                .Do("resume; a second raider hits the Quadrunner", () =>
+                {
+                    Scenario.Resume();
+                    Pawn quad = ById(quadId);
+                    Pawn second = SpawnRaider(s, OpenCell(Find.CurrentMap, quad.Position, 2f, 5f));
+                    secondId = second.ThingID;
+                    Raid.Recheck(Find.CurrentMap);
+                    Hit(quad, second);
+                    retreatTick = Find.TickManager.TicksGame;
+                })
+                .Expect("the ping doesn't turn it: it keeps retreating for 200 ticks", () =>
+                {
+                    if (!Retreating(Combatdog()))
+                        throw new InvalidOperationException($"stopped retreating: {Combatdog().CurJob?.ToStringSafe()}");
+                    return Find.TickManager.TicksGame - retreatTick >= 200;
+                })
+                .SaveAndReload()
+                .Expect("it docks or charges at a conduit", () =>
+                    Stable().Docked.Contains(Combatdog()) || Combatdog().CurJobDef == QR_DefOf.QR_ChargeAtConduit && !Combatdog().pather.Moving)
+                .Expect("charged to full, it goes back out for the raiders", () =>
+                    CompRobodog.Of(Combatdog()).Battery >= 1f && (Attacking(Combatdog(), ById(firstId)) || Attacking(Combatdog(), ById(secondId))))
+                .Summary(() => Combatdog() == null ? "Combatdog gone"
+                    : $"battery {CompRobodog.Of(Combatdog()).Battery:P0}, job {Combatdog().CurJob?.ToStringSafe()}; first {Fate(firstId)}, second {Fate(secondId)}")
                 .Start();
         }
     }
