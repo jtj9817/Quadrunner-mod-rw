@@ -15,6 +15,8 @@ USER_RW_DATA="${USER_RW_DATA:-$HOME/.config/unity3d/Ludeon Studios/RimWorld by L
 RW_EXPECTED_VERSION="1.6."    # Version.txt prefix this project is built against
 HARMONY_DIR="${HARMONY_DIR:-$RW_DIR/../../workshop/content/294100/2009463077}"
 QR_MAP_SIZE="${QR_MAP_SIZE:-200}"   # test instance quicktest map size (empty: vanilla 250); read by autotest.py
+QR_SCREEN="${QR_SCREEN:-640x360}"   # test instance window (software rendering: smaller is cheaper); read by autotest.py
+QR_RENDER_THREADS="${QR_RENDER_THREADS:-4}"   # llvmpipe threads, LP_NUM_THREADS (empty: one per core); read by autotest.py
 
 mkdir -p "$DEVLOG"
 

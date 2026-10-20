@@ -182,9 +182,13 @@ namespace Quadrunner
             Building_Stable B() => (Building_Stable)Scenario.ById(bId);
             Pawn ADog() => (Pawn)Scenario.ById(aDogId);
             Pawn BDog() => (Pawn)Scenario.ById(bDogId);
-            s.Do("two powered stables 16–22 cells apart, one dog each", () =>
+            s.Do("two powered stables 16–22 cells apart, one dog each; no filth but the scenario's", () =>
                 {
                     DraftColonists(s);
+                    // The map's own filth (rubble, blood) could send B's dog elsewhere, and a stable with no idle dog
+                    // rightly leaves its dirt to A.
+                    foreach (Thing filth in Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Filth).ToList())
+                        filth.Destroy();
                     Building_Stable a = SpawnStable(s, powered: true);
                     Building_Stable b = SpawnStable(s, powered: true, near: a.Position, minDist: 16f, maxDist: 22f);
                     aId = a.ThingID;
@@ -193,7 +197,7 @@ namespace Quadrunner
                     bDogId = s.Track(b.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                 })
                 .Do("dirt 2–4 cells from B", () => filthIds.Add(SpawnFilth(s, OpenCell(Find.CurrentMap, B().InteractionCell, 2f, 4f))))
-                .Expect("B's dog cleans it; A's dog never goes for it (it may clean the map's own filth)", () =>
+                .Expect("B's dog cleans it; A's dog never goes for it", () =>
                 {
                     Thing dirt = Scenario.ById(filthIds[0]);
                     if (dirt != null && Targets(ADog(), dirt))

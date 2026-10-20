@@ -213,7 +213,12 @@ namespace Quadrunner
                 .Do("pause; camera on the rider", () =>
                 {
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
-                    Find.CameraDriver.SetRootPosAndSize(Rider().DrawPos, 6f);
+                    // Closer than the camera allows (min size 11): the test window is only 360 px tall.
+                    CameraMapConfig config = Find.CameraDriver.config;
+                    float minSize = config.sizeRange.min;
+                    config.sizeRange.min = 3f;
+                    s.OnFinish(() => config.sizeRange.min = minSize);
+                    Find.CameraDriver.SetRootPosAndSize(Rider().DrawPos, 3f);
                     Find.Selector.ClearSelection();
                 });
             foreach (Rot4 rot in new[] { Rot4.North, Rot4.East, Rot4.South, Rot4.West })

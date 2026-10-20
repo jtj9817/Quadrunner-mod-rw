@@ -38,6 +38,10 @@ HARMONY_DIR = Path(os.environ.get("HARMONY_DIR", RW_DIR / "../../workshop/conten
 # Quicktest map size (vanilla: 250; empty keeps it). 200 ran about twice as fast as 250 (2026-10-20). Takes effect at
 # the next cold start (`stop`, then `run`): an in-game restart reuses the old command line.
 MAP_SIZE = os.environ.get("QR_MAP_SIZE", "200")
+# The instance renders in software (llvmpipe): window size, and llvmpipe's thread count (LP_NUM_THREADS; empty: one
+# per core). At 1280x720 with every core it used ~1800% CPU; 640x360 with 4 threads ran as fast at ~400% (2026-10-20).
+SCREEN_W, SCREEN_H = (int(v) for v in os.environ.get("QR_SCREEN", "640x360").split("x"))
+RENDER_THREADS = os.environ.get("QR_RENDER_THREADS", "4")
 RW_EXPECTED_VERSION = "1.6."
 
 EXE = RW_DIR / "RimWorldLinux"
@@ -246,8 +250,8 @@ def wait_event(pred, offset, timeout, launch=None, hang_after=120, label="event"
 PREFS = """<?xml version="1.0" encoding="utf-8"?>
 <PrefsData>
   <volumeMaster>0</volumeMaster>
-  <screenWidth>1280</screenWidth>
-  <screenHeight>720</screenHeight>
+  <screenWidth>{w}</screenWidth>
+  <screenHeight>{h}</screenHeight>
   <fullscreen>False</fullscreen>
   <customCursorEnabled>False</customCursorEnabled>
   <textureCompression>False</textureCompression>
@@ -283,7 +287,7 @@ def write_profile(with_mod):
         '<?xml version="1.0" encoding="utf-8"?>\n<ModsConfigData>\n'
         f"  <version>{game_version()}</version>\n  <activeMods>\n{items}\n  </activeMods>\n"
         "  <knownExpansions />\n</ModsConfigData>\n")
-    (config / "Prefs.xml").write_text(PREFS)
+    (config / "Prefs.xml").write_text(PREFS.replace("{w}", str(SCREEN_W)).replace("{h}", str(SCREEN_H)))
 
 
 def ensure_mod_link():
@@ -321,7 +325,7 @@ def ensure_xvfb():
         return display
     n = next(n for n in range(90, 140)
              if not Path(f"/tmp/.X11-unix/X{n}").exists() and not Path(f"/tmp/.X{n}-lock").exists())
-    proc = subprocess.Popen(["Xvfb", f":{n}", "-screen", "0", "1280x720x24", "-nolisten", "tcp", "-noreset"],
+    proc = subprocess.Popen(["Xvfb", f":{n}", "-screen", "0", f"{SCREEN_W}x{SCREEN_H}x24", "-nolisten", "tcp", "-noreset"],
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                             stderr=open(CTL / "xvfb.log", "w"), start_new_session=True)
     deadline = time.time() + 10
@@ -356,6 +360,8 @@ def launch(with_mod=True):
     env.pop("WAYLAND_DISPLAY", None)
     env.update(DISPLAY=ensure_xvfb(), LC_ALL="C",
                XDG_CONFIG_HOME=str(DEVLOG / "xdg/config"), XDG_CACHE_HOME=str(DEVLOG / "xdg/cache"))
+    if RENDER_THREADS:
+        env["LP_NUM_THREADS"] = RENDER_THREADS
     argv = [str(EXE), f"-savedatafolder={RW_DATA}", "-logFile", str(RW_LOG), "-quicktest", "-disable-compute-shaders"]
     if with_mod:
         argv.append(f"{AUTOTEST_ARG}={CTL}")
