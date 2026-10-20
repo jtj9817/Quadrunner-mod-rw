@@ -41,9 +41,15 @@ namespace Quadrunner
         private static IntVec3 FindClearArea(Map map, IntVec3 near, float maxDist, Func<IntVec3, CellRect> area,
             Predicate<IntVec3> extra = null)
         {
-            if (!CellFinder.TryFindRandomCellNear(near, map, (int)maxDist,
-                    c => area(c).Cells.All(x => ClearCell(x, map)) && (extra == null || extra(c)), out IntVec3 cell, 3000))
+            // Every cell in range, nearest first: random sampling missed the few clear areas on a dense map.
+            IntVec3? found = CellRect.CenteredOn(near, (int)maxDist).ClipInsideMap(map).Cells
+                .Where(c => c.InHorDistOf(near, maxDist))
+                .OrderBy(c => c.DistanceToSquared(near))
+                .Select(c => (IntVec3?)c)
+                .FirstOrDefault(c => area(c.Value).Cells.All(x => ClearCell(x, map)) && (extra == null || extra(c.Value)));
+            if (found == null)
                 throw new InvalidOperationException($"no clear area within {maxDist} cells of {near}");
+            IntVec3 cell = found.Value;
             foreach (IntVec3 c in area(cell).Cells)
                 foreach (Thing t in c.GetThingList(map).Where(t => t.def.category == ThingCategory.Plant
                              || t.def.category == ThingCategory.Item).ToList())

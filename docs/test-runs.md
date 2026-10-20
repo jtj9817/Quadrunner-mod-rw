@@ -11,6 +11,8 @@ The run's full log stays in `.devlog/runs/<timestamp>/` (local, git-ignored); co
 
 | Run (UTC) | Target | Build | Scenarios | Result | Finding | Next |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-20 00:21 | T3 | f4f1996-dirty.20261020T001251Z | Run all (17) | 17/17 PASS, 0 new errors | Every T1, T2 and T3 scenario on one build, beside the user's open game; the room setups now find clear ground by scanning every cell nearest first | tick T3 (all) |
+| 2026-10-20 00:05 | T3 | 4cdceb8-dirty.20261020T000512Z | Run all (17) | 14/17 PASS, 0 new errors | All six T3 scenarios pass; Conduit charging, Charging room rules and Batteries drain failed setup: "no clear area within 40 cells" of the center (`CellFinder.TryFindRandomCellNear`, 3000 random tries, missed the few clear 15×15 areas on this map) | scan cells nearest first |
 | 2026-10-20 00:04 | T3 | 4cdceb8-dirty.20261020T000311Z | Haul and clean, Two stables, Stable power loss | 3/3 PASS, 0 new errors | Dirt roofed: B's dog cleaned B's dirt, A's dog took the second spot while B's was busy, never the same spot | full run |
 | 2026-10-19 23:58 | T3 | 4cdceb8-dirty.20261019T235332Z | Run all (17) | 16/17 PASS, 0 new errors | Two stables: B's dirt vanished with no dispatch logged: rain washed it (`rainWashes`) | roof the scenario's dirt |
 | 2026-10-19 23:53 | T3 | 4cdceb8-dirty.20261019T235151Z | Two stables, Stable power loss | 2/2 PASS, 0 new errors | Assert on targets instead of "A stayed docked"; injury added as a hediff (8.0 healed to 6.3 once powered) | add a far frame to Haul and clean, full run |

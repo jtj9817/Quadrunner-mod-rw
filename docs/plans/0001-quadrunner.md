@@ -90,12 +90,12 @@ Tick a box only after an automated run proved it; name the run in [`docs/test-ru
 
 ### T3: Dispatch and work
 
-- [ ] The stable scans its service radius every few seconds and releases one dog at a time; construction delivery is map-wide
-- [ ] Quadrunners haul, clean and supply blueprints and frames (Harmony only where vanilla assumes human skills or work priorities)
-- [ ] Overlapping radii: the stable with the closest idle dog dispatches; each job is claimed once
-- [ ] Raid: dogs finish their task at 3x speed with faster drain, then dock
-- [ ] Stable loses power (dispatch continues, repair and charging pause), destroyed (dogs wait in the nearest non-bedroom room), uninstalled (dogs wait, then walk to it once reinstalled)
-- [ ] Scenarios pass: **Haul and clean**, **Two stables**, **Stable fire with docked dogs**, **Stable uninstall and reinstall**
+- [x] The stable scans its service radius every few seconds and releases one dog at a time; construction delivery is map-wide: **Haul and clean** (one dog at a time, far blueprint and frame supplied, far gold left) (run 2026-10-20 00:21)
+- [x] Quadrunners haul, clean and supply blueprints and frames (Harmony only where vanilla assumes human skills or work priorities): **Haul and clean** (Harmony patch 1 for construction) (run 2026-10-20 00:21)
+- [x] Overlapping radii: the stable with the closest idle dog dispatches; each job is claimed once: **Two stables** (run 2026-10-20 00:21)
+- [x] Raid: dogs finish their task at 3x speed with faster drain, then dock: **Raid: finish and dock** (4.8 → 14.4, drain x2) (run 2026-10-20 00:21)
+- [x] Stable loses power (dispatch continues, repair and charging pause), destroyed (dogs wait in the nearest non-bedroom room), uninstalled (dogs wait, then walk to it once reinstalled): **Stable power loss**, **Stable fire with docked dogs**, **Stable uninstall and reinstall** (run 2026-10-20 00:21)
+- [x] Scenarios pass: **Haul and clean**, **Two stables**, **Stable fire with docked dogs**, **Stable uninstall and reinstall**, each with a save/load step, in Run all 17/17, 0 new errors (run 2026-10-20 00:21)
 
 ### T4: Power-down and retrieval
 
