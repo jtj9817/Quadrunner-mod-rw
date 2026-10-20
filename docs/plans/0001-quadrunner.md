@@ -58,6 +58,8 @@ The design doc's tables (overview, costs, edge cases, Harmony list) are decision
 | Fire and out of reach | A fire within 1.5 cells of the downed dog is beaten out first (`giveNonToolUserBeatFireVerb` on the race; dogs don't burn, Flammability 0). A powered-down dog no stable can reach is left; alert "Robodog out of reach" names it. The plan's **Retrieval under fire** scenario covers fire and out of reach; the carrier case got its own, **Carrier runs low** (agent default, 2026-10-20) |
 | Wrecks | The destroyed dog's corpse is the wreck. "Rebuild Quadrunner" at the stable: the wreck + 40 steel + 15 plasteel (half the steel and plasteel, no component), 1500 work; the same pawn is resurrected (name and stable kept) and docked, or left beside a full stable (agent default, 2026-10-20) |
 | Harmony patch 2 | Postfix on `KidnapAIUtility.TryFindGoodKidnapVictim`: when vanilla finds no victim, a hostile kidnapper takes the nearest powered-down player robodog in range; vanilla `JobDriver_Kidnap` then carries it off (the design's raider carry-off) (agent, 2026-10-20) |
+| Medirunner idle | Medic only: a Medirunner does no hauling, cleaning or construction delivery; it stays docked and charging and goes out only to rescue (user, 2026-10-20). Carrying powered-down dogs home counts as Quadrunner work, so it doesn't do that either (agent reading, 2026-10-20) |
+| Medirunner treatment | Rescue only: it carries the downed to a bed (medical beds first, as vanilla rescue picks them); colonist doctors tend (user, 2026-10-20) |
 | DLC check | No DLC is owned; before release one tester who owns the DLCs runs the scenarios (design) |
 
 ## Targets
