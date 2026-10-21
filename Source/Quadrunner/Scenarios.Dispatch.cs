@@ -373,7 +373,7 @@ namespace Quadrunner
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Low() => (Pawn)Scenario.ById(lowId);
             Pawn Full() => (Pawn)Scenario.ById(fullId);
-            s.Do("a powered stable: an injured dog at 5% and a full one, both docked", () =>
+            s.Do("a powered stable: an injured dog at 5% and a worker held for setup, both docked", () =>
                 {
                     DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
@@ -387,11 +387,14 @@ namespace Quadrunner
                     low.health.AddHediff(crush, leg);
                     CompRobodog.Of(low).SetBattery(0.05f);
                     fullId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
+                    CompRobodog.Of(Full()).SetBattery(0.01f);
                 })
                 .Expect("the low dog is injured", () => InjurySeverity(Low()) > 0f)
                 .Do("switch the stable off", () => Stable().GetComp<CompFlickable>().SwitchIsOn = false)
                 .Expect("no power", () => !Stable().CanCharge)
                 .Do("dirt near the stable", () => filthId = SpawnFilth(s, OpenCell(Find.CurrentMap, Stable().InteractionCell, 4f, 10f)))
+                .Wait(700) // Vanilla does not clean fresh filth; make it eligible before the worker leaves its scan area.
+                .Do("release the full worker", () => CompRobodog.Of(Full()).SetBattery(1f))
                 .Expect("dispatch goes on: the full dog goes out to clean", () => Full().Spawned)
                 .Expect("the dirt is cleaned", () => Scenario.ById(filthId) == null)
                 .Do("note the low dog", () =>
