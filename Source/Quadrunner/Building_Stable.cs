@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -11,20 +10,13 @@ namespace Quadrunner
     public class StableProps : DefModExtension
     {
         public int capacity = 15;
-        public float serviceRadius = 40f;
-        public int dispatchInterval = 250;
-        /// <summary>Ticks to wait after a dispatch found no work.</summary>
-        public int idleBackoff = 1000;
         /// <summary>Hit points healed per tick on a docked dog's injuries while powered.</summary>
         public float repairPerTick = 0.02f;
     }
 
     /// <summary>
-    /// Docks robodogs (despawned into <see cref="docked"/>), sends them out to work, repairs and charges them while
-    /// powered, and runs the dog bills. A dog belongs to the stable its <see cref="CompRobodog.stable"/> names, whether
-    /// docked or out; all of them share <see cref="Capacity"/> slots. Its Combatdogs work its target queue
-    /// (<see cref="Combat"/>): hostiles that hit one of its dogs (a ping) or that a Combatdog sees, and walk its patrol
-    /// waypoints, placed with a gizmo.
+    /// Docks, repairs and charges its assigned dogs, runs fabrication bills, and can own the map's shared network
+    /// queues. Stable affiliation controls docking capacity, not which dog may receive a network assignment.
     /// </summary>
     [StaticConstructorOnStartup]
     public class Building_Stable : Building_WorkTable, IThingHolder
@@ -33,12 +25,10 @@ namespace Quadrunner
         private static readonly Texture2D ClearPatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/ClearPatrol");
 
         private ThingOwner<Pawn> docked;
-        private List<Pawn> targets = new List<Pawn>();
+        public NetworkState networkState;
         private List<IntVec3> waypoints = new List<IntVec3>();
         // Set by a click while placing waypoints, so the targeter starts again once vanilla stops it after the click.
         private bool placingMore;
-        // Not saved: after a load the stable just checks again.
-        private int nextDispatchTick;
         private bool destroying;
 
         public Building_Stable() => docked = new ThingOwner<Pawn>(this);
@@ -58,25 +48,9 @@ namespace Quadrunner
         /// <summary>Docked dogs charge and get repaired only while the stable has power.</summary>
         public bool CanCharge => this.TryGetComp<CompPowerTrader>()?.PowerOn ?? true;
 
-        /// <summary>Within the service radius (construction delivery ignores it).</summary>
-        public bool Covers(IntVec3 cell) => cell.InHorDistOf(Position, Props.serviceRadius);
-
-        /// <summary>A docked worker (not a medic or Combatdog) that could be sent out now, not waiting for a charge.</summary>
-        public bool HasIdleDog => IdleDog(Worker) != null;
-
-        /// <summary>The docked dog a colonist would ride: rideable, the fullest not waiting for a charge.</summary>
-        public Pawn IdleRideable => IdleDog(d => Rideable.Of(d) != null);
-
-        private static bool Worker(Pawn d) => RobodogWork.Of(d) is RobodogWork w && !w.rescue && !w.combat;
-
-        private static bool Medic(Pawn d) => RobodogWork.Of(d)?.rescue == true;
-
-        private static bool Combatdog(Pawn d) => RobodogWork.Of(d)?.combat == true;
-
-        private Pawn IdleDog(Func<Pawn, bool> kind) => docked.InnerListForReading
-            .Where(d => kind(d) && CompRobodog.Of(d) is CompRobodog c && !c.WantsCharge && !c.PoweredDown && !BeingUpgraded(d))
-            .OrderByDescending(d => CompRobodog.Of(d).Battery)
-            .FirstOrDefault();
+        /// <summary>A free rideable dog of this stable, docked or surveying; charging and productive jobs stay busy.</summary>
+        public Pawn IdleRideable => Dogs().Where(d => Rideable.Of(d) != null && DogNetwork.IsAvailable(d))
+            .OrderByDescending(d => CompRobodog.Of(d).Battery).FirstOrDefault();
 
         /// <summary>Docks <paramref name="dog"/>, assigning it to this stable first if it isn't yet.</summary>
         public bool TryDock(Pawn dog) => TryDock(dog, log: true);
@@ -152,8 +126,8 @@ namespace Quadrunner
             return bill;
         }
 
-        /// <summary>A colonist is working on this dog's upgrade: it stays docked (agent default, 2026-10-20).</summary>
-        private bool BeingUpgraded(Pawn dog) =>
+        /// <summary>A dog being upgraded stays docked and cannot accept network assignments.</summary>
+        public bool BeingUpgraded(Pawn dog) =>
             Map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob?.bill is Bill_UpgradeDog b && b.dog == dog);
 
         /// <summary>
@@ -171,6 +145,7 @@ namespace Quadrunner
             CompRobodog from = CompRobodog.Of(dog), to = CompRobodog.Of(upgraded);
             to.stable = this;
             to.SetBattery(from.Battery);
+            to.builtOrder = from.BuildOrder;
             for (int slot = 0; slot < 2; slot++)
                 if (from.PickedGun(slot) != null)
                     to.PickGun(slot, from.PickedGun(slot));
@@ -180,28 +155,6 @@ namespace Quadrunner
             if (!docked.TryAdd(upgraded))
                 QR.Error($"{this} couldn't dock the upgraded {upgraded}");
             return upgraded;
-        }
-
-        /// <summary>
-        /// The queued hostiles still to fight or capture, nearest <paramref name="to"/> first; the dead, gone, captured
-        /// and no longer hostile are dropped. Downed ones stay until captured (<see cref="Release"/>).
-        /// </summary>
-        public List<Pawn> Targets(IntVec3 to)
-        {
-            targets.RemoveAll(p => p == null || p.Destroyed || p.Dead || p.MapHeld != Map || p.IsPrisonerOfColony
-                || !p.HostileTo(Faction.OfPlayer));
-            return targets.OrderBy(p => p.PositionHeld.DistanceToSquared(to)).ToList();
-        }
-
-        public bool Queued(Pawn p) => targets.Contains(p);
-
-        /// <summary>Adds a hostile to the queue; false if it was there already.</summary>
-        public bool Enqueue(Pawn hostile)
-        {
-            if (targets.Contains(hostile))
-                return false;
-            targets.Add(hostile);
-            return true;
         }
 
         /// <summary>The patrol route its deployed Combatdogs walk in this order, looping.</summary>
@@ -267,73 +220,8 @@ namespace Quadrunner
                     SimpleColor.Yellow);
         }
 
-        /// <summary>Done with a target: captured, or left downed in a room.</summary>
-        public void Release(Pawn p) => targets.Remove(p);
-
-        /// <summary>
-        /// One of this stable's dogs was hit by <paramref name="attacker"/>: queue it and, if it is new, send one
-        /// Combatdog after it, however far: one that is out with no target (heading home or guarding) first, else a
-        /// docked one. Combatdogs waiting for a charge don't answer.
-        /// </summary>
-        public void Ping(Pawn attacker, Pawn victim)
-        {
-            if (!Spawned || attacker.MapHeld != Map || !Enqueue(attacker))
-                return;
-            Pawn free = Dogs().FirstOrDefault(d => Combatdog(d) && d.Spawned && Combat.Answers(d));
-            if (free != null)
-            {
-                QR.Log($"{this} pinged by {victim} (hit by {attacker}); redirects {free} from {free.CurJobDef?.defName}");
-                free.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                return;
-            }
-            bool tried = false;
-            if (!TrySend(IdleDog(Combatdog), ref tried))
-                QR.Log($"{this} pinged by {victim} (hit by {attacker}); no Combatdog free, queued");
-        }
-
-        /// <summary>
-        /// Sends out idle dogs if there is work for them: a medic while someone is down (raid or not); during a raid
-        /// every Combatdog, else one while targets are queued and none is out; else a worker (never during a raid). The
-        /// work search needs a spawned dog, so the dog steps out and, if it finds nothing, docks again in the same tick;
-        /// once a dog tried and nothing was sent, the stable waits <see cref="StableProps.idleBackoff"/>.
-        /// </summary>
-        public void TryDispatch(bool force = false)
-        {
-            int now = Find.TickManager.TicksGame;
-            if (!force && now < nextDispatchTick)
-                return;
-            bool tried = false;
-            bool raid = Raid.Active(Map);
-            bool sent = Rescue.AnyPatient(Map) && TrySend(IdleDog(Medic), ref tried);
-            if (raid)
-                while (TrySend(IdleDog(Combatdog), ref tried))
-                    sent = true;
-            else if (Targets(InteractionCell).Count > 0 && !Dogs().Any(d => Combatdog(d) && d.Spawned))
-                sent |= TrySend(IdleDog(Combatdog), ref tried);
-            if (!sent && !raid)
-                sent = TrySend(IdleDog(Worker), ref tried);
-            if (!sent && tried)
-            {
-                nextDispatchTick = now + Props.idleBackoff;
-                QR.Log($"{this} found no work (raid {raid}); next try at tick {nextDispatchTick}");
-            }
-        }
-
-        private bool TrySend(Pawn dog, ref bool tried)
-        {
-            if (dog == null || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
-                return false;
-            tried = true;
-            Job job = DogWork.FindJob(dog);
-            if (job == null)
-            {
-                TryDock(dog, log: false);
-                return false;
-            }
-            dog.jobs.StartJob(job, JobCondition.InterruptForced);
-            QR.Log($"{this} dispatched {dog} ({CompRobodog.Of(dog).Battery:P0}): {job.def.defName} {job.targetA}");
-            return true;
-        }
+        /// <summary>The debug dispatch action refreshes the shared network, not a stable-local job search.</summary>
+        public void TryDispatch(bool force = false) => DogNetwork.For(Map)?.Tick(force);
 
         protected override void Tick()
         {
@@ -341,12 +229,12 @@ namespace Quadrunner
             // A minified stable still ticks inside its MinifiedThing, with no map.
             if (!Spawned)
                 return;
-            if (this.IsHashIntervalTick(Props.dispatchInterval))
+            DogNetwork.For(Map).Tick();
+            if (this.IsHashIntervalTick(250))
             {
                 // Done, or its dog gone or reassigned.
                 foreach (Bill_UpgradeDog bill in BillStack.Bills.OfType<Bill_UpgradeDog>().Where(b => !b.Pending).ToList())
                     BillStack.Delete(bill);
-                TryDispatch();
             }
             if (docked.Count == 0 || !CanCharge)
                 return;
@@ -374,8 +262,8 @@ namespace Quadrunner
 
         public override void DeSpawn(DestroyMode mode = DestroyMode.Vanish)
         {
-            // Docked dogs come out. Destroyed: they lose their stable and wait in the nearest room (or adopt another
-            // stable); uninstalled: they keep it, wait, and walk to it once it is installed again.
+            // Docked dogs come out; the shared queues transfer to another stable or the newest active dog.
+            // Uninstalling preserves docking affiliation for when this stable is reinstalled.
             Map map = Map;
             if (docked.Count > 0)
                 docked.TryDropAll(InteractionCell, map, ThingPlaceMode.Near);
@@ -387,6 +275,7 @@ namespace Quadrunner
             }
             else
                 QR.Log($"{this} despawned (uninstalled?); its {Dogs().Count} dogs wait for it");
+            DogNetwork.For(map).NodeLeaving(this);
             base.DeSpawn(mode);
         }
 
@@ -394,21 +283,17 @@ namespace Quadrunner
         {
             string s = base.GetInspectString();
             string dogs = $"Robodogs: {Dogs().Count} / {Capacity} ({docked.Count} docked)";
-            return s.NullOrEmpty() ? dogs : s + "\n" + dogs;
+            return (s.NullOrEmpty() ? dogs : s + "\n" + dogs) + "\n" + DogNetwork.For(Map)?.Inspect();
         }
 
         public override void ExposeData()
         {
             base.ExposeData();
             Scribe_Deep.Look(ref docked, "docked", this);
-            // A destroyed target would be an unresolvable reference.
-            if (Scribe.mode == LoadSaveMode.Saving)
-                targets.RemoveAll(p => p == null || p.Destroyed);
-            Scribe_Collections.Look(ref targets, "targets", LookMode.Reference);
+            Scribe_Deep.Look(ref networkState, "network");
             Scribe_Collections.Look(ref waypoints, "waypoints", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                targets = targets?.Where(p => p != null).ToList() ?? new List<Pawn>();
                 waypoints = waypoints ?? new List<IntVec3>();
             }
         }

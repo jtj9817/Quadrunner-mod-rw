@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -10,8 +9,8 @@ namespace Quadrunner
 {
     /// <summary>
     /// Powered-down dogs lie like downed pawns until someone carries them to the nearest stable with a free slot (its
-    /// own stable always has its slot): a healthy dog sent by a stable, or a colonist ordered to. A dog with a field fix
-    /// in stock is left to the colonists for <see cref="CompProperties_Robodog.fieldFixWaitTicks"/> first.
+    /// own stable always has its slot): a healthy dog sent by the network, or a colonist ordered to. A dog with a field
+    /// fix in stock is left to the colonists for <see cref="CompProperties_Robodog.fieldFixWaitTicks"/> first.
     /// </summary>
     public static class Retrieval
     {
@@ -51,22 +50,22 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// For a working dog: the nearest powered-down dog it can carry home, unless <paramref name="leftToOthers"/>;
-        /// a fire on or next to that dog is beaten out first.
+        /// For a working dog given one powered-down dog: a fire on or next to it is beaten out first, else it is
+        /// carried home — unless it awaits its field fix or is not ours to take (forbidden, reserved, unreachable,
+        /// or no stable will receive it: null, and the network keeps it queued).
         /// </summary>
-        public static Job JobFor(Pawn dog, Predicate<Thing> leftToOthers)
+        public static Job JobFor(Pawn dog, Pawn takee)
         {
-            Thing takee = GenClosest.ClosestThing_Global_Reachable(dog.Position, dog.Map, DownDogs(dog.Map).Where(d => d != dog),
-                PathEndMode.ClosestTouch, TraverseParms.For(dog, Danger.Deadly), 9999f,
-                t => !t.IsForbidden(dog) && dog.CanReserve(t) && !leftToOthers(t) && !AwaitsFieldFix((Pawn)t)
-                    && StableFor((Pawn)t, dog) != null);
-            if (takee == null)
+            if (takee == null || takee == dog || takee.Dead || !takee.Spawned
+                || CompRobodog.Of(takee)?.PoweredDown != true || takee.IsForbidden(dog) || !dog.CanReserve(takee)
+                || !dog.CanReach(takee, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(takee)
+                || StableFor(takee, dog) == null)
                 return null;
             Fire fire = GenRadial.RadialCellsAround(takee.Position, 1.5f, useCenter: true)
                 .Where(c => c.InBounds(dog.Map))
                 .Select(c => c.GetFirstThing<Fire>(dog.Map))
                 .FirstOrDefault(f => f != null && dog.CanReach(f, PathEndMode.Touch, Danger.Deadly));
-            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(dog, (Pawn)takee);
+            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(dog, takee);
         }
     }
 

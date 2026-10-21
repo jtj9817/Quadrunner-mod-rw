@@ -66,20 +66,15 @@ namespace Quadrunner
                     downId = DownDog(s, stable, 15f, 25f).ThingID;
                 })
                 .Expect("the powered-down dog lies like a downed pawn", () => Down().Downed && CompRobodog.Of(Down()).PoweredDown)
-                .Do("the Force dispatch debug action sends the stable's dog to carry it at once", () =>
-                {
-                    DebugActions.ForceDispatchAt(Stable().Position);
-                    if (!Carrier().Spawned || Carrier().CurJobDef != QR_DefOf.QR_CarryToStable || Carrier().CurJob.targetA.Thing != Down())
-                        throw new InvalidOperationException($"not sent: {Carrier().CurJob?.ToStringSafe()}");
-                })
+                .Do("the Force dispatch action refreshes discovery and network orders", () =>
+                    DebugActions.ForceDispatchAt(Stable().Position))
                 .Expect("it picks the dog up", () => Carrying(Carrier(), Down()))
                 .SaveAndReload()
                 .Expect("still carrying after the load, or already home", () =>
                     carried = Carrying(Carrier(), Down()) || Stable().Docked.Contains(Down()))
                 .Expect("the powered-down dog is docked and charging", () =>
                     Stable().Docked.Contains(Down()) && CompRobodog.Of(Down()).Battery > 0f && !CompRobodog.Of(Down()).PoweredDown)
-                .Expect("the carrier docks again", () => Stable().Docked.Contains(Carrier()))
-                .Do("the docked dog at 1% (charging, so not sent out); the other out again 10–20 cells away at 0%; a colonist right-clicks it", () =>
+                .Do("the carrier at 1% (charging, so unavailable); the other out again 10–20 cells away at 0%; a colonist right-clicks it", () =>
                 {
                     Map map = Find.CurrentMap;
                     CompRobodog.Of(Carrier()).SetBattery(0.01f);
@@ -108,7 +103,7 @@ namespace Quadrunner
                 .Expect("the colonist carries it", () =>
                     Find.CurrentMap.mapPawns.FreeColonistsSpawned.Any(p => Carrying(p, Down())))
                 .Expect("and docks it", () => Stable().Docked.Contains(Down()))
-                .Summary(() => $"carried across the reload: {carried}")
+                .Summary(() => $"carried across the reload: {carried}; carrier {Carrier()?.PositionHeld} {Carrier()?.CurJob}; {Net().Inspect(Carrier())}")
                 .Start();
         }
 
@@ -175,8 +170,8 @@ namespace Quadrunner
                     p.CurJobDef == QR_DefOf.QR_FieldFixRobodog && p.CurJob.targetB.Thing == Dog()))
                 .SaveAndReload()
                 .Expect("repaired in the field", () => InjurySeverity(Dog()) == 0f && Dog().Spawned)
-                .Expect("then the battery: charged to full on the spot", () =>
-                    CompRobodog.Of(Dog()).Battery >= 1f && !CompRobodog.Of(Dog()).PoweredDown)
+                .Expect("the battery powers it up near full, before resumed travel drains it", () =>
+                    CompRobodog.Of(Dog()).Battery > 0.99f && !CompRobodog.Of(Dog()).PoweredDown)
                 .Expect("both items used", () => OnMap(QR_DefOf.QR_RobodogBattery) == 0 && OnMap(QR_DefOf.QR_RobodogRepairKit) == 0)
                 .Summary(() => $"health {healthBefore:P0} -> {Dog()?.health.summaryHealth.SummaryHealthPercent:P0}; "
                     + ColonistStates())
@@ -204,17 +199,21 @@ namespace Quadrunner
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     carrierId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
+                    CompRobodog.Of(Carrier()).SetBattery(0.01f); // Keep it docked until both power nets are ready.
                     room = BuildRoom(s, ClearRect(map, stable.InteractionCell, 7, 3, 22f, 32f));
                     nearId = DownDog(s, stable, 5f, 10f).ThingID;
                 })
+                .Expect("the stable has power and the room's battery is connected", () => Stable().CanCharge && room.OnNet)
+                .Do("release the charged carrier", () => CompRobodog.Of(Carrier()).SetBattery(1f))
                 .Expect("the carrier picks it up", () => Carrying(Carrier(), Near()))
                 .Do("the carrier drops to 10%", () => CompRobodog.Of(Carrier()).SetBattery(0.1f))
                 .Expect("the stable wins: it finishes and docks the dog", () => Stable().Docked.Contains(Near()))
-                .Expect("the carrier docks and charges to full", () =>
-                    Stable().Docked.Contains(Carrier()) && CompRobodog.Of(Carrier()).Battery >= 1f)
+                .Expect("the carrier completes its charge before resuming work", () =>
+                    !CompRobodog.Of(Carrier()).WantsCharge && CompRobodog.Of(Carrier()).Battery > 0.99f)
                 .Do("switch the stable off; a second dog at 0% outside the room's door", () =>
                 {
                     Stable().GetComp<CompFlickable>().SwitchIsOn = false;
+                    CompRobodog.Of(Near()).SetBattery(0.01f); // Keep the already-rescued dog unavailable for this carrier test.
                     Pawn far = SpawnDog(s, room.Outside);
                     CompRobodog.Of(far).stable = Stable();
                     CompRobodog.Of(far).SetBattery(0f);
@@ -269,7 +268,6 @@ namespace Quadrunner
                 .Expect("the dog goes to beat the fire", () => beat |= Carrier().CurJobDef == JobDefOf.BeatFire)
                 .Expect("the fire is out", () => !FireBy(Burnt()))
                 .Expect("then it carries the dog home", () => Stable().Docked.Contains(Burnt()))
-                .Expect("and docks", () => Stable().Docked.Contains(Carrier()))
                 .Do("a dog at 0% walled in 10–20 cells out", () =>
                 {
                     Map map = Find.CurrentMap;
@@ -287,7 +285,8 @@ namespace Quadrunner
                 })
                 .Expect("the out-of-reach alert names it", () => new Alert_RobodogUnreachable().Culprits().Contains(Boxed()))
                 .Wait(600)
-                .Expect("nobody went for it", () => Stable().Docked.Contains(Carrier()) && Boxed().Spawned)
+                .Expect("the unreachable dog is not assigned or carried", () => Boxed().Spawned
+                    && !Targets(Carrier(), Boxed()) && !Carrying(Carrier(), Boxed()))
                 .SaveAndReload()
                 .Do("open the wall", () => Scenario.ById(wallId).Destroy())
                 .Expect("the alert clears", () => !new Alert_RobodogUnreachable().Culprits().Contains(Boxed()))
@@ -386,10 +385,11 @@ namespace Quadrunner
                     crafter.drafter.Drafted = false;
                     return crafter.jobs.TryTakeOrderedJob(job);
                 })
-                .Expect("the same dog docks into the stable", () => Stable().Docked.Any(d => d.ThingID == dogId))
+                .Expect("the same dog is rebuilt alive and assigned", () =>
+                    Scenario.ById(dogId) is Pawn d && !d.Dead && CompRobodog.Of(d).stable == Stable())
                 .SaveAndReload()
                 .Expect("alive, same name, assigned, after the load", () =>
-                    Stable().Docked.FirstOrDefault(d => d.ThingID == dogId) is Pawn d && !d.Dead && d.Name.ToStringShort == name
+                    Scenario.ById(dogId) is Pawn d && !d.Dead && d.Name.ToStringShort == name
                     && CompRobodog.Of(d).stable == Stable())
                 .Summary(() => $"rebuilt {name}")
                 .Start();

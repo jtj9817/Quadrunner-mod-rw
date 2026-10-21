@@ -90,6 +90,7 @@ namespace Quadrunner
                 if (!thing.Destroyed) thing.Destroy();
             }
             ChargeSpots.ClearAll();
+            DogNetwork.ClearAll();
             Find.Selector.ClearSelection();
             string path = GenFilePaths.FilePathForSavedGame(cleanName);
             // Only this explicitly requested export is overwritten, never the original colony save or its backup.

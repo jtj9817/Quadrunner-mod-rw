@@ -93,7 +93,7 @@ namespace Quadrunner
                     Pawn raider = SpawnRaider(s, OpenCell(map, Stable().InteractionCell, 32f, 40f));
                     raiderId = raider.ThingID;
                     Raid.Recheck(map);
-                    Stable().Ping(raider, Dog());
+                    Net().Ping(raider, Dog());
                 })
                 .Expect("it shoots the raider with the LMG", () =>
                 {
@@ -159,7 +159,7 @@ namespace Quadrunner
                         c => c.DistanceTo(Stable().InteractionCell) > 40f));
                     farId = far.ThingID;
                     Raid.Recheck(map);
-                    Stable().Ping(far, Dog());
+                    Net().Ping(far, Dog());
                 })
                 .Expect("it shoots the far raider with the rifle", () =>
                 {
@@ -176,7 +176,7 @@ namespace Quadrunner
                     Pawn near = SpawnRaider(s, at);
                     nearId = near.ThingID;
                     Raid.Recheck(map);
-                    Stable().Ping(near, Dog());
+                    Net().Ping(near, Dog());
                 })
                 .Expect("it switches to the flamethrower for the near one", () =>
                 {

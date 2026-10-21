@@ -3,11 +3,11 @@
 > Snapshot of the living design doc on claude.ai, taken 2026-10-19 (doc rev 39):
 > <https://claude.ai/artifact/HaFBXDTNRNVzWa79Hnd9K5>. Author: Josh Toledo. The two diagrams are redrawn here as
 > Mermaid. If the online doc changes, refresh this file and note the new rev. Decisions taken during
-> development are recorded in [`plans/0001-quadrunner.md`](plans/0001-quadrunner.md), which wins over this snapshot.
+> development are recorded in [`plans/0001-quadrunner.md`](plans/0001-quadrunner.md); dispatch and queue behavior is superseded by [`plans/0003-network-dispatch.md`](plans/0003-network-dispatch.md).
 
 ## Overview and locked-in decisions
 
-Quadrunner is a RimWorld 1.6 mod that adds stable-dispatched robot dogs that haul, clean, supply construction, carry riders, and (as the Medirunner) rescue downed colonists and (as Combatdogs) defend the colony, with Harmony as its only dependency.
+Quadrunner is a RimWorld 1.6 mod that adds network-coordinated robot dogs that haul, clean, supply construction, carry riders, and (as the Medirunner) rescue downed colonists and (as Combatdogs) defend the colony, with Harmony as its only dependency.
 
 | Area | Decision |
 | --- | --- |
@@ -47,12 +47,14 @@ Proposed starting costs. Batteries and repair kits are bills at the stable; Comb
 The stable docks up to 15 dogs of any type, sends them out, repairs and fully recharges them quickly, runs every dog bill and receives combat pings.
 
 - **Capacity:** 15 slots shared by Quadrunners, Medirunners and Combatdogs.
-- **Dispatch:** every few seconds it checks its service radius for work and releases one dog at a time. Construction delivery has no radius: dogs supply blueprints and frames anywhere on the map.
+- **Dispatch:** all stables and robodogs on a map share one coordinated network. Idle Quadrunners survey revealed areas, report tasks within a 15-cell AOE, and accept queued assignments. The coordinator chooses the nearest available capable dog by actual reachable travel cost, not straight-line distance. Hauling, cleaning and construction have no stable-centered pickup radius; cleaning still requires Home area. See [plan 0003](plans/0003-network-dispatch.md) for the current protocol and acceptance criteria.
 - **Repair and charging:** docked dogs are repaired and charged to 100% much faster than at a conduit. A low dog goes wherever it will be full soonest, its stable or a conduit, counting travel time.
 - **Bills:** assemble Quadrunners, Medirunners and Tier 1 Combatdogs; make robodog batteries and repair kits.
 - **Overview tab:** one row per assigned dog showing type, tier, battery, health and current job. For Combatdogs it also sets what fills each weapon slot and orders tier upgrades, which install that tier's gun.
 - **Patrol waypoints:** a stable button places waypoints its Combatdogs walk in order while deployed.
 - **Ping receiver:** dispatches Combatdogs when any dog is attacked, as described under Combatdogs.
+- **Queues and failover:** the oldest surviving spawned stable owns normal and war/emergency queues. Without a stable, the newest-built active dog takes over; node changes preserve work and survey history. If no stable or active dog remains, both queues are cleared. State is saved on the elected physical node, not a permanent map component.
+- **Progress:** assignment, acknowledgement, working state, position, job identity, travel cost and last progress are monitored centrally. Dead, interrupted or stalled workers release unfinished work for revalidation. Productive work is not interrupted merely because another task is closer; exploration can be redirected.
 
 ## Conduit charging
 
@@ -85,7 +87,7 @@ A dog heads to charge at 10% and powers down at 0%; a powered-down dog is carrie
 
 ```mermaid
 stateDiagram-v2
-    Working: Working (haul, clean, rescue)
+    Working: Surveying or assigned work
     Seek: Seeks charge spot (conduit or stable)
     Charging: Charging (lies by the conduit)
     Down: Powered down (inert, not destroyed)
@@ -103,7 +105,7 @@ stateDiagram-v2
 
 A dog that runs dry on the way to a charger comes home, charges fully at the stable and goes back to work, unless a raider carries it off first.
 
-**Powered down is a condition, not destruction.** The dog lies on the floor like a downed pawn. The stable spots powered-down dogs during its regular scan and dispatches a healthy dog. Colonists can also use a right-click "Carry to stable" option.
+**Powered down is a condition, not destruction.** The dog lies on the floor like a downed pawn. Nearby active dogs report it to the shared normal queue; an available worker carries it to a stable with a free slot. Without a stable the report waits for a viable destination. Colonists can also use a right-click "Carry to stable" option.
 
 **Field fixes.** Instead of hauling a dog home, colonists automatically carry a robodog battery or repair kit to it whenever one is needed and in stock. The battery charges it fully on the spot; the kit repairs its damage. Both are bills at the stable.
 
@@ -134,14 +136,14 @@ Combatdogs are a four-tier line that deploys on a ping, a raid or a player order
 
 ```mermaid
 flowchart LR
-    T[Ping or raid<br/>or a player order] --> C[Charge at 200%<br/>nearest in queue] --> A[Attack<br/>claws or guns] --> D{Downed or dead?}
+    T[Ping or raid<br/>or a player order] --> C[Network assigns target<br/>nearest available Combatdog] --> A[Move at 200%; attack<br/>claws or guns] --> D{Downed or dead?}
     D -- downed --> Cap[Capture<br/>bed or empty room] --> Q{Targets in queue?}
     D -- dead --> Q
     Q -- yes, next target --> C
     Q -- no --> R[Patrol or go home<br/>waypoints if set]
 ```
 
-A downed target is captured and a dead one is skipped; either way the dog takes the next target in its stable's queue, nearest first.
+A downed target is captured and a dead one is skipped. The shared network assigns each queued target to the nearest available Combatdog by reachable travel cost; a dog does not privately choose from a stable-specific target list.
 
 | Tier | Weapons | Durability | Movement |
 | --- | --- | --- | --- |
@@ -164,16 +166,16 @@ A downed target is captured and a dead one is skipped; either way the dog takes 
 
 ### Pings, target queue and patrols
 
-Any dog attacked by a hostile pings its stable, and the stable sends a Combatdog after that attacker, however far away it is.
+Any dog attacked by a hostile alerts the network coordinator, which assigns the attacker to the nearest available capable Combatdog, however far away it is. Coordination still works without a stable.
 
 - **Ping.** Any Quadrunner, Medirunner or Combatdog hit by a hostile sends a ping naming the attacker.
-- **Dispatch.** The stable sends a docked or returning Combatdog. The service radius does not apply.
-- **Queue.** Each stable keeps a queue of pinged hostiles. Hostiles a Combatdog sees inside its own area of effect join it. Nearest goes first.
-- **Retarget.** While en route, the dog checks every tick whether its target is still standing. If the target is downed or dead, it takes the next queued target or heads home.
-- **Redirect.** A Combatdog heading home answers new pings. One retreating on low battery does not.
+- **Dispatch.** The coordinator assigns docked, guarding, patrolling or returning Combatdogs; charging, drafted and actively engaged dogs are unavailable for a different assignment.
+- **Queue.** The shared war queue contains pinged or locally spotted hostiles. Each target is assigned once, using reachable travel cost to select its dog.
+- **Retarget.** A dead, captured or invalid target is removed; unfinished work is released and another queued assignment can follow.
+- **Redirect.** Available Combatdogs answer new orders. One retreating on low battery does not.
 - **Patrol.** Once deployed, a Combatdog walks the stable's waypoints in order and engages anything inside its area of effect. Patrols run only while deployed.
 
-**Performance.** The per-tick check only reads the target's state. Paths are recalculated only when the target changes, and the queue is re-sorted about once a second.
+**Performance.** Dispatch and progress checks run every 60 ticks; local discovery runs every 120 ticks. Assignment uses pooled vanilla pathfinder results and recalculates routes when matching work, not every tick. Normal and war queues are saved across loads.
 
 **Low battery.** At 10% mid-fight, the dog retreats to charge and flashes a yellow siren light so the player sees it leaving.
 
@@ -188,16 +190,16 @@ Every edge case below has a settled behavior except where it points to Open ques
 | Charging | Room stops qualifying mid-charge | Get up and search again |
 | Charging | Prisons, bedrooms, freezers | Never prison cells; bedrooms only when nobody sleeps there; freezers allowed |
 | Charging | Allowed areas | Respected like animals; spots outside the area don't count |
-| Stable | Stable destroyed | Dogs move to the nearest room that isn't a colonist bedroom or barracks and wait there |
-| Stable | Stable loses power | Dispatching continues; repair and charging pause |
-| Stable | Overlapping service radii | The stable with the closest idle dog dispatches; each job is claimed once |
-| Stable | Stable uninstalled | Dogs come out and wait, then walk to the stable once it is reinstalled anywhere |
-| Threats | Raid starts | Quadrunners finish their task at 3x speed with faster battery drain, then dock at their stable |
+| Stable | Stable destroyed | Queues transfer to another stable, otherwise the newest-built active dog; workers keep surveying and taking orders |
+| Stable | Stable loses power | Coordination continues; repair and charging pause |
+| Stable | Several stables | One network; nearest available capable dog wins regardless of stable affiliation; reservations prevent duplicate work |
+| Stable | Stable uninstalled | Queues fail over; dogs keep their docking affiliation for reinstallation and can keep working in the meantime |
+| Threats | Raid starts | Suspend normal jobs immediately on detection, safely release cargo and retain normal work; deploy Combatdogs, keep Medirunners rescuing, put ordinary workers on standby |
 | Threats | Rescue under fire | Allowed |
 | Threats | Rescue order | Colonists, then guests, then prisoners, then colony animals; never enemies |
 | Threats | Several downed at once | Fastest-bleeding first, one Medirunner per patient |
 | Threats | Raider reaches a dog at 0% | The raider can carry it off; the dog can't resist |
-| Combat | Target downed or dead before the Combatdog arrives | Take the next queued target, or head home |
+| Combat | Target downed or dead before the Combatdog arrives | Capture a downed target if possible; remove a dead target and take another centralized assignment |
 | Combat | New ping while heading home | Redirect to the new target |
 | Combat | Combatdog hits 10% mid-fight | Retreat to charge with a yellow siren light; ignore new pings until charged |
 | Combat | No free prisoner bed | Carry the downed enemy to the nearest empty room that isn't a colonist bedroom or barracks; it stays there downed, not as a prisoner |

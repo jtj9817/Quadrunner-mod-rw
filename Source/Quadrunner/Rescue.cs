@@ -8,8 +8,9 @@ namespace Quadrunner
 {
     /// <summary>
     /// Medirunners carry the downed to a bed: colonists, then guests, prisoners and colony animals, never enemies;
-    /// within a rank the fastest-bleeding first. Map-wide and under fire (no enemy-near check, unlike vanilla). The
-    /// patient's reservation keeps it to one Medirunner per patient. Vanilla's own jobs do the carrying: Rescue, or
+    /// within a rank the fastest-bleeding first (the network sorts <see cref="Patients"/> and sends the nearest
+    /// available medic). Map-wide and under fire (no enemy-near check, unlike vanilla). The patient's reservation
+    /// keeps it to one Medirunner per patient. Vanilla's own jobs do the carrying: Rescue, or
     /// TakeWoundedPrisonerToBed for a prisoner.
     /// </summary>
     public static class Rescue
@@ -38,17 +39,20 @@ namespace Quadrunner
             RestUtility.FindBedFor(patient, rescuer, checkSocialProperness: false, ignoreOtherReservations: false,
                 patient.GuestStatus);
 
-        /// <summary>The first patient by rank, then bleed rate, then distance, that <paramref name="dog"/> can take to a bed.</summary>
-        public static Job JobFor(Pawn dog)
+        /// <summary>
+        /// The job for that one patient only — the network picks which (rank, then bleeding, then the nearest
+        /// available medic). Null if it is not eligible, not ours to take (forbidden, reserved or unreachable), or
+        /// no bed will have it.
+        /// </summary>
+        public static Job JobFor(Pawn dog, Pawn patient)
         {
-            (Pawn patient, Building_Bed bed) = Patients(dog.Map)
-                .Where(p => !p.IsForbidden(dog) && dog.CanReserveAndReach(p, PathEndMode.OnCell, Danger.Deadly))
-                .OrderBy(Rank)
-                .ThenByDescending(p => p.health.hediffSet.BleedRateTotal)
-                .ThenBy(p => p.Position.DistanceToSquared(dog.Position))
-                .Select(p => (p, BedFor(p, dog)))
-                .FirstOrDefault(pb => pb.Item2 != null);
-            if (patient == null)
+            if (patient == null || patient.Dead || !patient.Spawned || !patient.Downed || Rank(patient) < 0
+                || !HealthAIUtility.WantsToBeRescued(patient)
+                || patient.playerSettings?.medCare == MedicalCareCategory.NoCare
+                || patient.IsForbidden(dog) || !dog.CanReserveAndReach(patient, PathEndMode.OnCell, Danger.Deadly))
+                return null;
+            Building_Bed bed = BedFor(patient, dog);
+            if (bed == null)
                 return null;
             Job job = JobMaker.MakeJob(patient.IsPrisonerOfColony ? JobDefOf.TakeWoundedPrisonerToBed : JobDefOf.Rescue,
                 patient, bed);

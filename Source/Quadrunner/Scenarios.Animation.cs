@@ -78,14 +78,22 @@ namespace Quadrunner
                 Find.CameraDriver.JumpToCurrentMapLoc(medic.DrawPos);
                 if (CompRobodog.Of(medic).Rescuing && CompRobodog.SirenPhaseLit)
                     sirenFrames++;
-                if (!Carrying() || SincePickup() > Props().scoopTicks)
+                if (!Carrying())
+                    return;
+                float sincePickup = SincePickup();
+                if (sincePickup > Props().scoopTicks)
                     return;
                 flipFrames++;
                 maxTurn = Mathf.Max(maxTurn, Mathf.Abs(Turn()));
+            }
+            void SamplePose()
+            {
+                // Observe only settled screenshots, not a pre-pickup matrix left over from a moving frame.
+                Pawn medic = Medic();
                 if (Drawn(medic, "Body") is not Matrix4x4 body || (body.Position() - medic.DrawPos).Yto0().magnitude > 0.5f)
-                    return;
+                    throw new InvalidOperationException("the Medirunner's body was not drawn in the captured pose");
                 maxDuck = Mathf.Max(maxDuck, medic.DrawPos.z - body.Position().z);
-                if (medic.Rotation.IsHorizontal)
+                if (DrawParmsOf(medic.Drawer.renderer.renderTree).facing.IsHorizontal && SincePickup() <= Props().scoopTicks * 0.5f)
                 {
                     profile = true;
                     maxDip = Mathf.Max(maxDip, Mathf.Abs(Yaw(body)));
@@ -125,12 +133,15 @@ namespace Quadrunner
                     Sample();
                     return Carrying();
                 });
-            foreach (int tick in new[] { 4, 16, 26, 36 })
+            foreach (int tick in new[] { 4, 9, 16, 26, 36 })
+            {
                 CaptureWhen(s, $"art-rescue-flip-{tick}", () =>
                 {
                     Sample();
                     return SincePickup() >= tick;
                 }, Medic);
+                s.Do("measure the captured pickup pose", SamplePose);
+            }
             s.Expect("the flip ends with the patient lying along the back", () =>
                 {
                     Sample();

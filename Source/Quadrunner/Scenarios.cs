@@ -27,7 +27,17 @@ namespace Quadrunner
             ("Stable or conduit", StableOrConduit),
             ("Haul and clean", HaulAndClean),
             ("Two stables", TwoStables),
-            ("Raid: finish and dock", RaidFinishAndDock),
+            ("Raid: suspend and resume", RaidSuspendAndResume),
+            ("Network: discovery beyond the boundary", NetDiscovery),
+            ("Network: scan eligibility", NetScanEligibility),
+            ("Network: dedup and queue persistence", NetDedupPersistence),
+            ("Network: nearest dog wins", NetNearestDog),
+            ("Network: coordinator failover", NetCoordinatorFailover),
+            ("Network: last node clears the backlog", NetLastNodeClears),
+            ("Network: death and interruption reassignment", NetDeathReassignment),
+            ("Network: war suspends hauls", NetWarSuspension),
+            ("Network: combatdog without a stable", NetNoStableCombat),
+            ("Network: medic keeps rescuing in war", NetMedicWartime),
             ("Stable power loss", StablePowerLoss),
             ("Stable fire with docked dogs", StableFire),
             ("Stable uninstall and reinstall", StableUninstall),
@@ -160,6 +170,9 @@ namespace Quadrunner
                     Building_Stable stable = SpawnStable(s, powered: false);
                     stableId = stable.ThingID;
                     dogId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
+                    // A low battery keeps the idle worker docked for a charge instead of out surveying, so its
+                    // docking (and the walk home below) is deterministic under the dispatch network.
+                    CompRobodog.Of(Dog()).SetBattery(0.04f);
                 })
                 .Expect("the new dog is docked, not spawned", () => Stable().Docked.Contains(Dog()) && !Dog().Spawned)
                 .Expect("race: not humanlike, animal, mechanoid or flesh; untrainable", () =>
@@ -228,22 +241,23 @@ namespace Quadrunner
                     Job job = BillJob(crafter, Stable());
                     return job != null && crafter.jobs.TryTakeOrderedJob(job);
                 })
-                .Expect($"a {kind.label} docks into the stable", () => Stable().Docked.Count == 1 && Stable().Docked[0].kindDef == kind)
-                .Do("note the dog", () => dogId = s.Track(Stable().Docked[0]).ThingID)
+                .Expect($"a {kind.label} joins the stable (docks; idle workers undock to survey)", () =>
+                    Stable().Dogs().Any(d => d.kindDef == kind && CompRobodog.Of(d)?.stable == Stable()))
+                .Do("note the dog", () =>
+                    dogId = s.Track(Stable().Dogs().First(d => d.kindDef == kind)).ThingID)
                 .Expect("the bill is done", () => Stable().BillStack.Count == 0 || !Stable().BillStack[0].ShouldDoNow())
                 .SaveAndReload()
-                .Expect("the assembled dog is still docked, assigned to the stable", () =>
-                    Stable().Docked.Count == 1 && Stable().Docked[0].ThingID == dogId
-                    && CompRobodog.Of(Stable().Docked[0])?.stable == Stable())
+                .Expect("the assembled dog is still with the stable", () =>
+                    Stable().Dogs().Any(d => d.ThingID == dogId && CompRobodog.Of(d)?.stable == Stable()))
                 .Summary(() => $"dog {dogId}")
                 .Start();
         }
 
-        /// <summary>15 slots: a dog bill can't start at a full stable; a dog made anyway waits outside, unassigned.</summary>
+        /// <summary>15 slots: a dog bill can't start at a full stable; a dog made anyway is left out, unassigned.</summary>
         private static void StableFull()
         {
-            var s = new Scenario("Stable full (16th dog)", 8000);
-            string stableId = null, extraId = null, outId = null;
+            var s = new Scenario("Stable full (16th dog)", 10000);
+            string stableId = null, extraId = null;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             s.Do("spawn a powered stable with 14 dogs, materials and a bill", () =>
                 {
@@ -258,22 +272,17 @@ namespace Quadrunner
                 })
                 .Expect("with a free slot, the bill is doable", () => Stable().HasFreeSlot && BillJob(Crafter(), Stable()) != null)
                 .Do("a 15th dog", () => s.Track(Stable().AddNewDog(QR_DefOf.QR_Quadrunner)))
-                .Expect("15 docked, no free slot, the bill isn't doable", () =>
-                    Stable().Docked.Count == 15 && !Stable().HasFreeSlot && BillJob(Crafter(), Stable()) == null)
+                .Expect("15 dogs, no free slot, the bill isn't doable", () =>
+                    Stable().Dogs().Count == 15 && !Stable().HasFreeSlot && BillJob(Crafter(), Stable()) == null)
                 .Do("a 16th dog made anyway", () => extraId = s.Track(Stable().AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID)
-                .Expect("the 16th waits beside the stable, unassigned", () =>
-                    Scenario.ById(extraId) is Pawn p && p.Spawned && CompRobodog.Of(p).stable == null && Stable().Docked.Count == 15)
-                .Do("undock one", () =>
-                {
-                    Pawn dog = Stable().Docked[0];
-                    outId = dog.ThingID;
-                    Stable().TryUndock(dog);
-                })
-                .Expect("an undocked dog keeps its slot", () => Stable().Docked.Count == 14 && !Stable().HasFreeSlot)
+                .Expect("the 16th is out and unassigned (idle workers explore, it has no home)", () =>
+                    Scenario.ById(extraId) is Pawn p && p.Spawned && CompRobodog.Of(p).stable == null
+                    && Stable().Dogs().Count == 15)
                 .SaveAndReload()
                 .Expect("after the reload: 15 assigned, the 16th still unassigned", () =>
                     Stable().Dogs().Count == 15 && CompRobodog.Of(Scenario.ById(extraId))?.stable == null)
-                .Expect("the undocked dog docks again", () => Stable().Docked.Any(d => d.ThingID == outId) && Stable().Docked.Count == 15)
+                .Expect("the 15 stay assigned whether docked or out surveying", () =>
+                    Stable().Dogs().All(d => CompRobodog.Of(d)?.stable == Stable()) && Stable().Dogs().Count == 15)
                 .Start();
         }
 

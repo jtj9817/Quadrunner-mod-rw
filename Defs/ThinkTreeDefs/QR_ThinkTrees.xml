@@ -29,9 +29,9 @@
         </li>
         <!-- Battery low (and until full): the stable or a conduit spot, whichever fills it soonest. -->
         <li Class="Quadrunner.JobGiver_SeekCharge" />
-        <!-- Work in the stable's service radius (construction map-wide); none during a raid. -->
+        <!-- Take centrally assigned work; otherwise survey known areas or stand by during threats. -->
         <li Class="Quadrunner.JobGiver_RobodogWork" />
-        <!-- Nothing to do: go home and dock (a dog without a stable adopts the nearest one with a free slot). -->
+        <!-- Maintenance/standby: go home and dock (an unassigned dog can adopt a stable with a free slot). -->
         <li Class="Quadrunner.JobGiver_Dock" />
         <!-- Stable gone, uninstalled or unreachable: wait in the nearest room that isn't a bedroom. -->
         <li Class="Quadrunner.JobGiver_WaitInRoom" />

@@ -3,6 +3,8 @@
 Design: [`docs/design.md`](../design.md) (snapshot of the living doc, rev 39). Primary reference: [RimWorld Wiki: Modding Tutorials](https://rimworldwiki.com/wiki/Modding_Tutorials).
 Target game: RimWorld **1.6.4871**, Core only (no DLC), Harmony the only dependency.
 
+**Dispatch superseded:** [Plan 0003](0003-network-dispatch.md) replaces this plan's stable-local work searches, service radius, idle return, target-queue ownership and finish-before-standby raid behavior. The decisions and checked T3/T7 boxes below retain their historical verification context; they are not the current dispatch specification.
+
 ## Goal
 
 Stable-dispatched robot dogs for vanilla RimWorld 1.6: **Quadrunners** haul, clean, supply construction and carry riders; **Medirunners** rescue the downed; **Combatdogs** (tiers 1–4) answer pings and raids. Dogs charge at conduits or their stable, power down instead of dying when empty, and are carried home. Every behavior is proven by an automated scenario the agent runs itself, with zero new errors and a clean save/load partway through.

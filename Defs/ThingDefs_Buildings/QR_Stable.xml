@@ -79,9 +79,6 @@
     <modExtensions>
       <li Class="Quadrunner.StableProps">
         <capacity>15</capacity>
-        <serviceRadius>40</serviceRadius>
-        <dispatchInterval>250</dispatchInterval>
-        <idleBackoff>1000</idleBackoff>
         <repairPerTick>0.02</repairPerTick>
       </li>
     </modExtensions>

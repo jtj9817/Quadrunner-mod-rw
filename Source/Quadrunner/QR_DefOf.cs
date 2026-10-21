@@ -18,6 +18,7 @@ namespace Quadrunner
         public static ThingDef QR_Gun_Minigun;
         public static ThingDef QR_Gun_Flamethrower;
         public static JobDef QR_Dock;
+        public static JobDef QR_Survey;
         public static JobDef QR_ChargeAtConduit;
         public static JobDef QR_CarryToStable;
         public static JobDef QR_FieldFixRobodog;

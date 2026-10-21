@@ -2,6 +2,13 @@
 <Defs>
 
   <JobDef>
+    <defName>QR_Survey</defName>
+    <driverClass>Quadrunner.JobDriver_Survey</driverClass>
+    <reportString>surveying known areas for work.</reportString>
+    <casualInterruptible>true</casualInterruptible>
+  </JobDef>
+
+  <JobDef>
     <defName>QR_Dock</defName>
     <driverClass>Quadrunner.JobDriver_Dock</driverClass>
     <reportString>docking at TargetA.</reportString>

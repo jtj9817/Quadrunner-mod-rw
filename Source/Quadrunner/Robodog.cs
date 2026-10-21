@@ -30,6 +30,9 @@ namespace Quadrunner
     public class CompRobodog : ThingComp
     {
         public Building_Stable stable;
+        public NetworkState networkState;
+        public int builtOrder;
+        public int BuildOrder => builtOrder == 0 ? Dog.thingIDNumber : builtOrder;
         private float battery = 1f;
         private bool wantsCharge;
         private IntVec3 lastCell = IntVec3.Invalid;
@@ -59,7 +62,7 @@ namespace Quadrunner
             get
             {
                 RobodogWork work = RobodogWork.Of(parent);
-                return work != null && stable != null && parent.Spawned && Riding.RiderOf(Dog) == null && Raid.Active(parent.Map)
+                return work != null && parent.Spawned && Riding.RiderOf(Dog) == null && Raid.Active(parent.Map)
                     ? work.raidDrainFactor : 1f;
             }
         }
@@ -69,7 +72,7 @@ namespace Quadrunner
         public static bool IsRobodog(Thing thing) => Of(thing) != null;
 
         /// <summary>A Combatdog out of its stable walking off to charge: it flashes its yellow siren (design).</summary>
-        public bool Retreating => wantsCharge && stable != null && parent.Spawned && !PoweredDown
+        public bool Retreating => wantsCharge && parent.Spawned && !PoweredDown
             && RobodogWork.Of(parent)?.combat == true && Dog.pather.Moving;
 
         /// <summary>The siren's flash phase (2 Hz, real time, so it shows while paused too).</summary>
@@ -106,6 +109,7 @@ namespace Quadrunner
             {
                 Dog.health.AddHediff(QR_DefOf.QR_PoweredDown);
                 QR.Log($"{Dog} powered down");
+                DogNetwork.For(parent.MapHeld)?.NodeLeaving(Dog);
             }
             else if (battery > 0f && poweredDown)
             {
@@ -139,6 +143,18 @@ namespace Quadrunner
             carried = Dog.carryTracker?.CarriedThing;
         }
 
+        public override void PostDeSpawn(Map map, DestroyMode mode = DestroyMode.Vanish)
+        {
+            base.PostDeSpawn(map, mode);
+            DogNetwork.For(map)?.NodeLeaving(Dog);
+        }
+
+        public override void PostDestroy(DestroyMode mode, Map previousMap)
+        {
+            base.PostDestroy(mode, previousMap);
+            DogNetwork.For(previousMap)?.NodeLeaving(Dog);
+        }
+
         public override void CompTick()
         {
             if (!parent.Spawned)
@@ -146,6 +162,7 @@ namespace Quadrunner
                 lastCell = IntVec3.Invalid;
                 return;
             }
+            DogNetwork.For(parent.Map).Tick();
             Thing nowCarried = Dog.carryTracker?.CarriedThing;
             if (nowCarried != carried)
             {
@@ -160,18 +177,19 @@ namespace Quadrunner
             lastCell = cell;
         }
 
-        /// <summary>Hit by a hostile pawn: a ping to the dog's stable, which sends a Combatdog after it.</summary>
+        /// <summary>Hit by a hostile pawn: alert the current network node, including a dog acting without a stable.</summary>
         public override void PostPostApplyDamage(DamageInfo dinfo, float totalDamageDealt)
         {
             base.PostPostApplyDamage(dinfo, totalDamageDealt);
-            if (dinfo.Instigator is Pawn attacker && attacker.HostileTo(Faction.OfPlayer) && stable != null
+            if (dinfo.Instigator is Pawn attacker && attacker.HostileTo(Faction.OfPlayer)
                 && parent.Spawned && !Dog.Dead)
-                stable.Ping(attacker, Dog);
+                DogNetwork.For(parent.Map).Ping(attacker, Dog);
         }
 
         public override void Notify_Killed(Map prevMap, DamageInfo? dinfo = null)
         {
             base.Notify_Killed(prevMap, dinfo);
+            DogNetwork.For(prevMap)?.NodeLeaving(Dog);
             QR.Log($"{Dog} killed by {dinfo?.Instigator.ToStringSafe()} ({dinfo?.Def?.defName}, {dinfo?.Weapon?.defName}, {dinfo?.HitPart?.LabelShort}); "
                 + $"destroyed: {string.Join(", ", Dog.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part.LabelShort))}");
         }
@@ -203,6 +221,8 @@ namespace Quadrunner
         {
             base.PostExposeData();
             Scribe_References.Look(ref stable, "stable");
+            Scribe_Deep.Look(ref networkState, "network");
+            Scribe_Values.Look(ref builtOrder, "builtOrder");
             Scribe_Values.Look(ref battery, "battery", 1f);
             Scribe_Values.Look(ref wantsCharge, "wantsCharge");
             Scribe_Values.Look(ref waypointsReached, "waypointsReached");
@@ -212,7 +232,8 @@ namespace Quadrunner
 
         public override string CompInspectStringExtra() =>
             $"Battery: {battery.ToStringPercent()}{(wantsCharge ? " (wants a charge)" : "")}\n" +
-            (stable == null ? "No stable" : $"Stable: {stable.LabelCap}");
+            (stable == null ? "No stable" : $"Stable: {stable.LabelCap}")
+            + (parent.MapHeld == null ? "" : "\n" + DogNetwork.For(parent.MapHeld).Inspect(Dog));
     }
 
     /// <summary>

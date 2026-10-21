@@ -51,7 +51,7 @@ namespace Quadrunner
                     Pawn combat = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog));
                     if (stable.OrderUpgrade(combat) == null)
                         throw new InvalidOperationException("the Combatdog upgrade order failed");
-                    // A dog walking home to dock: a mod JobDef on a pawn.
+                    // An explicit maintenance return: a mod JobDef on a pawn, not the old idle-return behavior.
                     Pawn walkDog = stable.AddNewDog(QR_DefOf.QR_Quadrunner);
                     walkDogId = s.Track(walkDog).ThingID;
                     if (!stable.TryUndock(walkDog))
@@ -63,7 +63,7 @@ namespace Quadrunner
                         throw new InvalidOperationException("no reachable cell 20 cells from the stable");
                     walkDog.Position = far;
                     walkDog.Notify_Teleported();
-                    walkDog.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    SetBatteryAndRethink(walkDog, 0.1f);
                     // A colonist mid-bill on the stable (a vanilla DoBill job whose bill lives on the stable).
                     Pawn crafter = Crafter() ?? throw new InvalidOperationException("no crafter");
                     crafterId = crafter.ThingID;

@@ -13,6 +13,8 @@ namespace Quadrunner
     {
         private static readonly AccessTools.FieldRef<PawnRenderTree, List<PawnGraphicDrawRequest>> DrawRequestsOf =
             AccessTools.FieldRefAccess<PawnRenderTree, List<PawnGraphicDrawRequest>>("drawRequests");
+        private static readonly AccessTools.FieldRef<PawnRenderTree, PawnDrawParms> DrawParmsOf =
+            AccessTools.FieldRefAccess<PawnRenderTree, PawnDrawParms>("oldParms");
 
         /// <summary>The matrix the game computed for <paramref name="label"/>'s layer this frame, or null when it isn't drawn.</summary>
         private static Matrix4x4? Drawn(Pawn dog, string label) => DrawRequestsOf(dog.Drawer.renderer.renderTree)
@@ -39,7 +41,7 @@ namespace Quadrunner
             void Walk(Pawn dog, IntVec3 to)
             {
                 // Then stand there, not dock: the rest check needs the dogs stopped and on screen.
-                dog.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Goto, to), JobCondition.InterruptForced);
+                dog.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto, to));
                 Job wait = JobMaker.MakeJob(JobDefOf.Wait, 5000);
                 wait.playerForced = true;
                 dog.jobs.jobQueue.EnqueueFirst(wait);

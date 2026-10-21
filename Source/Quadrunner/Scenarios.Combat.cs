@@ -10,7 +10,7 @@ using Verse.AI.Group;
 
 namespace Quadrunner
 {
-    /// <summary>T7: Combatdogs answer pings, work the target queue nearest first and capture the downed.</summary>
+    /// <summary>Combatdogs accept shared war assignments, answer pings and capture the downed.</summary>
     public static partial class Scenarios
     {
         /// <summary>
@@ -61,6 +61,9 @@ namespace Quadrunner
         private static bool Attacking(Pawn dog, Thing target) =>
             dog.Spawned && dog.CurJobDef == JobDefOf.AttackMelee && dog.CurJob.targetA.Thing == target;
 
+        /// <summary>The dog network of the current map: the shared target queues and pings.</summary>
+        private static DogNetwork Net() => DogNetwork.For(Find.CurrentMap);
+
         /// <summary>Dead (or gone), or a prisoner in a bed.</summary>
         private static bool DealtWith(string id) =>
             !(Scenario.ById(id) is Pawn p) || p.Dead || p.IsPrisonerOfColony && p.InBed();
@@ -76,10 +79,9 @@ namespace Quadrunner
             : $"{(p.Downed ? "downed" : "standing")}{(p.IsPrisonerOfColony ? " prisoner" : "")}{(p.InBed() ? " in bed" : "")} at {p.PositionHeld}";
 
         /// <summary>
-        /// The plan's Ping chain: raiders 50–70 cells from the stable (outside its 40-cell radius and the Combatdog's
-        /// 15-cell engage range) hit one of its Quadrunners; the docked Combatdog goes after the one nearer to it first,
-        /// then the other, each ending dead or a prisoner in bed. Heading home, it turns round for a new ping. Reload
-        /// partway.
+        /// Two raiders 50–70 cells from the stable hit a Quadrunner. The shared war queue assigns the available
+        /// Combatdog; both targets end dead or prisoners in bed. Heading home, it turns around for a new ping.
+        /// Reload partway. Nearest-dog selection is covered separately by the network scenarios.
         /// </summary>
         private static void PingChain()
         {
@@ -124,7 +126,8 @@ namespace Quadrunner
                     Hit(ById(quadId), ById(farId));
                     Hit(ById(quadId), ById(nearId));
                 })
-                .Expect("the Combatdog goes for the near raider first", () => Attacking(Combatdog(), ById(nearId)))
+                .Expect("the Combatdog takes one of the reported war assignments", () =>
+                    Attacking(Combatdog(), ById(nearId)) || Attacking(Combatdog(), ById(farId)))
                 .Expect("it runs beyond the 40-cell service radius", () =>
                     Combatdog().Position.DistanceTo(Stable().Position) > 40f)
                 .SaveAndReload()
@@ -133,9 +136,7 @@ namespace Quadrunner
                 .Do("observe the captures and return at normal speed", () =>
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Normal)
                 .Expect("the near raider: dead or a prisoner in bed", () => DealtWith(nearId))
-                .Expect("then the far one", () => DealtWith(farId) || Attacking(Combatdog(), ById(farId)))
                 .Expect("the far raider: dead or a prisoner in bed", () => DealtWith(farId))
-                .Expect("the Combatdog heads home", () => Combatdog().CurJobDef == QR_DefOf.QR_Dock)
                 .Do("a third raider by another Quadrunner out in the field hits it", () =>
                 {
                     Map map = Find.CurrentMap;
@@ -158,9 +159,9 @@ namespace Quadrunner
         /// Captures: four raiders hit a Quadrunner; three go down, one dies. The Combatdog takes one downed raider to the
         /// only prisoner bed and carries the other two to the nearest empty room, past a nearer bedroom, leaving them
         /// downed and not prisoners; the dead one is skipped. Reload while it carries one. Then the patrol: three
-        /// waypoints, a raider walled in out of sight keeps the raid on, another stands past waypoint 2. The Combatdog
-        /// reaches waypoint 1, spots the raider on its way to waypoint 2 and fights it, then walks 2, 3 and 1 again
-        /// (reload in between); with the walled-in raider dead it docks.
+        /// waypoints, a raider walled in out of sight keeps the raid on. After waypoint 1 a fresh revealed raider
+        /// appears beyond waypoint 2; its colony alert preempts the patrol. The dog handles it, then resumes the
+        /// route (reload in between); with the walled-in raider dead it docks.
         /// </summary>
         private static void CombatdogSweep()
         {
@@ -200,7 +201,7 @@ namespace Quadrunner
                     deadId = raiders[3].ThingID;
                     raiders[3].Kill(null);
                     s.Track(raiders[3].Corpse);
-                    if (raiders.Take(3).Any(r => !stable.Queued(r)))
+                    if (raiders.Take(3).Any(r => !DogNetwork.For(map).Queued(r)))
                         throw new InvalidOperationException("the pings didn't queue the raiders");
                 })
                 .Expect("the bedroom is a bedroom, the empty room qualifies", () =>
@@ -221,9 +222,9 @@ namespace Quadrunner
                 {
                     if (Down().Any(p => InRoom(p, bedroom)))
                         throw new InvalidOperationException("a raider was left in the bedroom");
-                    return Stable().Docked.Contains(Combatdog()) && Stable().Targets(Stable().InteractionCell).Count == 0;
+                    return Stable().Docked.Contains(Combatdog()) && Net().WarQueue.Count == 0;
                 })
-                .Do("three patrol waypoints; a raider walled in out of sight; another 8–12 cells past waypoint 2, out of sight of waypoint 1 and the stable", () =>
+                .Do("three patrol waypoints and an unreachable raider keep a war patrol active", () =>
                 {
                     Map map = Find.CurrentMap;
                     Building_Stable stable = Stable();
@@ -233,8 +234,6 @@ namespace Quadrunner
                     IntVec3 wp3 = OpenCell(map, home, 8f, 12f, c => c.DistanceTo(wp1) > 8f && c.DistanceTo(wp2) > 20f);
                     foreach (IntVec3 c in new[] { wp1, wp2, wp3 })
                         stable.AddWaypoint(c);
-                    roamerId = SpawnRaider(s, OpenCell(map, wp2, 8f, 12f,
-                        c => c.DistanceTo(wp1) > 20f && c.DistanceTo(home) > 20f && c.DistanceTo(wp3) > 20f)).ThingID;
                     CellRect cage = ClearRect(map, home, 3, 1, 25f, 50f, r => r.CenterCell.DistanceTo(wp2) > 20f);
                     foreach (IntVec3 c in cage.EdgeCells)
                         SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel, c, Rot4.North);
@@ -242,20 +241,21 @@ namespace Quadrunner
                     CompRobodog.Of(Combatdog()).waypointsReached = 0;
                     Raid.Recheck(map);
                 })
-                .Expect("the Combatdog deploys and reaches waypoint 1 before it sees the raider", () =>
+                .Expect("with no reachable war target it deploys and reaches waypoint 1", () =>
+                    CompRobodog.Of(Combatdog()).waypointsReached >= 1)
+                .Do("a new revealed raider beyond waypoint 2 raises a colony alert", () =>
                 {
-                    if (Stable().Queued(ById(roamerId)) && CompRobodog.Of(Combatdog()).waypointsReached == 0)
-                        throw new InvalidOperationException("spotted the raider before waypoint 1");
-                    return CompRobodog.Of(Combatdog()).waypointsReached >= 1;
+                    Map map = Find.CurrentMap;
+                    IReadOnlyList<IntVec3> points = Stable().Waypoints;
+                    roamerId = SpawnRaider(s, OpenCell(map, points[1], 8f, 12f,
+                        c => c.DistanceTo(points[0]) > 20f && c.DistanceTo(Stable().InteractionCell) > 20f
+                            && c.DistanceTo(points[2]) > 20f)).ThingID;
+                    Raid.Recheck(map);
                 })
-                .Expect("on its way to waypoint 2 it spots the raider and fights it", () =>
-                {
-                    if (CompRobodog.Of(Combatdog()).waypointsReached > 2)
-                        throw new InvalidOperationException("walked past waypoint 2 without seeing the raider");
-                    return Attacking(Combatdog(), ById(roamerId)) || Stable().Queued(ById(roamerId)) && ById(roamerId).Downed;
-                })
+                .Expect("the new war assignment preempts the patrol", () =>
+                    Attacking(Combatdog(), ById(roamerId)) || Net().Queued(ById(roamerId)) && ById(roamerId).Downed)
                 .Expect("the raider dead or down and dealt with", () =>
-                    !(ById(roamerId) is Pawn p) || p.Dead || p.Downed && !Stable().Queued(p))
+                    !(ById(roamerId) is Pawn p) || p.Dead || p.Downed && !Net().Queued(p))
                 .SaveAndReload()
                 .Expect("the raid still on, it walks waypoints 2, 3 and 1 again", () =>
                 {

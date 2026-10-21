@@ -28,11 +28,12 @@ In **Overview**, hover the robodog-count heading for the stable's lore, a dog's 
 2. Research **Microelectronics**, then build a **Quadrunner stable** from **Misc** and connect its 200 W power supply. Its 15 slots include dogs currently working away from home.
 3. Add **Assemble Quadrunner**, **Assemble Medirunner** or **Assemble Combatdog** bills at the stable. Colonists do the work under Crafting. The **Overview** tab shows each dog's battery, health and current activity.
 
-- **Quadrunners** automatically supply construction map-wide, and haul/clean within 40 cells of their stable. Select an undrafted colonist, right-click a stable or an available Quadrunner, choose **Ride … to…**, and pick a destination. Riders dismount on arrival, drafting or entering a building.
+- **Quadrunners** survey revealed areas when idle and report work within 15 cells to a shared map-wide network. Discovered hauling, cleaning, construction deliveries and dog retrieval go to the nearest available capable dog by reachable travel cost; there is no stable-centered 40-cell pickup boundary. Cleaning still requires the Home area, and normal storage filters and forbidden items are respected. Select an undrafted colonist, right-click a stable or an available Quadrunner, choose **Ride … to…**, and pick a destination. Riders dismount on arrival, drafting or entering a building.
 - **Medirunners** rescue reachable downed colonists, guests, prisoners and colony animals to appropriate beds. They do not tend patients or do worker jobs.
 - **Combatdogs** answer attack pings and raids. Set a route with the stable's **Add patrol waypoints** / **Clear patrol** buttons, or draft a dog for direct orders. Order paid tier upgrades and choose free built-in gun options in **Overview**. Tier 3 switches between its rifle/LMG and short-range flamethrower; Tier 4 adds the minigun option. Built-in guns are never dropped as loot.
 - All robodog models have approximately **3,500 cells** of normal travel per full charge. They seek charging at **10%** (about **350 cells** left) and power down at **0%**; a working Quadrunner's raid drain remains doubled. The powered stable charges and repairs docked dogs. Outdoor dogs can also use safe roofed indoor conduit rooms on a network with stored battery energy; nearby wind turbines invalidate spots (distance configurable in mod settings).
 - Other Quadrunners retrieve powered-down dogs. Colonists can **Carry to stable** or automatically deliver field batteries and repair kits made at the stable. Keep a destroyed dog's wreck for its **Rebuild** bill.
+- **Coordination and queues:** a surviving stable coordinates every robodog on its map. Without a stable, the newest-built active dog takes over; the queues transfer automatically when that node is lost. Normal work is suspended immediately on detection of a hostile threat, while Combatdogs deploy and Medirunners keep rescuing. Workers stand by until the threat clears, then resume revalidated work. Losing every stable and active dog clears both queues. Coordinator, queue counts and assignment progress appear in the stable/dog inspection text.
 
 ## Removing Quadrunner safely
 
@@ -74,5 +75,6 @@ For native hover checks, cold-start the private display with `QR_SCREEN=1280x900
 - Design snapshot: [docs/design.md](docs/design.md)
 - Plan and decisions: [docs/plans/0001-quadrunner.md](docs/plans/0001-quadrunner.md)
 - Hearthline lore and tooltip plan: [docs/plans/0002-hearthline-lore.md](docs/plans/0002-hearthline-lore.md)
+- Shared queue, exploration and failover plan: [docs/plans/0003-network-dispatch.md](docs/plans/0003-network-dispatch.md)
 - Automated work loop and tool reference: [AGENTS.md](AGENTS.md)
 - Verification evidence: [docs/test-runs.md](docs/test-runs.md)

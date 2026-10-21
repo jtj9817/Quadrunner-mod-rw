@@ -127,6 +127,9 @@ namespace Quadrunner
 
         private static void Teleport(Pawn pawn, IntVec3 cell)
         {
+            // A docked dog is despawned, and Notify_Teleported NREs on its null Drawer: undock it first.
+            if (!pawn.Spawned && !(CompRobodog.Of(pawn)?.stable?.TryUndock(pawn) ?? false))
+                throw new InvalidOperationException($"can't teleport {pawn}: not spawned and not docked");
             pawn.Position = cell;
             pawn.Notify_Teleported();
         }
@@ -151,8 +154,15 @@ namespace Quadrunner
             return cell;
         }
 
-        private static void Walk(Pawn pawn, IntVec3 cell) =>
+        private static void Walk(Pawn pawn, IntVec3 cell)
+        {
             pawn.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto, cell));
+            // Hold the commanded destination until the frame-level scenario observes arrival, rather than letting
+            // default surveying immediately walk past it between observations.
+            Job wait = JobMaker.MakeJob(JobDefOf.Wait, 1000);
+            wait.playerForced = true;
+            pawn.jobs.jobQueue.EnqueueFirst(wait);
+        }
 
         /// <summary>Drain per cell walked, the 10% seek threshold, power-down at 0% and power-up, across a reload.</summary>
         private static void DrainAndPowerDown()
@@ -244,7 +254,7 @@ namespace Quadrunner
                 })
                 .SaveAndReload()
                 .Expect("still charging after the reload", () => ChargingIn(Dog(), room))
-                .Expect("full, then it gets up", () => Comp().Battery == 1f && !Comp().WantsCharge
+                .Expect("the charge cycle completes, then it gets up", () => Comp().Battery > 0.99f && !Comp().WantsCharge
                     && Dog().CurJobDef != QR_DefOf.QR_ChargeAtConduit)
                 .Expect("drew about 90 Wd from the battery", () =>
                 {
@@ -428,7 +438,7 @@ namespace Quadrunner
                 .Expect("about 30% came from the near room", () => leftNear > 0.33f && leftNear < 0.45f)
                 .Expect("searches again: charges in the far room", () => ChargingIn(Dog(), far))
                 .SaveAndReload()
-                .Expect("full in the far room", () => Comp().Battery == 1f && !Comp().WantsCharge)
+                .Expect("the second charge cycle completes", () => Comp().Battery > 0.99f && !Comp().WantsCharge)
                 .Summary(() => $"left the near room at {leftNear:P0}")
                 .Start();
         }
@@ -478,7 +488,7 @@ namespace Quadrunner
                         && rate >= 2.5f * Comp().Props.conduitChargePerTick;
                 })
                 .SaveAndReload()
-                .Expect("full in the stable", () => Comp().Battery == 1f)
+                .Expect("the stable charge cycle completes", () => Comp().Battery > 0.99f && !Comp().WantsCharge)
                 .Do("undock at the room's door again, at 97% and still wanting a charge", () =>
                 {
                     Stable().TryUndock(Dog());
@@ -487,7 +497,8 @@ namespace Quadrunner
                     SetBatteryAndRethink(Dog(), 0.97f);
                 })
                 .Expect("nearly full: the conduit beside it is sooner", () => ChargingIn(Dog(), room))
-                .Expect("tops up, then goes home and docks", () => Comp().Battery == 1f && Stable().Docked.Contains(Dog()))
+                .Expect("tops up and resumes surveying", () => !Comp().WantsCharge
+                    && Comp().Battery > 0.97f && Dog().CurJobDef == QR_DefOf.QR_Survey)
                 .Summary(() => Dog() == null ? "dog gone" : $"battery {Comp().Battery:P0}")
                 .Start();
         }

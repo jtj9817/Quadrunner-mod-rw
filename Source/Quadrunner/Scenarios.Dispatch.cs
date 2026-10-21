@@ -104,40 +104,40 @@ namespace Quadrunner
             pawn.health.hediffSet.hediffs.OfType<Hediff_Injury>().Sum(h => h.Severity);
 
         /// <summary>
-        /// Two dogs at a powered stable: the far blueprint gets its steel (map-wide), the near gold goes to the stockpile,
-        /// the dirt is cleaned; the gold outside the service radius stays. One dog leaves at a time; a reload mid-work.
+        /// Two dogs at a stable: the near blueprint and frame get their steel, the near gold goes to the stockpile,
+        /// the dirt is cleaned; then the idle workers survey, and the gold beyond the old 40-cell boundary is
+        /// discovered out there and hauled too, across a reload in between.
         /// </summary>
         private static void HaulAndClean()
         {
-            var s = new Scenario("Haul and clean", 30000);
-            string stableId = null, farGoldId = null;
+            var s = new Scenario("Haul and clean", 90000);
+            string farGoldId = null;
+            var dogIds = new List<string>();
             var filthIds = new List<string>();
             CellRect pile = default;
             IntVec3 farGoldCell = default, wallCell = default, frameCell = default;
-            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
-            int Out() => Stable().Dogs().Count(d => d.Spawned);
-            s.Do("a stable with two dogs, a gold stockpile, gold near and far, dirt, a far wall blueprint and frame", () =>
+            IEnumerable<Pawn> Dogs() => dogIds.Select(id => (Pawn)Scenario.ById(id));
+            s.Do("a stable with two dogs, a gold stockpile, near gold, dirt, a near blueprint and frame, and gold 50–60 out", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
-                    stableId = stable.ThingID;
-                    s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
-                    s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                    dogIds.Add(s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID);
+                    dogIds.Add(s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID);
                     IntVec3 home = stable.InteractionCell;
-                    pile = ClearRect(map, home, 3, 1, 8f, 14f);
+                    pile = ClearRect(map, home, 3, 1, 6f, 12f);
                     Stockpile(s, pile, ThingDefOf.Gold);
-                    SpawnStack(s, ThingDefOf.Gold, 30, OpenCell(map, home, 15f, 25f));
+                    SpawnStack(s, ThingDefOf.Gold, 30, OpenCell(map, home, 8f, 14f));
                     Thing farGold = SpawnStack(s, ThingDefOf.Gold, 30, OpenCell(map, home, 50f, 60f));
                     farGoldId = farGold.ThingID;
                     farGoldCell = farGold.Position;
                     for (int i = 0; i < 3; i++)
-                        filthIds.Add(SpawnFilth(s, OpenCell(map, home, 6f, 20f)));
+                        filthIds.Add(SpawnFilth(s, OpenCell(map, home, 5f, 12f)));
                     SpawnStack(s, ThingDefOf.Steel, 30, OpenCell(map, home, 4f, 10f));
-                    wallCell = OpenCell(map, home, 50f, 70f);
+                    wallCell = OpenCell(map, home, 8f, 14f);
                     s.Track(GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, wallCell, map, Rot4.North,
                         Faction.OfPlayer, ThingDefOf.Steel));
-                    frameCell = OpenCell(map, home, 50f, 70f, c => c.DistanceTo(wallCell) >= 5f);
+                    frameCell = OpenCell(map, home, 8f, 14f, c => c.DistanceTo(wallCell) >= 4f);
                     SpawnBuilding(s, ThingDefOf.Wall.frameDef, ThingDefOf.Steel, frameCell, Rot4.North);
                     s.OnFinish(() =>
                     {
@@ -146,70 +146,70 @@ namespace Quadrunner
                             t.Destroy();
                     });
                 })
-                .Expect("the stable sends one dog out first", () =>
-                {
-                    int n = Out();
-                    if (n > 1)
-                        throw new InvalidOperationException($"{n} dogs left at once");
-                    return n == 1;
-                })
-                .Expect("then the second one", () => Out() == 2)
-                .SaveAndReload()
-                .Expect("the far blueprint and the far frame got their steel (construction is map-wide)", () =>
+                .Expect("the near blueprint and the near frame got their steel", () =>
                     new[] { wallCell, frameCell }.All(c => Find.CurrentMap.thingGrid.ThingsAt(c).OfType<Frame>()
                         .Any(f => f.ThingCountNeeded(ThingDefOf.Steel) == 0)))
                 .Expect("the near gold is in the stockpile", () => CountIn(pile, ThingDefOf.Gold) == 30)
                 .Expect("the dirt is cleaned", () => filthIds.All(id => Scenario.ById(id) == null))
-                .Expect("both dogs dock again", () => Stable().Docked.Count == 2)
-                .Expect("the gold outside the radius stayed", () => Scenario.ById(farGoldId)?.Position == farGoldCell)
+                .Expect("idle workers survey instead of docking", () =>
+                {
+                    foreach (Pawn dog in Dogs())
+                        CompRobodog.Of(dog)?.SetBattery(1f);
+                    return Dogs().All(NetSurveying);
+                })
+                .Expect("a survey reaches the far gold", () =>
+                {
+                    if (!NetQueued(farGoldId))
+                        foreach (Pawn dog in Dogs().Where(d => d.Spawned && d.carryTracker?.CarriedThing == null))
+                        {
+                            Teleport(dog, CellFinder.StandableCellNear(farGoldCell, Find.CurrentMap, 3));
+                            break;
+                        }
+                    return NetQueued(farGoldId);
+                })
+                .SaveAndReload()
+                .Expect("the far gold is hauled across the old 40-cell boundary", () =>
+                    CountIn(pile, ThingDefOf.Gold) == 60 && !NetQueued(farGoldId))
+                .Expect("and the workers go back to surveying", () =>
+                {
+                    foreach (Pawn dog in Dogs())
+                        CompRobodog.Of(dog)?.SetBattery(1f);
+                    return Dogs().All(NetSurveying);
+                })
                 .Summary(() =>
                 {
                     Thing gold = Scenario.ById(farGoldId);
-                    return $"raid {Raid.Active(Find.CurrentMap)}; near gold in the pile {CountIn(pile, ThingDefOf.Gold)}; far gold from {farGoldCell}: {(gold == null ? "gone" : $"{gold.stackCount} at {gold.PositionHeld} in {gold.ParentHolder.ToStringSafe()}")}; "
-                        + ColonistStates();
+                    return $"far gold from {farGoldCell}: {(gold == null ? "stored" : $"{gold.stackCount} at {gold.PositionHeld}")}; " +
+                        $"jobs {string.Join(", ", Dogs().Select(d => d?.CurJob?.ToStringSafe()))}; " + ColonistStates();
                 })
                 .Start();
         }
 
         /// <summary>
-        /// Overlapping radii: dirt next to B is B's (A's dog stays docked); later two spots at once, each claimed by one dog
-        /// only. A reload in between.
+        /// Two stables share one queue across a reload. Separate cleaning targets must never be claimed by both
+        /// dogs at once; home-stable affiliation does not reserve nearby work. Idle workers resume surveying.
         /// </summary>
         private static void TwoStables()
         {
-            var s = new Scenario("Two stables", 20000);
-            string aId = null, bId = null, aDogId = null, bDogId = null;
+            var s = new Scenario("Two stables", 30000);
+            string bId = null, aDogId = null, bDogId = null;
             var filthIds = new List<string>();
-            bool aHelped = false, bCleaned = false;
-            Building_Stable A() => (Building_Stable)Scenario.ById(aId);
+            bool aHelped = false;
             Building_Stable B() => (Building_Stable)Scenario.ById(bId);
             Pawn ADog() => (Pawn)Scenario.ById(aDogId);
             Pawn BDog() => (Pawn)Scenario.ById(bDogId);
-            s.Do("two powered stables 16–22 cells apart, one dog each; no filth but the scenario's", () =>
+            s.Do("two unpowered stables 16–22 cells apart, one dog each; no filth but the scenario's", () =>
                 {
                     DraftColonists(s);
-                    // The map's own filth (rubble, blood) could send B's dog elsewhere, and a stable with no idle dog
-                    // rightly leaves its dirt to A.
+                    // The map's own filth (rubble, blood) could distract the dogs; only the staged dirt counts.
                     foreach (Thing filth in Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Filth).ToList())
                         filth.Destroy();
-                    Building_Stable a = SpawnStable(s, powered: true);
-                    Building_Stable b = SpawnStable(s, powered: true, near: a.Position, minDist: 16f, maxDist: 22f);
-                    aId = a.ThingID;
+                    Building_Stable a = SpawnStable(s, powered: false);
+                    Building_Stable b = SpawnStable(s, powered: false, near: a.Position, minDist: 16f, maxDist: 22f);
                     bId = b.ThingID;
                     aDogId = s.Track(a.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                     bDogId = s.Track(b.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                 })
-                .Do("dirt 2–4 cells from B", () => filthIds.Add(SpawnFilth(s, OpenCell(Find.CurrentMap, B().InteractionCell, 2f, 4f))))
-                .Expect("B's dog cleans it; A's dog never goes for it", () =>
-                {
-                    Thing dirt = Scenario.ById(filthIds[0]);
-                    if (dirt != null && Targets(ADog(), dirt))
-                        throw new InvalidOperationException("A sent its dog for B's dirt");
-                    bCleaned |= Targets(BDog(), dirt);
-                    return dirt == null;
-                })
-                .Expect("it was B's dog", () => bCleaned)
-                .Expect("B's dog docks again", () => B().Docked.Contains(BDog()))
                 .SaveAndReload()
                 .Do("two dirt spots near B, 12 cells apart", () =>
                 {
@@ -230,25 +230,32 @@ namespace Quadrunner
                                 throw new InvalidOperationException($"{t.Thing} claimed by {other} and {dog}");
                             claimed[t.Thing] = dog;
                         }
-                    aHelped |= ADog().Spawned;
-                    return filthIds.Skip(1).All(id => Scenario.ById(id) == null);
+                    aHelped |= claimed.Values.Any(v => v == ADog());
+                    return filthIds.All(id => Scenario.ById(id) == null);
                 })
-                .Expect("both dogs docked", () => A().Docked.Contains(ADog()) && B().Docked.Contains(BDog()))
-                .Summary(() => $"A's dog {(aHelped ? "took the second spot" : "stayed docked")}; " + ColonistStates())
+                .Expect("both dogs idle again: surveying, not docked", () =>
+                {
+                    CompRobodog.Of(ADog())?.SetBattery(1f);
+                    CompRobodog.Of(BDog())?.SetBattery(1f);
+                    return NetSurveying(ADog()) && NetSurveying(BDog());
+                })
+                .Summary(() => $"A's dog {(aHelped ? "helped with the second pair" : "stayed away")}; " + ColonistStates())
                 .Start();
         }
 
         /// <summary>
-        /// A raid starts while the dog hauls: it finishes at 3x speed and 2x drain, docks, and takes no new work until the
-        /// raid is over (across a reload); the stable is unpowered, so dispatch works without power.
+        /// A raid starts while the dog carries gold: the haul is suspended at once — the cargo dropped safely, the
+        /// dog running at raid speed and raid drain as it stands by — and no normal work until the raid is over,
+        /// across a reload. The raider leaving hands the backlog back at normal speed and drain.
         /// </summary>
-        private static void RaidFinishAndDock()
+        private static void RaidSuspendAndResume()
         {
-            var s = new Scenario("Raid: finish and dock", 20000);
-            string stableId = null, dogId = null, raiderId = null, otherGoldId = null;
+            var s = new Scenario("Raid: suspend and resume", 40000);
+            string stableId = null, dogId = null, raiderId = null, carriedId = null, otherGoldId = null;
             var goldIds = new List<string>();
             CellRect pile = default;
-            IntVec3 otherGoldCell = default;
+            IntVec3 otherGoldCell = default, dropCell = default;
+            bool dropped = false;
             float raidSpeed = 0f, calmSpeed = 0f, raidDrain = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
@@ -269,68 +276,88 @@ namespace Quadrunner
                     goldIds.Add(SpawnStack(s, ThingDefOf.Gold, 30,
                         OpenCell(map, home, 22f, 30f, c => c.DistanceTo(first) >= 12f)).ThingID);
                 })
+                .Do("stage the two discovered reports before hauling, to exercise wartime backlog handling", () =>
+                {
+                    foreach (string id in goldIds)
+                        Net().Report(NetworkTaskKind.Haul, Scenario.ById(id), NetHaulGiver);
+                    Net().Tick(force: true);
+                })
                 .Expect("the dog is sent for gold", () => Dog().Spawned && Dog().CurJobDef == JobDefOf.HaulToCell)
-                .Do("a raider appears far away", () =>
-                {
-                    Map map = Find.CurrentMap;
-                    Faction faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate)
-                        ?? Find.FactionManager.RandomEnemyFaction();
-                    Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
-                        faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
-                    IntVec3 cell = OpenCell(map, Stable().InteractionCell, 60f, 90f);
-                    raiderId = s.Track(GenSpawn.Spawn(raider, cell, map)).ThingID;
-                    LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(cell), map, new[] { raider });
-                })
-                .Expect("raid: the working dog runs faster and drains faster", () =>
-                {
-                    if (!Raid.Active(Find.CurrentMap) || !Dog().Spawned)
-                        return false;
-                    raidSpeed = Dog().GetStatValue(StatDefOf.MoveSpeed);
-                    raidDrain = CompRobodog.Of(Dog()).DrainFactor;
-                    return raidDrain == 2f;
-                })
-                .Expect("it finishes the haul and docks", () =>
-                    Stable().Docked.Contains(Dog()) && CountIn(pile, ThingDefOf.Gold) == 30)
-                .Do("note the other stack", () =>
-                {
-                    Thing other = goldIds.Select(Scenario.ById).First(t => t != null && !pile.Contains(t.Position));
-                    otherGoldId = other.ThingID;
-                    otherGoldCell = other.Position;
-                })
+                .Do("note its calm walking speed", () => calmSpeed = Dog().GetStatValue(StatDefOf.MoveSpeed))
+                .Expect("it carries a stack", () => Dog().carryTracker.CarriedThing != null)
+                .Do("note the cargo, then a raider appears far away; watch at normal speed", () =>
+                    {
+                        Map map = Find.CurrentMap;
+                        carriedId = Dog().carryTracker.CarriedThing.ThingID;
+                        Faction faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate)
+                            ?? Find.FactionManager.RandomEnemyFaction();
+                        Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
+                            faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
+                        IntVec3 cell = OpenCell(map, Stable().InteractionCell, 60f, 90f);
+                        raiderId = s.Track(GenSpawn.Spawn(raider, cell, map)).ThingID;
+                        LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(cell), map, new[] { raider });
+                        Raid.Recheck(map);
+                        Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    })
+                .Expect("raid: the haul suspends at once, the cargo dropped safely, never delivered", () =>
+                    {
+                        if (!Net().War || !Dog().Spawned)
+                            return false;
+                        if (Scenario.ById(carriedId) is Thing cargo && cargo.Spawned && cargo.stackCount == 30)
+                        {
+                            dropped = true;
+                            dropCell = cargo.Position;
+                        }
+                        if (dropped && Dog().CurJobDef != JobDefOf.HaulToCell && Dog().carryTracker.CarriedThing == null
+                            && CountIn(pile, ThingDefOf.Gold) == 0)
+                        {
+                            raidSpeed = Dog().GetStatValue(StatDefOf.MoveSpeed);
+                            raidDrain = CompRobodog.Of(Dog()).DrainFactor;
+                        }
+                        return dropped && raidDrain == 2f;
+                    })
+                .Do("back to ultrafast, and note the other stack", () =>
+                    {
+                        Scenario.Resume();
+                        Thing other = goldIds.Select(Scenario.ById).First(t => t != null && t.ThingID != carriedId);
+                        otherGoldId = other.ThingID;
+                        otherGoldCell = other.Position;
+                    })
                 .Wait(600)
-                .Expect("no new work during the raid", () =>
-                    Stable().Docked.Contains(Dog()) && Scenario.ById(otherGoldId)?.Position == otherGoldCell)
+                .Expect("no normal work during the raid: both stacks untouched and unassigned", () =>
+                    NetTask(otherGoldId)?.assigneeId == null && NetTask(carriedId)?.assigneeId == null
+                    && Dog().carryTracker.CarriedThing == null && Scenario.ById(otherGoldId)?.Position == otherGoldCell
+                    && Scenario.ById(carriedId)?.Position == dropCell && CountIn(pile, ThingDefOf.Gold) == 0)
                 .SaveAndReload()
-                .Expect("still a raid after the load", () => Raid.Active(Find.CurrentMap))
+                .Expect("still a raid after the load", () => Raid.Active(Find.CurrentMap) && Net().War)
                 .Wait(300)
-                .Expect("still docked, the other stack untouched", () =>
-                    Stable().Docked.Contains(Dog()) && CountIn(pile, ThingDefOf.Gold) == 30
-                    && Scenario.ById(otherGoldId)?.Position == otherGoldCell)
+                .Expect("after reload the normal queue still waits, with both stacks untouched", () =>
+                    NetTask(otherGoldId)?.assigneeId == null && NetTask(carriedId)?.assigneeId == null
+                    && Dog().carryTracker.CarriedThing == null && Scenario.ById(otherGoldId)?.Position == otherGoldCell
+                    && Scenario.ById(carriedId)?.Position == dropCell && CountIn(pile, ThingDefOf.Gold) == 0)
                 .Do("the raider leaves during weapon cooldown", () =>
-                {
-                    Pawn raider = (Pawn)Scenario.ById(raiderId);
-                    // Destroy() removes equipment but can leave its verb in a world pawn's saved cooldown.
-                    // Stage that boundary explicitly, then use the actual pawn departure lifecycle.
-                    raider.stances.SetStance(new Stance_Cooldown(300, LocalTargetInfo.Invalid,
-                        raider.equipment.PrimaryEq.PrimaryVerb));
-                    raider.ExitMap(allowedToJoinOrCreateCaravan: false, Rot4.North);
-                })
-                .Expect("raid over: the dog goes out at normal speed and drain", () =>
-                {
-                    if (Raid.Active(Find.CurrentMap) || !Dog().Spawned)
-                        return false;
-                    calmSpeed = Dog().GetStatValue(StatDefOf.MoveSpeed);
-                    return CompRobodog.Of(Dog()).DrainFactor == 1f;
-                })
+                    {
+                        Pawn raider = (Pawn)Scenario.ById(raiderId);
+                        // Destroy() removes equipment but can leave its verb in a world pawn's saved cooldown.
+                        // Stage that boundary explicitly, then use the actual pawn departure lifecycle.
+                        raider.stances.SetStance(new Stance_Cooldown(300, LocalTargetInfo.Invalid,
+                            raider.equipment.PrimaryEq.PrimaryVerb));
+                        raider.ExitMap(allowedToJoinOrCreateCaravan: false, Rot4.North);
+                        Raid.Recheck(Find.CurrentMap);
+                    })
+                .Expect("raid over: the dog goes back to work at normal speed and drain", () =>
+                    {
+                        if (Net().War || Raid.Active(Find.CurrentMap) || !Dog().Spawned)
+                            return false;
+                        calmSpeed = Dog().GetStatValue(StatDefOf.MoveSpeed);
+                        return CompRobodog.Of(Dog()).DrainFactor == 1f;
+                    })
                 .Expect("move speed was 3x during the raid", () => Math.Abs(raidSpeed / calmSpeed - 3f) < 0.01f)
-                .SaveAndReload()
-                .Expect("all gold stored, the dog docked", () =>
-                    CountIn(pile, ThingDefOf.Gold) == 60 && Stable().Docked.Contains(Dog()))
-                .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; gold " + string.Join(", ",
-                    goldIds.Select(id => Scenario.ById(id) ?? Dog()?.carryTracker.CarriedThing).Where(t => t != null)
+                .Expect("all gold stored, the dropped cargo included", () => CountIn(pile, ThingDefOf.Gold) == 60)
+                .Summary(() => $"speed {calmSpeed:F2} -> {raidSpeed:F2} in the raid, drain x{raidDrain}; cargo dropped at {dropCell}; gold " +
+                    string.Join(", ", goldIds.Select(Scenario.ById).Where(t => t != null)
                         .Select(t => $"{t.stackCount} at {t.PositionHeld}{(pile.Contains(t.PositionHeld) ? " (pile)" : "")}"))
-                    + $", carried {Dog()?.carryTracker.CarriedThing.ToStringSafe()}, docked {Stable().Docked.Contains(Dog())}, "
-                    + $"job {Dog()?.CurJob.ToStringSafe()}; " + ColonistStates())
+                    + $", docked {Stable().Docked.Contains(Dog())}, job {Dog()?.CurJob.ToStringSafe()}; " + ColonistStates())
                 .Start();
         }
 
@@ -384,61 +411,62 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// The stable burns down with two dogs docked: they come out unassigned and wait in the storeroom, not in the
-        /// nearer bedroom; still there after a reload.
+        /// The stable burns down with two dogs docked: they come out unassigned, the newest of them coordinates the
+        /// network, and with no work at hand they survey rather than wait indoors. Still true after a reload.
         /// </summary>
         private static void StableFire()
         {
             var s = new Scenario("Stable fire with docked dogs", 20000);
-            string stableId = null;
-            var dogIds = new List<string>();
-            TestRoom bedroom = null, store = null;
-            IEnumerable<Pawn> Dogs() => dogIds.Select(id => (Pawn)Scenario.ById(id));
-            s.Do("a stable with two docked dogs, a bedroom 6–14 cells away, a storeroom 18–32", () =>
+            string stableId = null, d1Id = null, d2Id = null;
+            Pawn D1() => (Pawn)Scenario.ById(d1Id);
+            Pawn D2() => (Pawn)Scenario.ById(d2Id);
+            s.Do("an unpowered stable with two dogs", () =>
                 {
-                    Map map = Find.CurrentMap;
                     Building_Stable stable = SpawnStable(s, powered: false);
                     stableId = stable.ThingID;
-                    dogIds.Add(s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID);
-                    dogIds.Add(s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID);
-                    bedroom = BuildRoom(s, ClearRect(map, stable.InteractionCell, 7, 2, 6f, 14f), batteryPct: -1f);
-                    SpawnBuilding(s, ThingDefOf.Bed, ThingDefOf.Steel, bedroom.rect.CenterCell, Rot4.North);
-                    store = BuildRoom(s, ClearRect(map, stable.InteractionCell, 7, 2, 18f, 32f), batteryPct: -1f);
-                })
-                .Expect("the bedroom is a bedroom, the storeroom qualifies", () =>
-                {
-                    Map map = Find.CurrentMap;
-                    return bedroom.rect.CenterCell.GetRoom(map)?.Role == RoomRoleDefOf.Bedroom
-                        && JobGiver_WaitInRoom.Qualifies(store.rect.CenterCell.GetRoom(map));
+                    d1Id = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
+                    d2Id = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                 })
                 .Do("the stable burns down", () => Scenario.ById(stableId).Kill(new DamageInfo(DamageDefOf.Flame, 99999f)))
                 .Expect("both dogs are out and unassigned", () =>
-                    Scenario.ById(stableId) == null && Dogs().All(d => d.Spawned && CompRobodog.Of(d).stable == null))
-                .Expect("both wait in the storeroom", () => Dogs().All(d => store.Contains(d.Position)))
+                    Scenario.ById(stableId) == null && new[] { D1(), D2() }.All(d => d.Spawned && CompRobodog.Of(d).stable == null))
+                .Do("settle the network", () => Net().Tick(force: true))
+                .Expect("the newest dog coordinates", () => Net().Coordinator.ThingID == d2Id)
+                .Expect("surveying replaces waiting: both dogs explore", () =>
+                {
+                    CompRobodog.Of(D1())?.SetBattery(1f);
+                    CompRobodog.Of(D2())?.SetBattery(1f);
+                    return NetSurveying(D1()) && NetSurveying(D2());
+                })
                 .SaveAndReload()
                 .Wait(400)
-                .Expect("still there, still unassigned", () =>
-                    Dogs().All(d => store.Contains(d.Position) && CompRobodog.Of(d).stable == null))
+                .Expect("still out, unassigned and exploring after the reload", () =>
+                {
+                    CompRobodog.Of(D1())?.SetBattery(1f);
+                    CompRobodog.Of(D2())?.SetBattery(1f);
+                    return new[] { D1(), D2() }.All(d => d.Spawned && CompRobodog.Of(d).stable == null && NetSurveying(d));
+                })
+                .Summary(() => $"coordinator {Net().Coordinator?.LabelShortCap ?? "none"}; jobs " +
+                    string.Join(", ", new[] { D1(), D2() }.Select(d => d?.CurJob?.ToStringSafe())))
                 .Start();
         }
 
         /// <summary>
-        /// Uninstalled, the stable lets its dog out; the dog keeps it, waits in a room (across a reload), and docks once
-        /// the stable is installed again elsewhere.
+        /// Uninstalled, the stable lets its dog out; the dog keeps its affiliation, itself coordinates while the
+        /// stable is packed, surveys until its battery runs low and then waits; installed again elsewhere, it walks
+        /// over and docks.
         /// </summary>
         private static void StableUninstall()
         {
-            var s = new Scenario("Stable uninstall and reinstall", 20000);
+            var s = new Scenario("Stable uninstall and reinstall", 25000);
             string stableId = null, dogId = null, miniId = null;
-            TestRoom store = null;
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Building_Stable Assigned() => CompRobodog.Of(Dog()).stable;
-            s.Do("a stable with a docked dog and a storeroom 12–28 cells away", () =>
+            s.Do("an unpowered stable with a dog", () =>
                 {
                     Building_Stable stable = SpawnStable(s, powered: false);
                     stableId = stable.ThingID;
                     dogId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
-                    store = BuildRoom(s, ClearRect(Find.CurrentMap, stable.InteractionCell, 7, 2, 12f, 28f), batteryPct: -1f);
                 })
                 .Do("uninstall the stable", () =>
                 {
@@ -451,10 +479,18 @@ namespace Quadrunner
                     miniId = s.Track(mini).ThingID;
                 })
                 .Expect("the dog is out and still belongs to it", () => Dog().Spawned && Assigned()?.ThingID == stableId)
-                .Expect("it waits in the storeroom", () => store.Contains(Dog().Position))
+                .Do("settle the network", () => Net().Tick(force: true))
+                .Expect("with the stable packed, the dog itself coordinates", () => Net().Coordinator.ThingID == dogId)
+                .Expect("it surveys while the stable is packed", () =>
+                {
+                    CompRobodog.Of(Dog())?.SetBattery(1f);
+                    return NetSurveying(Dog());
+                })
+                .Do("its battery runs low", () => CompRobodog.Of(Dog()).SetBattery(0.04f))
+                .Expect("no surveying on a low battery: it waits", () => Dog().Spawned && !NetSurveying(Dog()) && !Dog().Downed)
                 .SaveAndReload()
                 .Expect("still assigned to the packed stable after the load", () =>
-                    Assigned()?.ThingID == stableId && !Assigned().Spawned && store.Contains(Dog().Position))
+                    Assigned()?.ThingID == stableId && !Assigned().Spawned && Dog().Spawned)
                 .Do("install it again 10+ cells away", () =>
                 {
                     Map map = Find.CurrentMap;

@@ -114,7 +114,7 @@ namespace Quadrunner
                         }
                         Raid.Recheck(map);
                         foreach (Pawn raider in Raiders())
-                            Stable().Ping(raider, dog);
+                            Net().Ping(raider, dog);
                         roundStart = Find.TickManager.TicksGame;
                         Frame(dog, Raiders().First());
                     });

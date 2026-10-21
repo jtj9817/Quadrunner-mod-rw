@@ -94,10 +94,10 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Quadrunner</defName>
     <label>Quadrunner</label>
-    <description>The original Hearthline utility chassis, designed for freight yards, mining camps and settlements where every pair of hands was already occupied. It carries supplies, clears the floors and occasionally carries its owner. Company literature describes these as three separate reasons to purchase one.\n\nA four-legged utility robot. Its stable dispatches it to haul, clean and supply construction, then repairs and recharges it between jobs. A colonist can ride it: right-click the dog or its stable and pick a destination.</description>
+    <description>The original Hearthline utility chassis, designed for freight yards, mining camps and settlements where every pair of hands was already occupied. It carries supplies, clears the floors and occasionally carries its owner. Company literature describes these as three separate reasons to purchase one.\n\nA four-legged utility robot. Idle Quadrunners survey revealed areas and report nearby work to a shared network. Its coordinator assigns hauling, cleaning, construction deliveries and dog retrieval to the nearest available capable dog. A stable coordinates the network; without one, the newest active robodog takes over. Workers suspend normal work during threats, and resume the retained queue afterward. A colonist can ride it: right-click the dog or its stable and pick a destination.</description>
     <modExtensions>
-      <!-- Vanilla work givers, in priority order; jobs other than the listed ones are refused (a blocked blueprint
-           would otherwise ask for plant cutting). Map-wide ones ignore the stable's service radius. -->
+      <!-- Discovered tasks use vanilla work givers in priority order. The map network assigns the nearest available
+           capable dog; this radius is local observation, not a distance limit from the stable. -->
       <li Class="Quadrunner.RobodogWork">
         <workGivers>
           <li>DeliverResourcesToFrames</li>
@@ -105,10 +105,13 @@
           <li>HaulGeneral</li>
           <li>CleanFilth</li>
         </workGivers>
-        <mapWide>
-          <li>DeliverResourcesToFrames</li>
-          <li>DeliverResourcesToBlueprints</li>
-        </mapWide>
+        <scanRadius>15</scanRadius>
+        <scanInterval>120</scanInterval>
+        <dispatchInterval>60</dispatchInterval>
+        <progressTimeout>2500</progressTimeout>
+        <surveySpacing>20</surveySpacing>
+        <surveyJobTicks>600</surveyJobTicks>
+        <surveySearchRadius>80</surveySearchRadius>
         <jobs>
           <li>HaulToCell</li>
           <li>HaulToContainer</li>
@@ -132,7 +135,7 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Medirunner</defName>
     <label>Medirunner</label>
-    <description>A Hearthline rescue chassis developed for settlements whose nearest ambulance was several light-years away. Its transport assembly brings casualties back to a bed, even under fire. Hearthline was careful to distinguish "medical support" from "medical treatment" after the first round of litigation.\n\nA dedicated rescue robot, dispatched map-wide by its stable during raids as well as peacetime. It carries downed colonists first, then guests, prisoners and colony animals, prioritizing the fastest-bleeding within each group. It does not tend injuries, haul supplies, clean or carry riders.</description>
+    <description>A Hearthline rescue chassis developed for settlements whose nearest ambulance was several light-years away. Its transport assembly brings casualties back to a bed, even under fire. Hearthline was careful to distinguish "medical support" from "medical treatment" after the first round of litigation.\n\nA dedicated rescue robot, dispatched map-wide by the central network during raids as well as peacetime. It carries downed colonists first, then guests, prisoners and colony animals, prioritizing the fastest-bleeding within each group. It does not tend injuries, haul supplies, clean or carry riders.</description>
     <modExtensions>
       <!-- Medic only (user, 2026-10-20): rescues, map-wide and under fire, nothing else; no raid speed or drain change. -->
       <li Class="Quadrunner.RobodogWork">
