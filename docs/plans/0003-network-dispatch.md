@@ -38,7 +38,9 @@ Replace individual work searches and the stable's 40-cell pickup boundary with o
 - [x] A threat suspends an active normal job and retains its work across save/load; removal of the threat resumes and completes it.
 - [x] Combatdogs receive centralized war assignments, including without a stable; without them workers stand by.
 - [x] Medirunners keep rescuing during war; charging, riding, drafting, upgrades and capture remain functional.
-- [ ] Shared-code Run all has zero new errors; independent removal check loads, ticks and reloads the cleaned save without Quadrunner.
+- [x] Shared-code Run all has zero new errors; independent removal check loads, ticks and reloads the cleaned save without Quadrunner.
+
+Evidence: actual package `d37532c.20261021T034353Z` ran all 55 scenarios with 0 new errors (54 PASS, including all ten network scenarios). The remaining fresh-filth fixture was corrected without changing gameplay and passed from refreshed package `d5816cb.20261021T040229Z`. Independent removal loaded, ticked 600, saved/reloaded and ticked another 600 with no Quadrunner assembly and 0 new errors. Full build-specific results are in [the test-run log](../test-runs.md).
 
 ## Open questions
 
