@@ -111,7 +111,7 @@ Normal assignment is skipped while war is on; war tasks still assign (`Network.c
 
 ### The race
 
-All five dog races (six kinds) derive from an abstract `QR_RobodogBase` (`Defs/ThingDefs_Races/QR_Races.xml:6-92`). The important choices:
+All six dog races derive from an abstract `QR_RobodogBase` (`Defs/ThingDefs_Races/QR_Races.xml:6-92`). The important choices:
 
 - Non-organic `QR_Robotic` flesh type with mechanoid wound visuals and no bleeding, disease or rot (`QR_Races.xml:40`, `Defs/Misc/QR_FleshTypes.xml:7-17`). It is deliberately neither vanilla animal nor mechanoid, so taming, training, hunting, wild spawns, manhunter packs, food and rest are out (`QR_Races.xml:4-5, 38-69`).
 - Intelligence `Animal` for utility/rescue dogs; `ToolUser` for the Combatdog base so later tiers can hold built-in guns (`QR_Races.xml:39, 195-198`).
@@ -228,7 +228,7 @@ The mod is removable because it saves **no map-scoped state of its own**. Everyt
 | Upgrade bill and its dog | stable `BillStack` | `Tiers.cs:128-132` | Bill lives on the removed stable |
 | Rider/dog job progress | vanilla jobs | `Riding.cs:188-193`, `Retrieval.cs:134-138`, `Charging.cs:125-129` | Jobs stop; vanilla serializes them |
 | Turbine distance | ModSettings | `Settings.cs:11-15` | A setting, not save state |
-| Network, charge-spot and raid caches | static dictionaries | none | Rebuilt from the map; `ClearAll` on removal (`Network.cs:150`, `ChargeSpots.cs:42`, `Removal.cs:92-93`) |
+| Network, charge-spot and raid-threat caches | static dictionaries | none | Rebuilt from the map; removal clears network and charge spots (`Removal.cs:92-93`); the 60-tick raid cache is never cleared and only self-expires (`Work.cs:217-232`) |
 
 `NetworkTask` stores ThingIDs rather than references specifically so a destroyed or missing target does not poison a save; lookups re-resolve and treat a missing target as finished (`Network.cs:27-33, 416-436`). First access after loading adopts whichever node holds the state and rebuilds the transient assignments from the saved queue (`Network.cs:216-225, 472-479`).
 

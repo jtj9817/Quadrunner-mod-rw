@@ -2567,7 +2567,7 @@
         "REQ-SYS-006",
         "REQ-SYS-007"
       ],
-      "procedure": "Run tools/autotest.py run against the actual package; every scenario must PASS with zero new errors against the no-mod baseline, with save/load steps in the suite.",
+      "procedure": "Run tools/autotest.py run against the actual package; every scenario must PASS with zero new errors against the no-mod baseline, with save/load steps in the suite. Recorded result: 54/55 in the full packaged run, the one failure a stale fixture assumption, corrected and that scenario re-proven 1/1 with 0 new errors (docs/test-runs.md:14-17); no full-suite rerun followed the fix.",
       "status": "passing",
       "evidence": [
         "docs/test-runs.md:14",
@@ -3469,7 +3469,7 @@
           "from": "comp.charge-spots",
           "to": "comp.charge-decision",
           "action": "Spot or none",
-          "mechanism": "Score = distance + 15 x dogs there - 10 x stored; none if no spot qualifies."
+          "mechanism": "Score = distance + 15 x dogs there - 10 x min(stored Wd / 1000, 1); none if no spot qualifies."
         },
         {
           "n": 5,
