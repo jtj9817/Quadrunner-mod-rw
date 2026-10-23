@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Issue type | Improvement / performance |
-| Status | In Progress — implementation authorized 2026-10-22 |
+| Status | In Progress — measured tradeoffs accepted; final sequence verification pending |
 | Component | Survey routing and local task discovery |
 | Ticket key | QR-0001 — local documentation identifier, not an external Jira issue |
 | Related design | [Plan 0003: Shared robodog dispatch network](../plans/0003-network-dispatch.md) |
@@ -99,8 +99,8 @@ Check boxes only after the corresponding private-game run proves them; measured 
 - [x] Normal tasks are not queued from remote area enumeration. Existing 15-cell/120-tick observation, fog/forbidden checks, Home-only mature-filth cleaning, task deduplication and vanilla job eligibility remain intact unless a separately recorded decision changes a tunable.
 - [x] Existing emergency rescue/raid alerts, productive task ordering, route-based worker assignment and productive/player-ordered job precedence remain unchanged. Plant work, DLC support and a replacement movement pathfinder are not introduced.
 - [x] Save/load and coordinator failover preserve productive tasks and safely restore or rebuild exploration state without saved room references. Loading pre-change arrival history cannot suppress an unobserved task; losing the final node and clean mod removal retain their existing behavior.
-- [ ] Matched room/zone fixtures demonstrate fewer redundant survey steps or lower task-discovery latency than the current selector, with no loss of discovered eligible targets. Record full-path requests, reachability checks, walked cells, selection cost/allocations and cache construction/invalidation cost; include median and tail selection cost, not only a warm-cache best case.
-- [ ] The measured improvement does not conceal a repeatable regression in total survey CPU cost or allocations under matched workloads. If faster discovery trades against increased planner cost, present the measured tradeoff for an explicit decision rather than accepting it as an unconditional optimization. Do not claim a percentage improvement without measurements.
+- [x] Matched room/zone fixtures demonstrate fewer redundant survey steps or lower task-discovery latency than the current selector, with no loss of discovered eligible targets. Record full-path requests, reachability checks, walked cells, selection cost/allocations and cache construction/invalidation cost; include median and tail selection cost, not only a warm-cache best case.
+- [x] The measured improvement does not conceal a repeatable regression in total survey CPU cost or allocations under matched workloads. If faster discovery trades against increased planner cost, present the measured tradeoff for an explicit decision rather than accepting it as an unconditional optimization. Do not claim a percentage improvement without measurements.
 
 ## Implementation verification plan
 
@@ -115,7 +115,8 @@ Check boxes only after the corresponding private-game run proves them; measured 
 - Core cutover: `3954020`; initial behavioral and matched-workload fixtures: `fcd9d92`.
 - The initial focused build `3954020-dirty.20261023T020344Z` passed all fourteen Survey behavior cases and four benches, with zero new errors. Network behavior separately passed all ten cases. These runs support the checked policy/coverage/eligibility criteria above.
 - Replay-controlled measurements repeated **18/18 PASS** on `fcd9d92-dirty.20261023T053956Z`; all four proposed phases discovered both staged targets, while historical phases missed one within their cap. A separately reproduced distant retained-goal reshape now physically hauls 31 gold on `fcd9d92-dirty.20261023T060457Z` (**1/1 PASS**, zero new errors).
-- Independent removal is **LOADED CLEAN**, zero new errors (2026-10-23 06:54), without the Quadrunner assembly through 600 ticks, save/reload and 600 more. Corrected tracing and riding fixtures passed **7/7**, zero new errors, on `ad76f81-dirty.20261023T075350Z`. [Matched measurements](../plans/0004-area-aware-survey.md#matched-workload-evidence) disclose faster warm selection and three improved workloads, but worse room-heavy results and higher cold costs. Final full-sequence proof and the explicit tradeoff decision remain open.
+- Independent removal is **LOADED CLEAN**, zero new errors (2026-10-23 06:54), without the Quadrunner assembly through 600 ticks, save/reload and 600 more. Corrected tracing and riding fixtures passed **7/7**, zero new errors, on `ad76f81-dirty.20261023T075350Z`. [Matched measurements](../plans/0004-area-aware-survey.md#matched-workload-evidence) disclose faster warm selection and three improved workloads, but worse room-heavy results and higher cold costs. Final full-sequence proof remains pending; the performance decision is recorded below.
+- **Performance decision (2026-10-23):** after reviewing the paired measurements, the user chose **Accept measured tradeoffs**. The room-heavy discovery/travel/CPU regression and higher cold allocation/latency are accepted while keeping the requested priority and scan-certified coverage policy. This is not a claim that every workload improves. Only final corrected shared-sequence proof remains pending.
 
 ## Implementation touchpoints
 
