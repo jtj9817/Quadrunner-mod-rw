@@ -459,18 +459,19 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// N2 reassignment: the dog walking a stack home is killed — the other dog takes the same work and delivers it.
-        /// Then a manual interruption of the second haul: the network re-issues it, nothing is duplicated, all delivered.
+        /// N2 reassignment: kill an assigned hauler before pickup; the other dog takes the same work and delivers it.
+        /// Stage the second stack only afterward, then interrupt its haul and prove unique delivery across reload.
         /// </summary>
         private static void NetDeathReassignment()
         {
             var s = new Scenario("Network: death and interruption reassignment", 50000);
             string stableId = null, d1Id = null, d2Id = null, gold1Id = null, gold2Id = null;
             CellRect pile = default;
+            IntVec3 secondCell = IntVec3.Invalid;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn D1() => (Pawn)Scenario.ById(d1Id);
             Pawn D2() => (Pawn)Scenario.ById(d2Id);
-            s.Do("an unpowered stable with two dogs, a stockpile and two stacks 30–40 out", () =>
+            s.Do("an unpowered stable with two dogs, a stockpile and the first stack 30–40 out", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
@@ -483,8 +484,7 @@ namespace Quadrunner
                     Stockpile(s, pile, ThingDefOf.Gold);
                     IntVec3 one = OpenCell(map, home, 30f, 40f);
                     gold1Id = NetStack(s, ThingDefOf.Gold, 30, one).ThingID;
-                    gold2Id = NetStack(s, ThingDefOf.Gold, 30,
-                        OpenCell(map, home, 30f, 40f, c => c.DistanceTo(one) >= 15f)).ThingID;
+                    secondCell = OpenCell(map, home, 30f, 40f, c => c.DistanceTo(one) >= 15f);
                 })
                 .Do("D1 stationed near stack 1, D2 home; the task is staged and D1 wins it", () =>
                 {
@@ -492,8 +492,8 @@ namespace Quadrunner
                     Stable().TryUndock(D2());
                     Teleport(D1(), OpenCell(Find.CurrentMap, Scenario.ById(gold1Id).Position, 10f, 15f));
                     Teleport(D2(), Stable().InteractionCell);
-                    D1().jobs.EndCurrentJob(JobCondition.InterruptForced);
-                    D2().jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    D1().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    D2().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
                     Net().Report(NetworkTaskKind.Haul, Scenario.ById(gold1Id), NetHaulGiver);
                     Net().Tick(force: true);
                     if (NetTask(gold1Id)?.assigneeId != d1Id)
@@ -513,8 +513,9 @@ namespace Quadrunner
                 .Do("D2 stationed near stack 2; the task is staged", () =>
                 {
                     Stable().TryUndock(D2());
-                    Teleport(D2(), OpenCell(Find.CurrentMap, Scenario.ById(gold2Id).Position, 10f, 15f));
-                    D2().jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    Teleport(D2(), OpenCell(Find.CurrentMap, secondCell, 10f, 15f));
+                    D2().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    gold2Id = NetStack(s, ThingDefOf.Gold, 30, secondCell).ThingID;
                     Net().Report(NetworkTaskKind.Haul, Scenario.ById(gold2Id), NetHaulGiver);
                     Net().Tick(force: true);
                     if (NetTask(gold2Id)?.assigneeId != d2Id)
