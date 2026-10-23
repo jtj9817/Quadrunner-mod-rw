@@ -47,15 +47,17 @@ Implement [QR-0001](../tickets/QR-0001-area-aware-survey-routing.md) without cha
 
 - [x] Matched workloads record full-path requests, reachability, walked cells, discovery, selection CPU/allocations, cold/refresh/invalidation cost and median/tail selection cost.
 - [ ] Fewer redundant steps or lower discovery latency is demonstrated without lost eligible targets, and no repeatable total planner CPU/allocation regression is concealed.
-- [ ] Affected network cases and the necessary shared-code sequence pass with zero new errors; test evidence and ticket acceptance are updated and committed incrementally.
+- [x] Affected network cases and the necessary shared-code sequence pass with zero new errors; test evidence and ticket acceptance are updated and committed incrementally.
 
 S1, geometry/fairness and live-edit proof initially passed in build `3954020-dirty.20261023T020344Z` (**18/18 PASS**, zero new errors). Replay-controlled build `fcd9d92-dirty.20261023T053956Z` repeated all fourteen behavior cases and four benches **18/18 PASS**, including a 171-cell initial target separation and 368 cells physically walked. Build `fcd9d92-dirty.20261023T060457Z` then passed the additional distant same-object reshape regression: ordinary dispatch replaced the stale goal and hauled 31 gold without resetting the survey. The recorded failing preflight demonstrates why selector and driver candidate checks must agree ([run log](../test-runs.md)).
 
-The corrected tracing/riding build `ad76f81-dirty.20261023T075350Z` passed all four benchmarks and three riding cases **7/7**, zero new errors. Every measured phase had zero collision recoveries, rejected jumps and external moves. The riding case retained mount/drain/reload/dismount/on-foot arrival and physically retrieved/docked the stopped dog, without a post-stop coverage reset. The measured tradeoffs are accepted; final cross-case sequence proof remains pending.
+The corrected tracing/riding build `ad76f81-dirty.20261023T075350Z` passed all four benchmarks and three riding cases **7/7**, zero new errors. Every measured phase had zero collision recoveries, rejected jumps and external moves. The riding case retained mount/drain/reload/dismount/on-foot arrival and physically retrieved/docked the stopped dog, without a post-stop coverage reset. That run's locally matched benchmark world was subsequently found to leak; its performance samples and their approval are superseded by the bounded-world evidence below.
 
-The 08:16 shared sequence passed **73/74**, zero new errors; all Network, benchmark, riding and removal-export cases passed. Its only failure was a live-edit fixture that sealed its sole room entrance with the preceding wall move and could refog an occupied goal. The corrected fixture preserves an alternate entrance and stages a distant active fog goal while paused. Build `08c4859-dirty.20261023T082729Z` passed that case **1/1**, zero new errors, with real scans of both the revealed replacement and restored remote footprint before the zone/storage checks completed. Final sequential acceptance remains open.
+The 08:16 shared sequence passed **73/74**, zero new errors; all Network, benchmark, riding and removal-export cases passed. Its only failure was a live-edit fixture that sealed its sole room entrance with the preceding wall move and could refog an occupied goal. The corrected fixture preserves an alternate entrance and stages a distant active fog goal while paused. Build `08c4859-dirty.20261023T082729Z` passed that case **1/1**, zero new errors, with real scans of both the revealed replacement and restored remote footprint before the zone/storage checks completed.
 
-Independent removal of the current runtime export is **LOADED CLEAN**, zero new errors (2026-10-23 06:54): no Quadrunner assembly, 600 ticks, save/reload, 600 more ticks, expected vanilla contents retained and the private rendered surface inspected. This completes persistence/removal evidence alongside the clean legacy-save and network failover/final-node runs.
+Final shared-code build `d30a4c8.20261023T103822Z` passed **75/75**, zero new errors (2026-10-23 10:59, launch `20261023-103839-3940076`). This includes all sixteen Survey behavior cases, four matched benchmarks, ten Network cases, charging, riding, retrieval, rescue, combat, save/load and removal export. The native new-area regression also failed before the correction and then passed alongside charging and both cooldown/raid cases **4/4**: synchronous routing waits for coherent native area inputs, retains full worker ranking, and physically discovers/hauls 38 gold across reload. Functional integration is complete; the performance decision below remains open.
+
+Fresh independent removal of the final `d30a4c8.20261023T103822Z` export is **LOADED CLEAN**, zero new errors (2026-10-23 11:04): no Quadrunner assembly, 600 ticks, save/reload, 600 more ticks, expected vanilla contents retained and the private rendered surface inspected. Proof: `.devlog/runs/removal-20261023-110450/Player.log` and `.devlog/removal-probe/result`. The private observer and Xvfb are stopped. This completes persistence/removal evidence alongside the clean legacy-save and network failover/final-node runs.
 
 ## Matched workload evidence
 
@@ -116,8 +118,28 @@ Triples are median / p95 / maximum, in milliseconds. Warm calls retain unobserve
 | Wall detour | 16.17 / 22.39 / 22.39 | 3.11 / 13.18 / 13.18 |
 | Open fallback | 14.89 / 19.63 / 19.63 | 1.87 / 12.55 / 12.55 |
 
-The corrected comparison still has tradeoffs: warm selections improve, but cold allocation/latency remain higher; large-zone discovery/travel and whole-phase CPU regress, and room-heavy accounted planner elapsed is slightly higher despite less travel. Three workloads need less whole-phase CPU, but this is not isolated planner attribution. The earlier user approval covered the now-superseded comparison; confirmation of the corrected large-zone result is pending. No unconditional optimization claim is made.
+The 09:42 comparison has tradeoffs: warm selections improve, but cold allocation/latency remain higher; large-zone discovery/travel and whole-phase CPU regress, and room-heavy accounted planner elapsed is slightly higher despite less travel. Three workloads need less whole-phase CPU in that sample, but this is not isolated planner attribution. The earlier user approval covered the now-superseded leaky-world comparison, not these corrected results.
+
+### Final shared-sequence repetition
+
+The 10:59 full sequence measured another within-run matched sample on the final runtime build `d30a4c8.20261023T103822Z`. All eight physical phases discovered both targets with identical replayed whole-map fog, four occupied player-pawn cells outside each fixture, and zero recoveries, rejected jumps or external moves. Scope and counters are unchanged from above.
+
+| Fixture | Two target report ticks, old → new | Native walked cells, old → new | Full-path requests, old → new | Reach checks, old → new |
+| --- | --- | --- | --- | --- |
+| Room-heavy | `1 / 2401 → 1 / 1321` | 143 → 77 | 43 → 49 | 70 → 0 |
+| Large zone | `1 / 1081 → 1 / 1561` | 70 → 62 | 29 → 35 | 56 → 0 |
+| Wall detour | `481 / 961 → 481 / 121` | 59 → 30 | 27 → 14 | 32 → 0 |
+| Open fallback | `1 / 1321 → 1 / 1441` | 85 → 53 | 42 → 30 | 83 → 0 |
+
+| Fixture | Planner elapsed ms, old → new | Accounted GC bytes, old → new | Whole physical-phase process CPU ms, old → new |
+| --- | --- | --- | --- |
+| Room-heavy | 24.649 → 35.306 | 127776 → 1142912 | 12948.213 → 8151.290 |
+| Large zone | 12.651 → 33.648 | 77104 → 1064352 | 7126.568 → 9147.342 |
+| Wall detour | 12.356 → 7.590 | 73312 → 979856 | 6512.584 → 4447.895 |
+| Open fallback | 16.894 → 14.909 | 105280 → 1058856 | 8114.128 → 8745.136 |
+
+Walking improves in all four pairs, but discovery and whole-phase CPU improve only for room-heavy/wall-detour here. Large-zone and open-fallback discovery/whole-phase CPU regress; room-heavy/large-zone accounted planner elapsed and all cold-inclusive allocations are higher. The favorable open-fallback result in the earlier sample is not universal. These disclosed regressions require an actual user decision; a passing benchmark verdict means valid matched discovery/traces, not unconditional performance acceptance.
 
 ## Open questions
 
-Confirm whether the corrected large-zone discovery/travel/CPU regression and higher cold costs are accepted while retaining the required routing/coverage policy. Both decision prompts automatically selected the first option after timing out, including the prompt with no recommended default; neither is recorded as explicit user approval. Final correctness verification can finish independently, but performance acceptance remains open until an actual user response.
+Confirm whether the disclosed workload-dependent discovery/CPU regressions and higher cold-inclusive costs are accepted while retaining the required routing/coverage policy. Both decision prompts automatically selected the first option after timing out, including the prompt with no recommended default; neither is recorded as explicit user approval. Functional integration is now verified 75/75, but performance acceptance remains open until an actual user response.
