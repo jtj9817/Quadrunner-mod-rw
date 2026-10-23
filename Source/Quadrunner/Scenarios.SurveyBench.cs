@@ -26,9 +26,17 @@ namespace Quadrunner
     /// rejects unrelated robodogs and restores the type on success or failure. Snapshots contain no movement job.
     /// The proposed phase uses the normal QR_Survey driver and completed scan footprints.
     ///
-    /// Selection cost/allocation is measured externally around every planner call. New geometry timing and counters
-    /// are read from Survey's opt-in Measure counters; the benchmark uses deltas and leaves Measure off outside its
-    /// measured phases.
+    /// Travel is sampled from the path follower's own tick, not rendered frames: a native step is the exact
+    /// TryEnterNextPathCell pre/post cell pair, a collision recovery is a PatherTick position change outside that call,
+    /// and any other position change is an external move. Measured legs start from a stopped follower and an ended job
+    /// also stops it, so a stale pending path request (which vanilla records from nextCell) cannot later consume nodes
+    /// from an earlier cell. A native step that skips cells, or a move the follower did not make, is recorded once and
+    /// rejects the phase at its boundary; nothing throws from inside Pawn.Tick and no result is emitted for a rejected
+    /// trace.
+    ///
+    /// Selection elapsed cost, process CPU and allocation are measured externally around every planner call. Full
+    /// physical-phase CPU includes all private-process threads (simulation/rendering/native paths), not just planner
+    /// attribution. New geometry timing and counters use Survey's opt-in Measure deltas, disabled outside measurement.
     /// </summary>
     public static partial class Scenarios
     {
@@ -38,9 +46,17 @@ namespace Quadrunner
         private const int MaxSelections = 80;
         private static SurveyBenchRunner activeBench = null;
 
-        // No native movement event exists in 1.6. These fixture-only postfixes are installed explicitly (not by
-        // PatchAll) and removed on every finish, so walked cells and movement path requests are not frame samples.
-        private static void SurveyBenchMoved(Pawn ___pawn) => activeBench?.Moved(___pawn);
+        // No native movement event exists in 1.6. These fixture-only hooks are installed explicitly (not by PatchAll)
+        // and removed on every finish. They sample the path follower's own tick, never rendered frames: PatherTick's
+        // pre/post pair captures every pather-driven cell change (including the follower's collision recovery, which
+        // is not a TryEnter call), and the TryEnter pre/post pair captures the exact native step. A transition the
+        // follower did not make is captured as external. The job-end postfix stops a path left behind by an ended job.
+        // Nothing throws from inside Pawn.Tick; the phase rejects an invalid trace once, at its boundary.
+        private static void SurveyBenchPatherEnter(Pawn ___pawn) => activeBench?.BeginPatherTick(___pawn);
+        private static void SurveyBenchPatherExit(Pawn ___pawn) => activeBench?.EndPatherTick(___pawn);
+        private static void SurveyBenchCellEnter(Pawn ___pawn) => activeBench?.BeginNextCell(___pawn);
+        private static void SurveyBenchCellExit(Pawn ___pawn) => activeBench?.EndNextCell(___pawn);
+        private static void SurveyBenchJobEnded(Pawn ___pawn) => activeBench?.JobEnded(___pawn);
         private static void SurveyBenchRequested(Pawn ___pawn) => activeBench?.Requested(___pawn);
 
         // ---------------------------------------------------------------- registration
@@ -561,12 +577,17 @@ namespace Quadrunner
         {
             public readonly List<double> Ms = new List<double>();
             public readonly List<long> Alloc = new List<long>();
-            public void Add(double ms, long alloc) { Ms.Add(ms); Alloc.Add(alloc); }
+            public readonly List<double> CpuMs = new List<double>();
+            public void Add(BenchSample sample) { Ms.Add(sample.Ms); Alloc.Add(sample.Alloc); CpuMs.Add(sample.CpuMs); }
             public double MedianMs => Percentile(Ms, 0.50);
             public double P95Ms => Percentile(Ms, 0.95);
             public double TailMs => Ms.Count == 0 ? 0 : Ms.Max();
             public double TotalMs => Ms.Sum();
             public long TotalAlloc => Alloc.Count == 0 || Alloc.Any(a => a < 0) ? -1 : Alloc.Sum();
+            public double CpuMedianMs => Percentile(CpuMs, 0.50);
+            public double CpuP95Ms => Percentile(CpuMs, 0.95);
+            public double CpuTailMs => CpuMs.Count == 0 ? 0 : CpuMs.Max();
+            public double CpuTotalMs => CpuMs.Sum();
 
             public static double Percentile(List<double> values, double fraction)
             {
@@ -579,10 +600,9 @@ namespace Quadrunner
 
         private sealed class BenchSample
         {
-            public double Ms;
+            public double Ms, CpuMs;
             public long Alloc = -1;
             public IntVec3 Goal;
-            public string CountText() => Alloc < 0 ? "n/a" : $"{Alloc}B";
         }
 
         private static IntVec3 TargetCell(Job job)
@@ -610,6 +630,8 @@ namespace Quadrunner
             public BenchNumbers RuntimeBefore, Runtime;
             public double ConstructionMs, ArrivalMs, StartJobMs;
             public long ConstructionAlloc, ArrivalAlloc, StartJobAlloc;
+            public double ConstructionCpuMs, ProcessCpuMs;
+            public long CpuStartedNs;
             public double TotalMs => Select.TotalMs + ArrivalMs + StartJobMs + (Baseline ? 0 : ConstructionMs)
                 + SurveyBenchRunner.TicksToMs(Runtime.LocalScanTicks - (Baseline ? Runtime.ObservationTicks : 0)
                     + Runtime.ValidationTicks);
@@ -618,7 +640,11 @@ namespace Quadrunner
                 - (Baseline ? Runtime.ObservationBytes : 0) + Runtime.ValidationBytes;
             public int StartTick, EndTick, Selections, WalkedCells, VisitedCells;
             public int MovementPaths;
-            public float WalkedDistance;
+            // Path-follower collision recoveries (real cell changes outside TryEnterNextPathCell), and rejected
+            // samples: native steps that jumped cells or position changes the follower did not make.
+            public int Recoveries, Jumps, ExternalMoves;
+            public float WalkedDistance, RecoveryDistance, JumpDistance, ExternalDistance;
+            public string TraceIssue;
             public long Signature;
             public string Selected = "";
             public int Observed = -1;
@@ -650,7 +676,7 @@ namespace Quadrunner
             private BenchSample refresh = new BenchSample();
             private BenchNumbers baselineColdNumbers, baselineWarmNumbers;
             private BenchNumbers proposedColdNumbers, proposedWarmNumbers, refreshNumbers;
-            private double networkBuildMs;
+            private double networkBuildMs, networkBuildCpuMs;
             private long networkBuildAlloc;
             private string candidateReport = "n/a";
             private string coldObserved = "n/a", proposedWarmObserved = "n/a";
@@ -660,13 +686,14 @@ namespace Quadrunner
             private BenchPhase baselinePhase, proposedPhase;
             private IntVec3 goal = IntVec3.Invalid;
             private int nextSelectTick, lastDiscoveryTick = -1;
-            private IntVec3 lastPos;
+            private IntVec3 lastPos, patherTickStart, nextCellStart;
             private float walkedDistance;
             private int walkedCells;
-            private bool prepared, finished, measuringTravel;
+            private bool prepared, finished, measuringTravel, patherTicking;
+            private string traceInvalid;
             private readonly Type surveyDriver;
             private readonly Harmony profiler;
-            private readonly MethodInfo moveMethod, requestMethod;
+            private readonly MethodInfo patherTickMethod, nextCellMethod, jobEndMethod, requestMethod;
             private readonly string snapshotName = "QR_survey_bench_" + Guid.NewGuid().ToString("N");
             private string observerId;
             private bool replaying, replayBaseline, snapshotSaved;
@@ -682,8 +709,12 @@ namespace Quadrunner
                     throw new InvalidOperationException("survey benchmark needs an isolated map without unrelated robodogs");
                 surveyDriver = QR_DefOf.QR_Survey.driverClass;
                 historical = new HistoricalSurvey(goals);
-                moveMethod = AccessTools.Method(typeof(Pawn_PathFollower), "TryEnterNextPathCell")
+                patherTickMethod = AccessTools.Method(typeof(Pawn_PathFollower), "PatherTick")
+                    ?? throw new MissingMethodException("Pawn_PathFollower.PatherTick");
+                nextCellMethod = AccessTools.Method(typeof(Pawn_PathFollower), "TryEnterNextPathCell")
                     ?? throw new MissingMethodException("Pawn_PathFollower.TryEnterNextPathCell");
+                jobEndMethod = AccessTools.Method(typeof(Pawn_JobTracker), "EndCurrentJob")
+                    ?? throw new MissingMethodException("Pawn_JobTracker.EndCurrentJob");
                 requestMethod = AccessTools.Method(typeof(Pawn_PathFollower), "GenerateNewPathRequest")
                     ?? throw new MissingMethodException("Pawn_PathFollower.GenerateNewPathRequest");
                 profiler = new Harmony("josh9817.quadrunner.survey-benchmark");
@@ -696,13 +727,21 @@ namespace Quadrunner
                     QR_DefOf.QR_Survey.driverClass = surveyDriver;
                     HistoricalArrival = null;
                     activeBench = null;
-                    profiler.Unpatch(moveMethod, HarmonyPatchType.Postfix, profiler.Id);
+                    profiler.Unpatch(patherTickMethod, HarmonyPatchType.Prefix, profiler.Id);
+                    profiler.Unpatch(patherTickMethod, HarmonyPatchType.Postfix, profiler.Id);
+                    profiler.Unpatch(nextCellMethod, HarmonyPatchType.Prefix, profiler.Id);
+                    profiler.Unpatch(nextCellMethod, HarmonyPatchType.Postfix, profiler.Id);
+                    profiler.Unpatch(jobEndMethod, HarmonyPatchType.Postfix, profiler.Id);
                     profiler.Unpatch(requestMethod, HarmonyPatchType.Postfix, profiler.Id);
                     string path = GenFilePaths.FilePathForSavedGame(snapshotName);
                     if (snapshotSaved && File.Exists(path)) File.Delete(path);
                 });
                 activeBench = this;
-                profiler.Patch(moveMethod, postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchMoved))));
+                profiler.Patch(patherTickMethod, prefix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchPatherEnter))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchPatherExit))));
+                profiler.Patch(nextCellMethod, prefix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchCellEnter))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchCellExit))));
+                profiler.Patch(jobEndMethod, postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchJobEnded))));
                 profiler.Patch(requestMethod, postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchRequested))));
             }
 
@@ -722,6 +761,8 @@ namespace Quadrunner
                     Scenario.Resume();
                     return false;
                 }
+                // Loading's fade-in can ignore the speed setter; retry the existing helper until control returns.
+                if (!Scenario.Resume()) return false;
                 if (!DrivePhysical()) return false;
                 EndPhysical();
                 if (phase.Baseline)
@@ -793,6 +834,23 @@ namespace Quadrunner
 
             private static long AllocatedNow() => GcAllocated();
 
+            [StructLayout(LayoutKind.Sequential)]
+            private struct CpuTime
+            {
+                public long Seconds, Nanoseconds;
+            }
+
+            [DllImport("libc.so.6", EntryPoint = "clock_gettime", CallingConvention = CallingConvention.Cdecl)]
+            private static extern int ProcessCpuTime(int clock, out CpuTime time);
+
+            private static long CpuNow()
+            {
+                // Linux x64 CLOCK_PROCESS_CPUTIME_ID includes every private-game thread, including native paths.
+                if (IntPtr.Size != 8 || ProcessCpuTime(2, out CpuTime time) != 0)
+                    throw new InvalidOperationException("the isolated benchmark requires a Linux 64-bit process CPU clock");
+                return checked(time.Seconds * 1000000000L + time.Nanoseconds);
+            }
+
             private void Prepare()
             {
                 prepared = true;
@@ -835,10 +893,12 @@ namespace Quadrunner
             {
                 DogNetwork.ClearAll();
                 long allocBefore = AllocatedNow();
+                long cpuBefore = CpuNow();
                 Watch.Restart();
                 network = DogNetwork.For(map);
                 Watch.Stop();
                 long allocAfter = AllocatedNow();
+                networkBuildCpuMs = (CpuNow() - cpuBefore) / 1000000.0;
                 networkBuildMs = Watch.Elapsed.TotalMilliseconds;
                 networkBuildAlloc = allocBefore >= 0 && allocAfter >= 0 ? allocAfter - allocBefore : -1;
                 survey = network.Survey;
@@ -867,10 +927,10 @@ namespace Quadrunner
                     Pawn observer = observers[i % observers.Count];
                     BenchSample b = Measure(observer, true, out Job bj);
                     ReturnPool(bj);
-                    baselineWarm.Add(b.Ms, b.Alloc);
+                    baselineWarm.Add(b);
                     BenchSample p = Measure(observer, false, out Job pj);
                     ReturnPool(pj);
-                    proposedWarm.Add(p.Ms, p.Alloc);
+                    proposedWarm.Add(p);
                     pairedDeltas.Add(p.Ms - b.Ms);
                 }
                 baselineWarmNumbers = historical.Numbers().Delta(baselineAll);
@@ -884,15 +944,18 @@ namespace Quadrunner
                     Thing wall = SpawnBuilding(scenario, ThingDefOf.Wall, ThingDefOf.Steel, fixture.RefreshCell, Rot4.North);
                     BenchNumbers editBefore = BenchNumbers.FromSurvey(survey);
                     long allocBefore = AllocatedNow();
+                    long cpuBefore = CpuNow();
                     Watch.Restart();
                     survey.Refresh();
                     Job refreshed = survey.JobFor(observers[0]);
                     Watch.Stop();
                     long allocAfter = AllocatedNow();
+                    double cpuMs = (CpuNow() - cpuBefore) / 1000000.0;
                     ReturnPool(refreshed);
                     refresh = new BenchSample
                     {
                         Ms = Watch.Elapsed.TotalMilliseconds,
+                        CpuMs = cpuMs,
                         Alloc = allocBefore >= 0 && allocAfter >= 0 ? allocAfter - allocBefore : -1,
                     };
                     refreshNumbers = BenchNumbers.FromSurvey(survey).Delta(editBefore);
@@ -905,13 +968,16 @@ namespace Quadrunner
             private BenchSample Measure(Pawn observer, bool baseline, out Job job)
             {
                 long allocBefore = AllocatedNow();
+                long cpuBefore = CpuNow();
                 Watch.Restart();
                 job = baseline ? historical.JobFor(observer, network) : survey.JobFor(observer);
                 Watch.Stop();
                 long allocAfter = AllocatedNow();
+                double cpuMs = (CpuNow() - cpuBefore) / 1000000.0;
                 return new BenchSample
                 {
                     Ms = Watch.Elapsed.TotalMilliseconds,
+                    CpuMs = cpuMs,
                     Alloc = allocBefore >= 0 && allocAfter >= 0 ? allocAfter - allocBefore : -1,
                     Goal = TargetCell(job),
                 };
@@ -944,16 +1010,19 @@ namespace Quadrunner
                 visited.Clear();
                 walkedCells = 0;
                 walkedDistance = 0;
+                traceInvalid = null;
+                patherTicking = false;
                 lastPos = dog.Position;
                 Teleport(dog, fixture.DogStart);
-                lastPos = dog.Position;
+                lastPos = patherTickStart = nextCellStart = dog.Position;
                 lastDiscoveryTick = -1;
                 nextSelectTick = 0;
 
                 CreateNetwork();
                 survey.Measure = true;
                 phase = new BenchPhase { Baseline = baseline, Signature = BenchGeometrySignature(map, fixture.Site),
-                    ConstructionMs = networkBuildMs, ConstructionAlloc = networkBuildAlloc };
+                    ConstructionMs = networkBuildMs, ConstructionAlloc = networkBuildAlloc,
+                    ConstructionCpuMs = networkBuildCpuMs };
                 HistoricalArrival = baseline ? (Action<Pawn>)RecordHistoricalArrival : null;
                 QR_DefOf.QR_Survey.driverClass = baseline ? typeof(JobDriver_HistoricalSurveyBenchmark) : surveyDriver;
                 if (phase.Signature != fixture.Signature)
@@ -972,6 +1041,7 @@ namespace Quadrunner
                 phase.VisitedCells = 1;
                 visited.Add(dog.Position);
                 RecordEntry(phase.StartTick);
+                phase.CpuStartedNs = CpuNow();
                 measuringTravel = true;
             }
 
@@ -1010,7 +1080,7 @@ namespace Quadrunner
                 BenchSample sample = Measure(observers[0], true, out Job job);
                 if (job == null || !sample.Goal.IsValid)
                 {
-                    phase.Select.Add(sample.Ms, sample.Alloc);
+                    phase.Select.Add(sample);
                     phase.Selections++;
                     nextSelectTick = now + RobodogWork.Utility.dispatchInterval;
                     return;
@@ -1018,7 +1088,7 @@ namespace Quadrunner
                 goal = sample.Goal;
                 goals[dog] = goal;
                 phase.Selected = $"goal {goal}";
-                phase.Select.Add(sample.Ms, sample.Alloc);
+                phase.Select.Add(sample);
                 phase.Selections++;
                 StartMeasuredJob(job);
             }
@@ -1036,7 +1106,7 @@ namespace Quadrunner
                 if (dog.CurJobDef == QR_DefOf.QR_Survey) return;
                 if (now < nextSelectTick || phase.Selections >= MaxSelections) return;
                 BenchSample sample = Measure(observers[0], false, out Job job);
-                phase.Select.Add(sample.Ms, sample.Alloc);
+                phase.Select.Add(sample);
                 phase.Selections++;
                 if (job == null || !sample.Goal.IsValid)
                 {
@@ -1050,6 +1120,13 @@ namespace Quadrunner
 
             private void StartMeasuredJob(Job job)
             {
+                // Pawn_PathFollower.GenerateNewPathRequest records start: nextCell, and a new job's StartPath keeps that
+                // pending request while an unrelated old path keeps running. If that old path then runs out before the
+                // request resolves, the claim consumes the new path from its stale start: SetupMoveIntoNextCell sets
+                // nextCell to a cell beside the earlier start, not beside the pawn, and TryEnterNextPathCell assigns
+                // that non-adjacent cell to Position. A measured leg must start from the observed cell, so finish the
+                // leftover path (an interrupted wander/idle job, never measured work) before starting the leg.
+                dog.pather?.StopDead();
                 long validation = survey.ValidationElapsedTicks, validationBytes = survey.ValidationAllocatedBytes;
                 double arrivalMs = phase.ArrivalMs;
                 long arrivalAlloc = phase.ArrivalAlloc;
@@ -1082,19 +1159,41 @@ namespace Quadrunner
                         target.EnteredTick = now;
             }
 
-            public void Moved(Pawn pawn)
+            private enum TransitionKind { Step, Recovery, External }
+
+            // PatherTick is the only caller of TryEnterNextPathCell and performs its own collision recovery by writing
+            // Position directly. Sampling that tick's boundary therefore sees every cell change the follower makes.
+            // TryEnterNextPathCell itself can early-return without moving, so its own pre/post pair supplies the exact
+            // native step rather than assuming one call means one cell.
+            public void BeginPatherTick(Pawn pawn)
             {
                 if (!measuringTravel || pawn != dog || phase == null) return;
-                IntVec3 position = pawn.Position;
-                if (position == lastPos) return;
-                float distance = position.DistanceTo(lastPos);
-                if (distance > 1.5f)
-                    throw new InvalidOperationException($"benchmark movement was not a native adjacent step: {lastPos}->{position}");
-                walkedCells++;
-                walkedDistance += distance;
-                visited.Add(position);
-                lastPos = position;
-                RecordEntry(Find.TickManager.TicksGame);
+                patherTicking = true;
+                patherTickStart = pawn.Position;
+                if (patherTickStart != lastPos)
+                    RecordTransition(TransitionKind.External, lastPos, patherTickStart);
+            }
+
+            public void EndPatherTick(Pawn pawn)
+            {
+                if (!patherTicking) return;
+                patherTicking = false;
+                if (!measuringTravel || pawn != dog || phase == null) return;
+                if (pawn.Position != lastPos)
+                    RecordTransition(TransitionKind.Recovery, lastPos, pawn.Position);
+            }
+
+            public void BeginNextCell(Pawn pawn)
+            {
+                if (!measuringTravel || pawn != dog || phase == null) return;
+                nextCellStart = pawn.Position;
+            }
+
+            public void EndNextCell(Pawn pawn)
+            {
+                if (!measuringTravel || pawn != dog || phase == null) return;
+                if (pawn.Position != nextCellStart)
+                    RecordTransition(TransitionKind.Step, nextCellStart, pawn.Position);
             }
 
             public void Requested(Pawn pawn)
@@ -1102,9 +1201,80 @@ namespace Quadrunner
                 if (measuringTravel && pawn == dog && phase != null) phase.MovementPaths++;
             }
 
+            // EndCurrentJob does not stop the follower, and its final TryFindAndStartJob can run the dog's own wander
+            // job before the benchmark's next frame. Stopping here keeps the next path request starting from the
+            // pawn's actual cell instead of a nextCell the ended job left behind.
+            public void JobEnded(Pawn pawn)
+            {
+                if (!measuringTravel || pawn != dog) return;
+                pawn.pather?.StopDead();
+            }
+
+            private void RecordTransition(TransitionKind kind, IntVec3 from, IntVec3 to)
+            {
+                if (from == to) return;
+                int tick = Find.TickManager.TicksGame;
+                float distance = from.DistanceTo(to);
+                bool adjacent = distance <= 1.5f;
+                switch (kind)
+                {
+                    case TransitionKind.Step:
+                        if (adjacent)
+                        {
+                            walkedCells++;
+                            walkedDistance += distance;
+                        }
+                        else
+                        {
+                            phase.Jumps++;
+                            phase.JumpDistance += distance;
+                            if (traceInvalid == null)
+                                Reject($"native step jumped {distance:F2} cells {from}->{to}");
+                        }
+                        break;
+                    case TransitionKind.Recovery:
+                        if (adjacent)
+                        {
+                            phase.Recoveries++;
+                            phase.RecoveryDistance += distance;
+                        }
+                        else
+                        {
+                            phase.Jumps++;
+                            phase.JumpDistance += distance;
+                            if (traceInvalid == null)
+                                Reject($"path-follower recovery jumped {distance:F2} cells {from}->{to}");
+                        }
+                        break;
+                    default:
+                        phase.ExternalMoves++;
+                        phase.ExternalDistance += distance;
+                        if (traceInvalid == null)
+                            Reject($"position changed outside the path follower by {distance:F2} cells {from}->{to}");
+                        break;
+                }
+                visited.Add(to);
+                lastPos = to;
+                RecordEntry(tick);
+            }
+
+            private void Reject(string what)
+            {
+                if (traceInvalid != null || phase == null) return;
+                traceInvalid = $"{what} at t+{Find.TickManager.TicksGame - phase.StartTick}";
+                phase.TraceIssue = traceInvalid;
+            }
+
             private void EndPhysical()
             {
+                // A frame boundary can fall between the last pather tick and the next one: close the interval so a
+                // carried/teleported position cannot escape the trace.
+                if (measuringTravel && dog != null && phase != null && dog.Position != lastPos)
+                    RecordTransition(TransitionKind.External, lastPos, dog.Position);
                 measuringTravel = false;
+                patherTicking = false;
+                phase.ProcessCpuMs = (CpuNow() - phase.CpuStartedNs) / 1000000.0
+                    + (phase.Baseline ? 0 : phase.ConstructionCpuMs);
                 phase.EndTick = Find.TickManager.TicksGame;
                 phase.Runtime = BenchNumbers.FromSurvey(survey).Delta(phase.RuntimeBefore);
                 survey.Measure = false;
@@ -1119,6 +1289,9 @@ namespace Quadrunner
                 phase.WalkedCells = walkedCells;
                 phase.WalkedDistance = walkedDistance;
                 phase.VisitedCells = visited.Count;
+                if (traceInvalid != null)
+                    throw new InvalidOperationException(
+                        $"{fixture.Label}: {(phase.Baseline ? "baseline" : "proposed")} movement trace rejected: {traceInvalid}");
             }
 
             private void Emit()
@@ -1132,12 +1305,17 @@ namespace Quadrunner
                         ("fixture", fixture.Label),
                         ("geometry", fixture.GeometryNote),
                         ("allocation_source", allocationSource),
+                        ("cpu_source", "clock_gettime-process-all-threads"),
+                        ("phase_cpu_scope", "physical phase plus proposed cold construction; includes simulation/rendering/native paths; excludes loads/setup"),
                         ("signature", fixture.Signature.ToString("X", CultureInfo.InvariantCulture)),
                         ("geometry_reused", baselinePhase.Signature == proposedPhase.Signature),
                         ("network_build_ms", Round(networkBuildMs)),
+                        ("network_build_cpu_ms", Round(networkBuildCpuMs)),
                         ("network_build_alloc", networkBuildAlloc),
                         ("baseline_cold_ms", Round(baselineCold.Ms)),
                         ("baseline_cold_alloc", baselineCold.Alloc),
+                        ("baseline_cold_cpu_ms", Round(baselineCold.CpuMs)),
+                        ("proposed_cold_cpu_ms", Round(proposedCold.CpuMs)),
                         ("proposed_cold_ms", Round(proposedCold.Ms)),
                         ("proposed_cold_alloc", proposedCold.Alloc),
                         ("baseline_warm_n", baselineWarm.Ms.Count),
@@ -1146,15 +1324,24 @@ namespace Quadrunner
                         ("baseline_warm_tail_ms", Round(baselineWarm.TailMs)),
                         ("baseline_warm_total_ms", Round(baselineWarm.TotalMs)),
                         ("baseline_warm_alloc", baselineWarm.TotalAlloc),
+                        ("baseline_warm_cpu_median_ms", Round(baselineWarm.CpuMedianMs)),
+                        ("baseline_warm_cpu_p95_ms", Round(baselineWarm.CpuP95Ms)),
+                        ("baseline_warm_cpu_tail_ms", Round(baselineWarm.CpuTailMs)),
+                        ("baseline_warm_cpu_total_ms", Round(baselineWarm.CpuTotalMs)),
                         ("proposed_warm_median_ms", Round(proposedWarm.MedianMs)),
                         ("proposed_warm_p95_ms", Round(proposedWarm.P95Ms)),
                         ("proposed_warm_tail_ms", Round(proposedWarm.TailMs)),
                         ("proposed_warm_total_ms", Round(proposedWarm.TotalMs)),
                         ("proposed_warm_alloc", proposedWarm.TotalAlloc),
+                        ("proposed_warm_cpu_median_ms", Round(proposedWarm.CpuMedianMs)),
+                        ("proposed_warm_cpu_p95_ms", Round(proposedWarm.CpuP95Ms)),
+                        ("proposed_warm_cpu_tail_ms", Round(proposedWarm.CpuTailMs)),
+                        ("proposed_warm_cpu_total_ms", Round(proposedWarm.CpuTotalMs)),
                         ("paired_delta_median_ms", Round(pairedMedian)),
                         ("paired_delta_p95_ms", Round(pairedP95)),
                         ("refresh_ms", Round(refresh.Ms)),
                         ("refresh_alloc", refresh.Alloc),
+                        ("refresh_cpu_ms", Round(refresh.CpuMs)),
                         ("geometry_builds", refreshNumbers.GeometryBuilds),
                         ("geometry_checks", refreshNumbers.GeometryChecks),
                         ("geometry_ms", Round(TicksToMs(refreshNumbers.GeometryElapsedTicks))),
@@ -1171,6 +1358,10 @@ namespace Quadrunner
                         ("proposed_phase", PhaseEvent(proposedPhase)),
                         ("baseline_total_ms", Round(baselinePhase.TotalMs)), ("baseline_total_alloc", baselinePhase.TotalAlloc),
                         ("proposed_total_ms", Round(proposedPhase.TotalMs)), ("proposed_total_alloc", proposedPhase.TotalAlloc),
+                        ("baseline_phase_cpu_ms", Round(baselinePhase.ProcessCpuMs)),
+                        ("proposed_phase_cpu_ms", Round(proposedPhase.ProcessCpuMs)),
+                        ("baseline_phase_selection_cpu_ms", Round(baselinePhase.Select.CpuTotalMs)),
+                        ("proposed_phase_selection_cpu_ms", Round(proposedPhase.Select.CpuTotalMs)),
                         ("baseline_scan_ms", Round(TicksToMs(baselinePhase.Runtime.LocalScanTicks - baselinePhase.Runtime.ObservationTicks))),
                         ("proposed_scan_ms", Round(TicksToMs(proposedPhase.Runtime.LocalScanTicks))),
                         ("proposed_validation_ms", Round(TicksToMs(proposedPhase.Runtime.ValidationTicks))),
@@ -1180,6 +1371,15 @@ namespace Quadrunner
                         ("proposed_candidate_alloc", proposedPhase.Counters.CandidateBytes),
                         ("baseline_movement_paths", baselinePhase.MovementPaths),
                         ("proposed_movement_paths", proposedPhase.MovementPaths),
+                        ("baseline_native_steps", baselinePhase.WalkedCells),
+                        ("proposed_native_steps", proposedPhase.WalkedCells),
+                        ("baseline_recoveries", baselinePhase.Recoveries),
+                        ("proposed_recoveries", proposedPhase.Recoveries),
+                        ("baseline_rejected_jumps", baselinePhase.Jumps),
+                        ("proposed_rejected_jumps", proposedPhase.Jumps),
+                        ("baseline_external_moves", baselinePhase.ExternalMoves),
+                        ("proposed_external_moves", proposedPhase.ExternalMoves),
+                        ("movement_trace", "clean; exact PatherTick/TryEnterNextPathCell cell transitions"),
                         ("baseline_full_path_requests", baselinePhase.Counters.PathRequests + baselinePhase.MovementPaths),
                         ("proposed_full_path_requests", proposedPhase.Counters.PathRequests + proposedPhase.MovementPaths),
                         ("baseline_targets", baseTargets),
@@ -1195,18 +1395,23 @@ namespace Quadrunner
 
             private static string PhaseEvent(BenchPhase phase) =>
                 $"selections {phase.Selections}, ticks {phase.EndTick - phase.StartTick}, walked {phase.WalkedCells} " +
-                $"({phase.WalkedDistance:F1} distance, {phase.VisitedCells} visited), select " +
+                $"native ({phase.WalkedDistance:F1} distance, {phase.VisitedCells} visited), recoveries " +
+                $"{phase.Recoveries} ({phase.RecoveryDistance:F1} distance), rejected jumps {phase.Jumps} " +
+                $"({phase.JumpDistance:F1}), external moves {phase.ExternalMoves} ({phase.ExternalDistance:F1}), select " +
                 $"{phase.Select.MedianMs:F2}/{phase.Select.P95Ms:F2}/{phase.Select.TailMs:F2} ms total " +
-                $"{phase.Select.TotalMs:F1} ms, alloc " +
-                $"{phase.Select.TotalAlloc} B, selector paths {phase.Counters.PathRequests}, movement paths {phase.MovementPaths}, " +
+                $"{phase.Select.TotalMs:F1} ms, " +
+                $"process CPU select {phase.Select.CpuMedianMs:F2}/{phase.Select.CpuP95Ms:F2}/{phase.Select.CpuTailMs:F2} " +
+                $"ms total {phase.Select.CpuTotalMs:F2}, whole physical phase {phase.ProcessCpuMs:F2} ms, " +
+                $"alloc {phase.Select.TotalAlloc} B, selector paths {phase.Counters.PathRequests}, movement paths {phase.MovementPaths}, " +
                 $"reach {phase.Counters.ReachChecks}, " +
                 $"geometry {phase.Counters.GeometryBuilds}/{TicksToMs(phase.Counters.GeometryElapsedTicks):F2} ms/" +
                 $"{phase.Counters.GeometryAllocatedBytes} B, candidates {phase.Counters.CandidateBuilds}/" +
                 $"{TicksToMs(phase.Counters.CandidateTicks):F2} ms/{phase.Counters.CandidateBytes} B, " +
-                $"observed {phase.Observed}, {phase.Selected}";
+                $"observed {phase.Observed}, trace {(phase.TraceIssue == null ? "clean" : phase.TraceIssue)}, {phase.Selected}";
 
             private static string PhaseText(BenchPhase phase) =>
-                $"{phase.Selections} sel, {phase.EndTick - phase.StartTick} ticks, {phase.WalkedCells} walked, " +
+                $"{phase.Selections} sel, {phase.EndTick - phase.StartTick} ticks, {phase.WalkedCells} walked " +
+                $"({phase.Recoveries} recoveries, {phase.Jumps} jumps, {phase.ExternalMoves} external), " +
                 $"med {phase.Select.MedianMs:F2}/tail {phase.Select.TailMs:F2} ms, {phase.Select.TotalAlloc} B, " +
                 $"paths {phase.Counters.PathRequests}, geometry {phase.Counters.GeometryBuilds}/{phase.Counters.GeometryElapsedTicks} ticks";
 
@@ -1226,6 +1431,7 @@ namespace Quadrunner
                     $"{baselineWarm.P95Ms:F2}/{proposedWarm.P95Ms:F2}, tail {baselineWarm.TailMs:F2}/{proposedWarm.TailMs:F2}; " +
                     $"refresh {refresh.Ms:F2} ms, geometry {refreshNumbers.GeometryBuilds} builds " +
                     $"{TicksToMs(refreshNumbers.GeometryElapsedTicks):F2} ms/{refreshNumbers.GeometryAllocatedBytes}B; " +
+                    $"process CPU phase {baselinePhase?.ProcessCpuMs:F1}/{proposedPhase?.ProcessCpuMs:F1} ms; " +
                     $"baseline [{baseTargets}]; proposed [{propTargets}]";
             }
 

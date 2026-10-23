@@ -5,6 +5,7 @@ using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 using Verse.AI.Group;
 
 namespace Quadrunner
@@ -37,20 +38,70 @@ namespace Quadrunner
 
         private static bool Free(Pawn dog) => dog.CurJobDef != QR_DefOf.QR_BeingRidden && Riding.RiderOf(dog) == null;
 
+        /// <summary>Cells within <paramref name="radius"/> of the supplied pawn's actual vanilla route; a disconnected
+        /// route is a fixture failure, not grounds to invent a straight-line substitute.</summary>
+        private static List<IntVec3> RideCorridor(Pawn walker, IntVec3 from, IntVec3 to, int radius)
+        {
+            Map map = Find.CurrentMap;
+            var cells = new HashSet<IntVec3>();
+            using (PawnPath path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(walker, Danger.Deadly),
+                       peMode: PathEndMode.OnCell))
+            {
+                if (!path.Found)
+                    throw new InvalidOperationException($"no real ride-fixture route for {walker}: {from}->{to}");
+                foreach (IntVec3 node in path.NodesReversed)
+                    foreach (IntVec3 cell in GenRadial.RadialCellsAround(node, radius, useCenter: true))
+                        if (cell.InBounds(map))
+                            cells.Add(cell);
+            }
+            return cells.ToList();
+        }
+
+        /// <summary>
+        /// Reveals cells after <see cref="SurveyIsolate"/> installed its full-map fog restore: the corridor added
+        /// later in a scenario is still restored because that callback compares every cell with the original fog.
+        /// </summary>
+        private static void RideReveal(IEnumerable<IntVec3> cells)
+        {
+            Map map = Find.CurrentMap;
+            int count = 0;
+            foreach (IntVec3 cell in cells)
+                if (cell.InBounds(map) && map.fogGrid.IsFogged(cell))
+                {
+                    map.fogGrid.Unfog(cell);
+                    count++;
+                }
+            QR.Log($"ride corridor: revealed {count} cells for the worker's local scan");
+        }
+
+
         /// <summary>
         /// The plan's scenario: a colonist takes a 1.5% Quadrunner from its stable for a ride longer than its battery, at
         /// the ridden speed, across a reload; at 0% the dog powers down, the rider steps off and walks on, and the stable's
-        /// other dog carries it home.
+        /// other dog carries it home. The rest of the shared map is fogged out for the test and the worker gets a corridor
+        /// along the real ride route, so the stop is found by its normal scheduled scan rather than exploration order.
         /// </summary>
         private static void RideUntilEmpty()
         {
             var s = new Scenario("Ride until 0%", 20000);
-            string stableId = null, dogId = null, riderId = null;
+            string stableId = null, dogId = null, riderId = null, carrierId = null;
             IntVec3 dest = IntVec3.Invalid, downAt = IntVec3.Invalid;
-            float ridden = 0f, walking = 0f;
+            float ridden = 0f, walking = 0f, nearest = float.MaxValue;
+            bool retrieveQueued = false;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
+            Pawn Other() => Stable()?.Dogs().FirstOrDefault(d => d.ThingID != dogId);
+            void Track()
+            {
+                Pawn dog = Dog(), other = Other();
+                if (dog != null && other != null && other.Spawned)
+                    nearest = Mathf.Min(nearest, other.Position.DistanceTo(dog.Position));
+                if (dog != null)
+                    foreach (Pawn pawn in Find.CurrentMap.mapPawns.AllPawns)
+                        if (Carrying(pawn, dog)) { carrierId = pawn.ThingID; break; }
+                retrieveQueued |= Net().NormalQueue.Any(t => t.kind == NetworkTaskKind.Retrieve && t.targetId == dogId);
+            }
             s.Do("a powered stable with two Quadrunners; a colonist rides one from the stable 70–90 cells out, the dog at 1.5%", () =>
                 {
                     Map map = Find.CurrentMap;
@@ -65,6 +116,13 @@ namespace Quadrunner
                     dogId = dog.ThingID;
                     ExpectOption(rider, stable, FloatMenuOptionProvider_Ride.RideLabel(dog, stable));
                     dest = OpenCell(map, stable.InteractionCell, 70f, 90f);
+                    // The other dog finds field work only through its real 15-cell scan. This scenario runs on the shared
+                    // test map, whose colony, Home and zone geometry can consume a finite priority sweep before the open
+                    // ride stretch; reveal a controlled corridor along the planned ride so the observation is a
+                    // deterministic local scan rather than leftover exploration order.
+                    List<IntVec3> corridor = RideCorridor(rider, stable.InteractionCell, dest, 10);
+                    QR.Log($"Ride until 0%: worker corridor {corridor.Count} cells, {stable.InteractionCell} -> {dest}");
+                    SurveyIsolate(s, corridor);
                     if (!Riding.Ride(rider, dog, stable, dest))
                         throw new InvalidOperationException("the ride order failed");
                     CompRobodog.Of(dog).SetBattery(0.015f);
@@ -91,10 +149,44 @@ namespace Quadrunner
                         throw new InvalidOperationException($"last dismount {id} at {cell}: {why}; dog at {downAt}");
                     if (Rider().CurJobDef != QR_DefOf.QR_RideTo)
                         throw new InvalidOperationException($"rider {Rider().CurJob?.ToStringSafe()}");
+                    // A detour can stop the ride outside the planned corridor: reveal the real leg to the stop too, so
+                    // the worker's scheduled 15-cell scan can still reach it.
+                    Building_Stable home = Stable();
+                    Pawn other = home?.Dogs().FirstOrDefault(d => d.ThingID != dogId);
+                    if (other != null)
+                        RideReveal(RideCorridor(other, home.InteractionCell, downAt, 10));
+                    string fromHome = home == null ? "no stable" : $"{downAt.DistanceTo(home.InteractionCell):F0} cells from the stable";
+                    QR.Log($"Ride until 0%: {Dog()} powered down at {downAt}, {fromHome}");
                 })
-                .Expect("the rider arrives on foot", () => Rider().Position == dest && Rider().CurJobDef != QR_DefOf.QR_RideTo)
-                .Expect("the stable's other dog carries the powered-down dog home", () => Stable().Docked.Contains(Dog()))
-                .Summary(() => $"ridden {ridden:F1} c/s, walking {walking:F1} c/s; powered down {downAt.DistanceTo(dest):F0} cells short")
+                .Expect("the rider arrives on foot", () =>
+                {
+                    Track();
+                    return Rider().Position == dest && Rider().CurJobDef != QR_DefOf.QR_RideTo;
+                })
+                .Expect("the worker's local scan discovers the powered-down dog", () =>
+                {
+                    Track();
+                    return retrieveQueued || Stable().Docked.Contains(Dog());
+                })
+                .Expect("the stable's other dog carries the powered-down dog home", () =>
+                {
+                    Track();
+                    return Stable().Docked.Contains(Dog());
+                })
+                .Summary(() =>
+                {
+                    Pawn other = Other();
+                    Survey survey = Net().Survey;
+                    string near = nearest < float.MaxValue ? $"{nearest:F0}" : "never seen spawned";
+                    string coverage = downAt.IsValid
+                        ? $"stop area {survey.CategoryAt(downAt)}, observed {survey.Observed(downAt)}, sweep {survey.Sweep}"
+                        : "no stop";
+                    return $"ridden {ridden:F1} c/s, walking {walking:F1} c/s; powered down {downAt.DistanceTo(dest):F0} cells short"
+                        + $"; stop {downAt}, {downAt.DistanceTo(Stable()?.InteractionCell ?? downAt):F0} cells from the stable; "
+                        + $"other dog {(other == null ? "gone" : other.PositionHeld + " " + other.CurJob?.ToStringSafe())}, "
+                        + $"nearest {near} cells to the stop; retrieve queued {retrieveQueued}; carried by {carrierId ?? "unseen"}"
+                        + $"; {coverage}; {Net().Inspect().Replace('\n', ' ')}";
+                })
                 .Start();
         }
 
