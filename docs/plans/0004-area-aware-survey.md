@@ -21,7 +21,7 @@ Implement [QR-0001](../tickets/QR-0001-area-aware-survey-routing.md) without cha
 | Measurement | Compare identical controlled room-heavy, large-zone, wall-detour and open-fallback workloads. Both physical phases reload the same private fixture save with identical actors, eligibility and tuning. Record actual discovery ticks, native walked cells, selection elapsed cost/GC allocations, full paths/reachability and cold/refresh/invalidation costs, including median and tail. Refresh timing includes the next selection so deferred candidate construction is charged. Whole-survey totals include local scanning, live driver/wait validation, job startup and cold network/survey construction; the historical baseline excludes only the new coverage hook and uses its original arrival writer. Nested geometry/candidate time is not added twice. Stopwatch durations are elapsed-cost proxies, not hardware cycles or separately measured asynchronous pathfinding CPU. The validated Boehm counter is process-total managed allocation, including concurrent engine allocations, not per-thread object sizes. A repeatable planner-cost/allocation regression requires an explicit tradeoff decision, not an unconditional optimization claim. |
 | Benchmark instrumentation | Native 1.6 has no pawn-movement map event. Only explicit isolated benchmarks install pre/post hooks on `Pawn_PathFollower.PatherTick` and `TryEnterNextPathCell`, plus request/job-end hooks on `GenerateNewPathRequest` and `Pawn_JobTracker.EndCurrentJob`. Exact native cell transitions count walking; collision recoveries are separate, and jumps/external moves reject the phase once outside Pawn.Tick before metrics can be emitted. Both phases stop leftover followers at job/leg boundaries, avoiding vanilla's stale pending-nextCell artifact under manual job churn. All unannotated hooks are removed on finish; ordinary gameplay and live Run all never install them. Discovery uses the real queue task's first-report tick. |
 | CPU scope | In the isolated Linux x64 benchmark, [`clock_gettime(CLOCK_PROCESS_CPUTIME_ID)`](https://man7.org/linux/man-pages/man3/clock_gettime.3.html) measures actual CPU across all private-game threads. Record selection cold/median/p95/tail, refresh and full physical-phase CPU separately from elapsed planner subtotals. Full-phase CPU includes native asynchronous paths, ordinary simulation, rendering and benchmark overhead, excluding save/load/setup; it is not pure planner attribution or an old-binary CPU profile. Both phases retain current test observation bookkeeping; only the scoped elapsed/allocation subtotals subtract that hook from the historical baseline. Proposed cold construction is additionally charged. Retry the existing scenario speed helper after load fade-in instead of silently benchmarking at Normal. |
-| Accepted tradeoffs | After reviewing the 07:56 paired measurements, the user explicitly chose **Accept measured tradeoffs** (2026-10-23): retain the requested priorities and scan-certified coverage, accept the measured room-heavy discovery/travel/CPU regression and higher cold allocation/latency, and do not describe the result as an all-workload optimization. This accepts those performance tradeoffs, not weaker observation, coverage or task-eligibility semantics. |
+| Performance decisions | The user accepted the disclosed 07:56 room-heavy/cold-cost tradeoffs (2026-10-23). Those samples were later found to have a larger revealed world than claimed. Corrected bounded-world measurements at 09:42 improve three workloads but expose a large-zone regression instead; that materially different comparison requires confirmation. Neither decision authorizes weaker coverage or task eligibility, and no all-workload optimization claim is made. |
 
 ## Targets
 
@@ -45,7 +45,7 @@ Implement [QR-0001](../tickets/QR-0001-area-aware-survey-routing.md) without cha
 ### S3: Measured integration
 
 - [x] Matched workloads record full-path requests, reachability, walked cells, discovery, selection CPU/allocations, cold/refresh/invalidation cost and median/tail selection cost.
-- [x] Fewer redundant steps or lower discovery latency is demonstrated without lost eligible targets, and no repeatable total planner CPU/allocation regression is concealed.
+- [ ] Fewer redundant steps or lower discovery latency is demonstrated without lost eligible targets, and no repeatable total planner CPU/allocation regression is concealed.
 - [ ] Affected network cases and the necessary shared-code sequence pass with zero new errors; test evidence and ticket acceptance are updated and committed incrementally.
 
 S1, geometry/fairness and live-edit proof initially passed in build `3954020-dirty.20261023T020344Z` (**18/18 PASS**, zero new errors). Replay-controlled build `fcd9d92-dirty.20261023T053956Z` repeated all fourteen behavior cases and four benches **18/18 PASS**, including a 171-cell initial target separation and 368 cells physically walked. Build `fcd9d92-dirty.20261023T060457Z` then passed the additional distant same-object reshape regression: ordinary dispatch replaced the stale goal and hauled 31 gold without resetting the survey. The recorded failing preflight demonstrates why selector and driver candidate checks must agree ([run log](../test-runs.md)).
@@ -58,20 +58,22 @@ Independent removal of the current runtime export is **LOADED CLEAN**, zero new 
 
 ## Matched workload evidence
 
-Run: **2026-10-23 07:56**, build `ad76f81-dirty.20261023T075350Z`, launch `20261023-075357-3094063`. Each old/new pair replayed the same private fixture, with identical initial geometry, one physical observer, two eligible targets and default scan/movement tuning. Microbenchmarks used 120 interleaved stationary calls per selector. These are paired samples, not a universal speedup claim. `Old → new` means historical selector → area-aware selector.
+**Scope correction:** these bounded-world measurements supersede the 07:56 samples, which replayed matching local geometry but did not constrain the surrounding revealed map. Setup now refogs the world, reveals the fixture plus only occupied player-pawn cells, and verifies a whole-map fog fingerprint after both replay loads. Native player-pawn respawning must not flood-reveal the outside world. The 09:42 run passed **6/6**, zero new errors; all eight physical phases discovered both targets with zero recoveries, jumps or external moves.
+
+Run: **2026-10-23 09:42**, build `d9b34b3-dirty.20261023T094125Z`, launch `20261023-094132-3663435`. Each old/new pair replayed the same private fixture, with identical initial geometry/fog, one physical observer, two eligible targets and default scan/movement tuning. Revealed cells were 1589 / 2029 / 1354 / 2605 respectively, including only 3 / 4 / 4 / 4 occupied player-pawn cells outside each pad. Microbenchmarks used 120 interleaved stationary calls per selector. These are paired samples, not a universal speedup claim. `Old → new` means historical selector → area-aware selector.
 
 ### Physical discovery and work
 
-Discovery entries are the two actual first-report ticks relative to phase start. A miss is censored at about 15000 ticks, not proof the old selector could never discover it. Full-path requests include selector and actual movement requests; reachability checks are separate.
+Discovery entries are the two actual first-report ticks relative to phase start. All staged targets were discovered in both phases. Full-path requests include selector and actual movement requests; reachability checks are separate.
 
 | Fixture | Two target report ticks, old → new | Native walked cells, old → new | Full-path requests, old → new | Reach checks, old → new |
 | --- | --- | --- | --- | --- |
-| Room-heavy | `1 / 601 → 1 / 1201` | 37 → 79 | 22 → 39 | 94 → 0 |
-| Large zone | `1 / missed → 1 / 1681` | 881 → 68 | 345 → 42 | 1512 → 0 |
-| Wall detour | `121 / missed → 481 / 121` | 886 → 36 | 346 → 23 | 1451 → 0 |
-| Open fallback | `1 / missed → 1 / 961` | 885 → 35 | 328 → 33 | 1697 → 0 |
+| Room-heavy | `1 / 2161 → 1 / 1201` | 127 → 74 | 35 → 57 | 56 → 0 |
+| Large zone | `1 / 1081 → 1 / 2521` | 74 → 109 | 34 → 74 | 60 → 0 |
+| Wall detour | `121 / 1561 → 481 / 121` | 99 → 30 | 12 → 29 | 21 → 0 |
+| Open fallback | `1 / 1801 → 1 / 961` | 122 → 30 | 46 → 25 | 84 → 0 |
 
-The proposed selector discovered both targets in every fixture. Room-heavy discovery/travel regresses; the first wall-detour target also arrives later while its second target improves. First-radius-entry-to-report delay can exceed 120 ticks if the worker leaves and returns; the scan interval itself remains 120.
+The proposed selector loses no staged target in these samples. Large-zone discovery/travel regresses; the first wall-detour target also arrives later while its second target improves. First-radius-entry-to-report delay can exceed 120 ticks if the worker leaves and returns; the scan interval itself remains 120.
 
 ### Accounted physical-phase costs
 
@@ -79,10 +81,10 @@ Planner elapsed totals include selection, driver/wait checks, local scans, job s
 
 | Fixture | Planner elapsed ms, old → new | Accounted GC bytes, old → new | Whole physical-phase process CPU ms, old → new |
 | --- | --- | --- | --- |
-| Room-heavy | 5.861 → 41.522 | 56960 → 1618032 | 4806.614 → 7527.521 |
-| Large zone | 73.552 → 19.413 | 758848 → 1598112 | 67591.432 → 9431.424 |
-| Wall detour | 70.574 → 15.771 | 727056 → 1520784 | 66127.881 → 4333.033 |
-| Open fallback | 71.100 → 31.464 | 779664 → 1728976 | 66669.084 → 6402.057 |
+| Room-heavy | 27.763 → 28.240 | 122000 → 1158624 | 11030.026 → 7135.744 |
+| Large zone | 16.930 → 18.366 | 88976 → 1109136 | 6626.722 → 12694.466 |
+| Wall detour | 12.976 → 8.800 | 53680 → 995216 | 8757.358 → 4236.950 |
+| Open fallback | 23.954 → 13.096 | 120752 → 1064520 | 9703.614 → 6147.099 |
 
 ### Cold construction and topology invalidation
 
@@ -90,10 +92,10 @@ Each proposed cold network allocated **884128 bytes** on the controlled 200×200
 
 | Fixture | Cold selection elapsed ms, old → new | Cold selection CPU ms, old → new | Cold selection GC bytes, old → new | New network elapsed / CPU ms | New refresh elapsed / CPU ms; GC bytes |
 | --- | --- | --- | --- | --- | --- |
-| Room-heavy | 0.903 → 10.375 | 0.919 → 10.375 | 11904 → 593872 | 0.349 / 1.155 | 10.679 / 10.722; 672272 |
-| Large zone | 1.776 → 8.230 | 1.768 → 8.322 | 14976 → 596304 | 0.067 / 0.101 | 10.336 / 10.419; 657344 |
-| Wall detour | 1.489 → 8.966 | 1.496 → 9.028 | 13776 → 592000 | 2.332 / 5.388 | 10.225 / 10.242; 669696 |
-| Open fallback | 1.448 → 24.504 | 1.450 → 24.503 | 13488 → 755088 | 0.074 / 0.101 | 26.059 / 26.331; 658736 |
+| Room-heavy | 2.915 → 3.918 | 2.927 → 3.941 | 6864 → 62144 | 0.243 / 0.268 | 5.230 / 5.575; 129552 |
+| Large zone | 2.757 → 3.595 | 2.763 → 3.616 | 8064 → 58816 | 0.069 / 0.094 | 5.658 / 5.673; 139584 |
+| Wall detour | 2.830 → 4.021 | 2.839 → 4.034 | 7200 → 56816 | 0.069 / 0.092 | 5.594 / 5.636; 147920 |
+| Open fallback | 2.734 → 4.335 | 2.749 → 4.341 | 8592 → 80456 | 0.068 / 0.084 | 6.875 / 7.171; 163104 |
 
 ### Repeated selection distributions
 
@@ -101,20 +103,20 @@ Triples are median / p95 / maximum, in milliseconds. Warm calls retain unobserve
 
 | Fixture | Old warm process CPU triple | New warm process CPU triple | Warm GC bytes over 120 calls, old → new |
 | --- | --- | --- | --- |
-| Room-heavy | 1.129 / 1.710 / 2.021 | 0.035 / 0.109 / 0.452 | 1571984 → 88592 |
-| Large zone | 1.285 / 1.731 / 2.060 | 0.036 / 0.082 / 0.401 | 1661760 → 84064 |
-| Wall detour | 1.166 / 1.702 / 1.945 | 0.048 / 0.101 / 0.985 | 1677072 → 90304 |
-| Open fallback | 1.070 / 1.405 / 1.722 | 0.030 / 0.051 / 0.350 | 1551360 → 81568 |
+| Room-heavy | 1.371 / 1.669 / 2.164 | 0.031 / 0.047 / 0.352 | 831968 → 82352 |
+| Large zone | 1.376 / 1.554 / 2.038 | 0.031 / 0.039 / 0.136 | 1008000 → 85312 |
+| Wall detour | 1.457 / 1.938 / 2.555 | 0.049 / 0.095 / 0.851 | 871056 → 85936 |
+| Open fallback | 1.329 / 1.554 / 6.285 | 0.028 / 0.051 / 0.132 | 984960 → 80944 |
 
 | Fixture | Old physical-selection process CPU triple | New physical-selection process CPU triple |
 | --- | --- | --- |
-| Room-heavy | 6.85 / 10.59 / 10.59 | 5.03 / 74.52 / 74.52 |
-| Large zone | 5.20 / 10.80 / 11.75 | 0.49 / 46.89 / 46.89 |
-| Wall detour | 5.09 / 10.63 / 11.00 | 5.01 / 46.69 / 46.69 |
-| Open fallback | 5.22 / 8.93 / 10.63 | 3.82 / 103.09 / 103.09 |
+| Room-heavy | 16.31 / 20.09 / 20.09 | 5.50 / 19.76 / 19.76 |
+| Large zone | 15.00 / 15.18 / 15.18 | 0.83 / 13.27 / 13.27 |
+| Wall detour | 16.17 / 22.39 / 22.39 | 3.11 / 13.18 / 13.18 |
+| Open fallback | 14.89 / 19.63 / 19.63 | 1.87 / 12.55 / 12.55 |
 
-The requested priority/coverage policy therefore has a measured cost: higher cold allocation/latency and worse room-heavy discovery/travel/CPU in this sample, despite faster warm selections and much less work in the other three fixtures. The user explicitly accepted these tradeoffs after reviewing this comparison. Performance acceptance does not mean every fixture improves; no unconditional optimization claim is made.
+The corrected comparison still has tradeoffs: warm selections improve, but cold allocation/latency remain higher; large-zone discovery/travel and whole-phase CPU regress, and room-heavy accounted planner elapsed is slightly higher despite less travel. Three workloads need less whole-phase CPU, but this is not isolated planner attribution. The earlier user approval covered the now-superseded comparison; confirmation of the corrected large-zone result is pending. No unconditional optimization claim is made.
 
 ## Open questions
 
-No unresolved design or performance decisions. The user accepted the disclosed measured tradeoffs without changing policy defaults. Final corrected full-sequence verification remains tracked under S3.
+Confirm whether the corrected large-zone discovery/travel/CPU regression and higher cold costs are accepted while retaining the required routing/coverage policy. Then complete final shared-sequence verification under S3.

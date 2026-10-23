@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Issue type | Improvement / performance |
-| Status | In Progress — measured tradeoffs accepted; final sequence verification pending |
+| Status | In Progress — corrected bounded-world cost decision and final sequence pending |
 | Component | Survey routing and local task discovery |
 | Ticket key | QR-0001 — local documentation identifier, not an external Jira issue |
 | Related design | [Plan 0003: Shared robodog dispatch network](../plans/0003-network-dispatch.md) |
@@ -100,7 +100,7 @@ Check boxes only after the corresponding private-game run proves them; measured 
 - [x] Existing emergency rescue/raid alerts, productive task ordering, route-based worker assignment and productive/player-ordered job precedence remain unchanged. Plant work, DLC support and a replacement movement pathfinder are not introduced.
 - [x] Save/load and coordinator failover preserve productive tasks and safely restore or rebuild exploration state without saved room references. Loading pre-change arrival history cannot suppress an unobserved task; losing the final node and clean mod removal retain their existing behavior.
 - [x] Matched room/zone fixtures demonstrate fewer redundant survey steps or lower task-discovery latency than the current selector, with no loss of discovered eligible targets. Record full-path requests, reachability checks, walked cells, selection cost/allocations and cache construction/invalidation cost; include median and tail selection cost, not only a warm-cache best case.
-- [x] The measured improvement does not conceal a repeatable regression in total survey CPU cost or allocations under matched workloads. If faster discovery trades against increased planner cost, present the measured tradeoff for an explicit decision rather than accepting it as an unconditional optimization. Do not claim a percentage improvement without measurements.
+- [ ] The measured improvement does not conceal a repeatable regression in total survey CPU cost or allocations under matched workloads. If faster discovery trades against increased planner cost, present the measured tradeoff for an explicit decision rather than accepting it as an unconditional optimization. Do not claim a percentage improvement without measurements.
 
 ## Implementation verification plan
 
@@ -117,6 +117,8 @@ Check boxes only after the corresponding private-game run proves them; measured 
 - Replay-controlled measurements repeated **18/18 PASS** on `fcd9d92-dirty.20261023T053956Z`; all four proposed phases discovered both staged targets, while historical phases missed one within their cap. A separately reproduced distant retained-goal reshape now physically hauls 31 gold on `fcd9d92-dirty.20261023T060457Z` (**1/1 PASS**, zero new errors).
 - Independent removal is **LOADED CLEAN**, zero new errors (2026-10-23 06:54), without the Quadrunner assembly through 600 ticks, save/reload and 600 more. Corrected tracing and riding fixtures passed **7/7**, zero new errors, on `ad76f81-dirty.20261023T075350Z`. [Matched measurements](../plans/0004-area-aware-survey.md#matched-workload-evidence) disclose faster warm selection and three improved workloads, but worse room-heavy results and higher cold costs. Final full-sequence proof remains pending; the performance decision is recorded below.
 - **Performance decision (2026-10-23):** after reviewing the paired measurements, the user chose **Accept measured tradeoffs**. The room-heavy discovery/travel/CPU regression and higher cold allocation/latency are accepted while keeping the requested priority and scan-certified coverage policy. This is not a claim that every workload improves. Only final corrected shared-sequence proof remains pending.
+- **Integration revalidation (09:03):** all ten Network and fifteen Survey behavior cases passed in the latest full sequence, but the open-fallback benchmark missed a staged target and exposed a much larger Outside candidate set than its nominal mask. Benchmark/riding world isolation is under investigation, and matched-discovery acceptance is reopened. The existing cost decision does not waive discovery correctness.
+- **Bounded-world proof (09:42):** corrected benchmark/riding/fire fixtures passed **6/6**, zero new errors, on `d9b34b3-dirty.20261023T094125Z`. Both replay loads preserve the full-map fog fingerprint, all phases discover both targets, and exact movement traces are clean. These measurements supersede the earlier leaky-world samples: three workloads improve but large-zone discovery/travel/CPU regresses, so the corrected performance decision is reopened rather than inferred from the earlier approval.
 
 ## Implementation touchpoints
 

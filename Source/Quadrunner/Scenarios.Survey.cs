@@ -66,6 +66,7 @@ namespace Quadrunner
                     var ground = new List<(IntVec3 cell, TerrainDef terrain, RoofDef roof)>();
                     var rocks = new List<(IntVec3 cell, ThingDef def, ThingDef stuff, Rot4 rotation, int hp)>();
                     var visitors = new List<(string id, IntVec3 cell)>();
+                    bool[] priorFog = null;
                     foreach (IntVec3 cell in rect.Cells)
                     {
                         ground.Add((cell, cell.GetTerrain(map), map.roofGrid.RoofAt(cell)));
@@ -73,6 +74,12 @@ namespace Quadrunner
                         Building rock = cell.GetFirstBuilding(map);
                         if (rock != null)
                         {
+                            if (priorFog == null)
+                            {
+                                priorFog = new bool[map.cellIndices.NumGridCells];
+                                for (int i = 0; i < priorFog.Length; i++)
+                                    priorFog[i] = map.fogGrid.IsFogged(i);
+                            }
                             rocks.Add((cell, rock.def, rock.Stuff, rock.Rotation, rock.HitPoints));
                             rock.Destroy();
                         }
@@ -91,6 +98,17 @@ namespace Quadrunner
                         }
                         map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
                     }
+                    // Removing natural fog blockers can reveal the connected world. Restore it before the caller
+                    // captures its isolation mask, otherwise cleanup would preserve a setup side effect.
+                    if (priorFog != null)
+                        for (int i = 0; i < priorFog.Length; i++)
+                        {
+                            IntVec3 cell = map.cellIndices.IndexToCell(i);
+                            if (priorFog[i] && !map.fogGrid.IsFogged(i))
+                                map.fogGrid.Refog(CellRect.SingleCell(cell));
+                            else if (!priorFog[i] && map.fogGrid.IsFogged(i))
+                                map.fogGrid.Unfog(cell);
+                        }
                     controlledFixture.OnFinish(() =>
                     {
                         Map now = Find.CurrentMap;
@@ -122,7 +140,8 @@ namespace Quadrunner
             throw new InvalidOperationException($"no {width}x{height} fixture pad within {maxDist} cells of the map center");
         }
 
-        /// <summary>Refog the rest of the map, reveal exactly <paramref name="revealed"/>, and restore the original fog on finish.</summary>
+        /// <summary>Reveal the fixture and occupied player-pawn cells; restore original fog on finish.
+        /// Hidden player pawns flood-unfog their surroundings after native save/load, so their cells must stay visible.</summary>
         private static void SurveyIsolate(Scenario s, IEnumerable<IntVec3> revealed)
         {
             Map map = Find.CurrentMap;
@@ -138,6 +157,7 @@ namespace Quadrunner
                     cells.Add(cell);
             foreach (IntVec3 cell in cells)
                 map.fogGrid.Unfog(cell);
+            SurveyRevealPlayerCells(map);
             s.OnFinish(() =>
             {
                 Map now = Find.CurrentMap;
@@ -153,6 +173,24 @@ namespace Quadrunner
                         now.fogGrid.Unfog(cell);
                 }
             });
+        }
+
+        /// <summary>Native pawn respawning flood-reveals fog around hidden player pawns. Keep only their occupied
+        /// cells visible before saving an isolated fixture; return the exact number of newly revealed cells.</summary>
+        private static int SurveyRevealPlayerCells(Map map)
+        {
+            int revealed = 0;
+            foreach (Pawn pawn in map.mapPawns.AllPawns)
+            {
+                if (!pawn.Spawned || !(pawn.IsPlayerControlled || pawn.Faction == Faction.OfPlayer))
+                    continue;
+                IntVec3 cell = pawn.PositionHeld;
+                if (!cell.InBounds(map) || !map.fogGrid.IsFogged(cell))
+                    continue;
+                map.fogGrid.Unfog(cell);
+                revealed++;
+            }
+            return revealed;
         }
 
         /// <summary>Replace the colony Home area with <paramref name="home"/>; every original cell is restored on finish.</summary>

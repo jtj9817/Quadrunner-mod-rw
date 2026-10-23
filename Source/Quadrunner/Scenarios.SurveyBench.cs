@@ -18,6 +18,10 @@ namespace Quadrunner
     /// <see cref="Survey"/> planner are measured on the same fixture, in the same process, with the same observer,
     /// targets, scan cadence and XML tuning. Each physical phase cold-loads the same private saved fixture, so native
     /// doors, wildlife, vegetation, Home and queued state share initial conditions; its geometry signature is checked.
+    /// The rest of the map stays fogged (only the fixture rect and player-pawn occupied cells are revealed, so a cold
+    /// load cannot flood around a hidden pawn), and a whole-map fog fingerprint is checked after every replay load.
+    /// Without that scope an open fixture would silently become one arbitrary slice of the already revealed world and
+    /// its nominal 51x51 mask and candidate set would be false.
     ///
     /// Real local scans at the existing 120-tick cadence discover real staged items; nothing is enumerated remotely.
     /// Medirunner observers are spawned and Active (so <see cref="DogWork.ReportLocal"/> runs and feeds scans) but are
@@ -103,6 +107,10 @@ namespace Quadrunner
             public IntVec3 DogStart;
             public CellRect Site;
             public long Signature;
+            // Whole-map fog scope at snapshot time: the fixture rect plus only the occupied cells of player pawns.
+            // Replay must reproduce it exactly, not merely the fixture-local geometry signature.
+            public long FogSignature;
+            public int FogCells, FogOutsideCells;
             public IntVec3 RefreshCell = IntVec3.Invalid;
             public string GeometryNote;
             public readonly List<IntVec3> Placements = new List<IntVec3>();
@@ -128,16 +136,42 @@ namespace Quadrunner
 
         private static IntVec3 SurveyBenchGround(Scenario s, Map map, int width, int height)
         {
+            // Capture the exact pre-fixture mask before SurveyFindRect despawns fog-blocking rock: native
+            // Building.Despawn notifies the fog grid, which floods connected fog open. Refogging afterwards isolates
+            // the fixture, but only this mask restores the inherited world state at finish.
+            int count = map.cellIndices.NumGridCells;
+            var wasFogged = new bool[count];
+            foreach (IntVec3 cell in map.AllCells)
+                wasFogged[map.cellIndices.CellToIndex(cell)] = map.fogGrid.IsFogged(cell);
             CellRect site = SurveyFindRect(map, width, height, 120f, controlledFixture: s);
-            var fogged = site.Cells.Where(c => c.Fogged(map)).ToList();
-            foreach (IntVec3 cell in fogged) map.fogGrid.Unfog(cell);
+            RevealBenchFog(map, site);
             s.OnFinish(() =>
             {
                 Map now = Find.CurrentMap;
-                if (now != null)
-                    foreach (IntVec3 cell in fogged) now.fogGrid.Refog(CellRect.SingleCell(cell));
+                if (now == null || now.cellIndices.NumGridCells != count) return;
+                for (int i = 0; i < count; i++)
+                {
+                    IntVec3 cell = now.cellIndices.IndexToCell(i);
+                    bool wantFog = wasFogged[i];
+                    if (wantFog && !now.fogGrid.IsFogged(cell))
+                        now.fogGrid.Refog(CellRect.SingleCell(cell));
+                    else if (!wantFog && now.fogGrid.IsFogged(cell))
+                        now.fogGrid.Unfog(cell);
+                }
             });
             return new IntVec3(site.minX, 0, site.minZ);
+        }
+
+        /// <summary>Refog the whole map, then reveal exactly the fixture rect and the occupied cells of player pawns.
+        /// Native Pawn post-load handling floods fog around any player-controlled pawn standing in fog, so those cells
+        /// must stay visible; nothing else outside the fixture may be revealed. This makes the nominal fixture mask the
+        /// survey's real world instead of one arbitrary slice of a previously revealed map.</summary>
+        private static void RevealBenchFog(Map map, CellRect site)
+        {
+            map.fogGrid.Refog(new CellRect(0, 0, map.Size.x, map.Size.z));
+            foreach (IntVec3 cell in site.Cells)
+                if (cell.InBounds(map)) map.fogGrid.Unfog(cell);
+            SurveyRevealPlayerCells(map);
         }
 
         private static SurveyBenchFixture BuildRoomHeavy(Scenario s)
@@ -404,6 +438,26 @@ namespace Quadrunner
                 Mix(cell.GetTerrain(map).shortHash);
                 Mix(cell.Fogged(map) ? 1 : 0);
                 Mix(cell.Standable(map) ? 1 : 0);
+            }
+            return unchecked((long)hash);
+        }
+
+        /// <summary>Whole-map fog fingerprint, plus revealed counts inside and outside the fixture. Compared before
+        /// each physical phase so a replay cannot silently flood the world around a hidden player pawn.</summary>
+        private static long BenchFogSignature(Map map, CellRect site, out int revealed, out int outside)
+        {
+            const ulong Offset = 1469598103934665603UL, Prime = 1099511628211UL;
+            ulong hash = Offset;
+            revealed = 0;
+            outside = 0;
+            foreach (IntVec3 cell in map.AllCells)
+            {
+                bool fogged = map.fogGrid.IsFogged(cell);
+                hash ^= fogged ? 1UL : 0UL;
+                hash *= Prime;
+                if (fogged) continue;
+                revealed++;
+                if (!site.Contains(cell)) outside++;
             }
             return unchecked((long)hash);
         }
@@ -774,7 +828,16 @@ namespace Quadrunner
                 proposedPhase = phase;
                 Emit();
                 if (proposedPhase.Targets.Any(t => t.DiscoveredTick < 0))
-                    throw new InvalidOperationException($"{fixture.Label}: proposed survey missed an eligible staged target");
+                {
+                    string missed = string.Join(", ", proposedPhase.Targets
+                        .Where(t => t.DiscoveredTick < 0)
+                        .Select(t => $"{t.Cell} (enter {(t.EnteredTick < 0 ? "never" : (t.EnteredTick - proposedPhase.StartTick).ToString(CultureInfo.InvariantCulture))}, " +
+                                     $"dog ended {dog.Position} distance {dog.Position.DistanceTo(t.Cell):F1})"));
+                    throw new InvalidOperationException(
+                        $"{fixture.Label}: proposed survey missed an eligible staged target {missed}; " +
+                        $"fog {fixture.FogSignature:X} ({fixture.FogCells} revealed, {fixture.FogOutsideCells} outside " +
+                        $"the fixture); last selection: {proposedPhase.Selected}");
+                }
                 finished = true;
                 return true;
             }
@@ -867,16 +930,29 @@ namespace Quadrunner
                 CreateNetwork();
                 historical.Clear();
                 RunInterleavedSelection();
-                CandidateReport();
                 for (int i = 1; i < observers.Count; i++)
                     observers[i].Destroy(DestroyMode.Vanish);
                 observers.RemoveRange(1, observers.Count - 1);
                 observerId = observers[0].ThingID;
                 observers[0].jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
                 Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                // The refresh probe spawns and despawns a wall at the fixture edge (native fog-blocker notification can
+                // flood connected fog), and a colony animal may have wandered since setup. Re-establish the exact
+                // nominal scope immediately before the snapshot both physical phases replay.
+                RevealBenchFog(map, fixture.Site);
+                RecordFogScope();
+                CandidateReport();
                 GameDataSaveLoader.SaveGame(snapshotName);
                 snapshotSaved = true;
                 BeginReplay(true);
+            }
+
+            private void RecordFogScope()
+            {
+                fixture.FogSignature = BenchFogSignature(map, fixture.Site,
+                    out int revealed, out int outside);
+                fixture.FogCells = revealed;
+                fixture.FogOutsideCells = outside;
             }
 
             private void BeginReplay(bool baseline)
@@ -1029,6 +1105,12 @@ namespace Quadrunner
                     throw new InvalidOperationException(
                         $"{fixture.Label}: geometry changed before {(baseline ? "baseline" : "proposed")} phase " +
                         $"({fixture.Signature:X} -> {phase.Signature:X})");
+                long fog = BenchFogSignature(map, fixture.Site, out int fogCells, out int fogOutside);
+                if (fog != fixture.FogSignature)
+                    throw new InvalidOperationException(
+                        $"{fixture.Label}: whole-map fog scope changed before {(baseline ? "baseline" : "proposed")} " +
+                        $"phase (saved {fixture.FogSignature:X} {fixture.FogCells} revealed/{fixture.FogOutsideCells} " +
+                        $"outside -> {fog:X} {fogCells} revealed/{fogOutside} outside); replay must not reveal the world");
                 foreach (IntVec3 cell in fixture.TargetCells)
                 {
                     Thing thing = NetStack(scenario, ThingDefOf.Steel, 30, cell);
@@ -1309,6 +1391,8 @@ namespace Quadrunner
                         ("phase_cpu_scope", "physical phase plus proposed cold construction; includes simulation/rendering/native paths; excludes loads/setup"),
                         ("signature", fixture.Signature.ToString("X", CultureInfo.InvariantCulture)),
                         ("geometry_reused", baselinePhase.Signature == proposedPhase.Signature),
+                        ("fog_signature", fixture.FogSignature.ToString("X", CultureInfo.InvariantCulture)),
+                        ("fog_scope", $"{fixture.FogCells} revealed cells, {fixture.FogOutsideCells} outside the fixture rect"),
                         ("network_build_ms", Round(networkBuildMs)),
                         ("network_build_cpu_ms", Round(networkBuildCpuMs)),
                         ("network_build_alloc", networkBuildAlloc),
@@ -1385,13 +1469,15 @@ namespace Quadrunner
                         ("baseline_targets", baseTargets),
                         ("proposed_targets", propTargets),
                         ("candidates", candidateReport));
-                QR.Log($"SURVEY BENCH {fixture.Label}: signed {fixture.Signature:X}, reused " +
+                QR.Log($"SURVEY BENCH {fixture.Label}: signed {fixture.Signature:X}, fog {fixture.FogSignature:X} " +
+                    $"({fixture.FogCells} revealed/{fixture.FogOutsideCells} outside), reused " +
                     $"{baselinePhase.Signature == proposedPhase.Signature}; select baseline med {baselineWarm.MedianMs:F2}/" +
                     $"p95 {baselineWarm.P95Ms:F2}/tail {baselineWarm.TailMs:F2} ms vs proposed {proposedWarm.MedianMs:F2}/" +
                     $"{proposedWarm.P95Ms:F2}/{proposedWarm.TailMs:F2} ms (cold {baselineCold.Ms:F2} vs " +
                     $"{proposedCold.Ms:F2} ms); physical baseline {PhaseText(baselinePhase)}; proposed " +
                     $"{PhaseText(proposedPhase)}; targets [{baseTargets}] vs [{propTargets}]; candidates [{candidateReport}]");
             }
+
 
             private static string PhaseEvent(BenchPhase phase) =>
                 $"selections {phase.Selections}, ticks {phase.EndTick - phase.StartTick}, walked {phase.WalkedCells} " +
@@ -1426,6 +1512,7 @@ namespace Quadrunner
                 string propTargets = proposedPhase == null ? "n/a" : TargetsText(proposedPhase);
                 return $"{fixture.Label}: {fixture.GeometryNote}; signature reused " +
                     $"{(baselinePhase != null && proposedPhase != null && baselinePhase.Signature == proposedPhase.Signature)}; " +
+                    $"fog {fixture.FogCells} revealed/{fixture.FogOutsideCells} outside; " +
                     $"cold {baselineCold.Ms:F2}/{baselineCold.Alloc}B vs {proposedCold.Ms:F2}/{proposedCold.Alloc}B; " +
                     $"warm med {baselineWarm.MedianMs:F2}/{proposedWarm.MedianMs:F2} ms, p95 " +
                     $"{baselineWarm.P95Ms:F2}/{proposedWarm.P95Ms:F2}, tail {baselineWarm.TailMs:F2}/{proposedWarm.TailMs:F2}; " +

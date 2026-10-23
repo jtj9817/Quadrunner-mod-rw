@@ -44,8 +44,11 @@ namespace Quadrunner
         {
             Map map = Find.CurrentMap;
             var cells = new HashSet<IntVec3>();
-            using (PawnPath path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(walker, Danger.Deadly),
-                       peMode: PathEndMode.OnCell))
+            // The pawn overload, with the pather's own cost tuning, is the route Toils_Goto would request; a
+            // default-tuned path can differ around water, frames or door costs and leave the real ride outside the
+            // revealed corridor.
+            using (PawnPath path = map.pathFinder.FindPathNow(from, to, walker,
+                       PathFinderCostTuning.For(walker), PathEndMode.OnCell))
             {
                 if (!path.Found)
                     throw new InvalidOperationException($"no real ride-fixture route for {walker}: {from}->{to}");
@@ -80,6 +83,9 @@ namespace Quadrunner
         /// the ridden speed, across a reload; at 0% the dog powers down, the rider steps off and walks on, and the stable's
         /// other dog carries it home. The rest of the shared map is fogged out for the test and the worker gets a corridor
         /// along the real ride route, so the stop is found by its normal scheduled scan rather than exploration order.
+        /// <see cref="SurveyIsolate"/> must keep every player pawn's cell revealed: native post-load handling floods the
+        /// whole world around a player-controlled pawn left in fog, which would make the worker survey the entire map.
+        /// The two corridor/fog checks below make that precondition and its failure modes explicit.
         /// </summary>
         private static void RideUntilEmpty()
         {
@@ -88,10 +94,21 @@ namespace Quadrunner
             IntVec3 dest = IntVec3.Invalid, downAt = IntVec3.Invalid;
             float ridden = 0f, walking = 0f, nearest = float.MaxValue;
             bool retrieveQueued = false;
+            int revealedAtSetup = -1;
+            int revealedBeforeLoad = -1;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Rider() => (Pawn)Scenario.ById(riderId);
             Pawn Other() => Stable()?.Dogs().FirstOrDefault(d => d.ThingID != dogId);
+            int Revealed()
+            {
+                Map map = Find.CurrentMap;
+                int count = 0;
+                foreach (IntVec3 cell in map.AllCells)
+                    if (!map.fogGrid.IsFogged(cell))
+                        count++;
+                return count;
+            }
             void Track()
             {
                 Pawn dog = Dog(), other = Other();
@@ -123,6 +140,8 @@ namespace Quadrunner
                     List<IntVec3> corridor = RideCorridor(rider, stable.InteractionCell, dest, 10);
                     QR.Log($"Ride until 0%: worker corridor {corridor.Count} cells, {stable.InteractionCell} -> {dest}");
                     SurveyIsolate(s, corridor);
+                    revealedAtSetup = Revealed();
+                    QR.Log($"Ride until 0%: {revealedAtSetup} cells revealed after isolation");
                     if (!Riding.Ride(rider, dog, stable, dest))
                         throw new InvalidOperationException("the ride order failed");
                     CompRobodog.Of(dog).SetBattery(0.015f);
@@ -136,8 +155,33 @@ namespace Quadrunner
                 })
                 .Expect("the dog's battery drains as it carries", () =>
                     Riding.MountOf(Rider()) == Dog() && CompRobodog.Of(Dog()).Battery < 0.0125f)
+                .Do("keep occupied player-pawn cells revealed across the save", () =>
+                {
+                    // Pawns can move after initial isolation. Reveal their actual cells without refogging anything
+                    // or clearing coverage; any other growth indicates a native flood before the snapshot.
+                    int occupiedCells = SurveyRevealPlayerCells(Find.CurrentMap);
+                    revealedBeforeLoad = Revealed();
+                    int growth = revealedBeforeLoad - revealedAtSetup;
+                    if (growth != occupiedCells)
+                        throw new InvalidOperationException(
+                            $"{revealedAtSetup} cells were revealed after isolation, {revealedBeforeLoad} before the save; "
+                            + $"{occupiedCells} occupied cells were newly revealed: a native flood broke the fixture's scope");
+                    QR.Log($"Ride until 0%: preserved {occupiedCells} newly occupied cells before the save");
+                })
                 .SaveAndReload()
                 .Expect("still riding after the load", () => Riding.MountOf(Rider()) == Dog())
+                .Do("the load kept the rest of the world fogged", () =>
+                {
+                    // Native Pawn.SpawnSetup floods fog around every player-controlled pawn still standing in it after
+                    // a load, even respawningAfterLoad. Catching that here distinguishes a broken fixture precondition
+                    // (the whole world became surveyable) from a genuine local-scan liveness failure later.
+                    int now = Revealed();
+                    if (now != revealedBeforeLoad)
+                        throw new InvalidOperationException(
+                            $"{revealedBeforeLoad} cells were revealed before the load, {now} after it: "
+                            + "a native flood (a player pawn left in fog, a door or a removed fog blocker) broke the fixture's scope");
+                    QR.Log($"Ride until 0%: {now} cells revealed across the load (unchanged)");
+                })
                 .Expect("at 0% the dog powers down and the rider steps off", () =>
                     CompRobodog.Of(Dog()).PoweredDown && Riding.MountOf(Rider()) == null)
                 .Do("the rider steps off where the dog stopped and continues the trip on foot", () =>
@@ -181,11 +225,20 @@ namespace Quadrunner
                     string coverage = downAt.IsValid
                         ? $"stop area {survey.CategoryAt(downAt)}, observed {survey.Observed(downAt)}, sweep {survey.Sweep}"
                         : "no stop";
+                    IntVec3 goal = other == null ? IntVec3.Invalid : survey.Goal(other);
+                    string workerGoal = goal.IsValid && downAt.IsValid
+                        ? $"{goal} {survey.CategoryAt(goal)}, {goal.DistanceTo(downAt):F0} cells from the stop, "
+                            + $"observed {survey.Observed(goal)}"
+                        : "none";
+                    string fog = $"{revealedAtSetup} cells revealed after isolation";
+                    if (revealedBeforeLoad >= 0) fog += $", {revealedBeforeLoad} before the load";
+                    fog += $", {Revealed()} at the end";
                     return $"ridden {ridden:F1} c/s, walking {walking:F1} c/s; powered down {downAt.DistanceTo(dest):F0} cells short"
                         + $"; stop {downAt}, {downAt.DistanceTo(Stable()?.InteractionCell ?? downAt):F0} cells from the stable; "
                         + $"other dog {(other == null ? "gone" : other.PositionHeld + " " + other.CurJob?.ToStringSafe())}, "
-                        + $"nearest {near} cells to the stop; retrieve queued {retrieveQueued}; carried by {carrierId ?? "unseen"}"
-                        + $"; {coverage}; {Net().Inspect().Replace('\n', ' ')}";
+                        + $"nearest {near} cells to the stop, worker goal {workerGoal}; retrieve queued {retrieveQueued}; "
+                        + $"carried by {carrierId ?? "unseen"}; {coverage}; {fog}; "
+                        + Net().Inspect().Replace('\n', ' ');
                 })
                 .Start();
         }

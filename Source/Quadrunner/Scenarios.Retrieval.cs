@@ -237,12 +237,17 @@ namespace Quadrunner
             var s = new Scenario("Retrieval under fire", 30000);
             string stableId = null, carrierId = null, burntId = null, boxedId = null, wallId = null;
             bool beat = false;
+            IntVec3 burnSite = IntVec3.Invalid;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Carrier() => (Pawn)Scenario.ById(carrierId);
             Pawn Burnt() => (Pawn)Scenario.ById(burntId);
             Pawn Boxed() => (Pawn)Scenario.ById(boxedId);
-            bool FireBy(Pawn dog) => GenRadial.RadialCellsAround(dog.Position, 1.5f, true)
-                .Any(c => c.InBounds(dog.Map) && c.GetFirstThing<Fire>(dog.Map) != null);
+            bool FireAtSite()
+            {
+                Map map = Find.CurrentMap;
+                return GenRadial.RadialCellsAround(burnSite, 1.5f, true)
+                    .Any(c => c.InBounds(map) && c.GetFirstThing<Fire>(map) != null);
+            }
             s.Do("a powered stable with a docked dog; a dog at 0% 12–20 cells out with a fire beside it", () =>
                 {
                     Map map = Find.CurrentMap;
@@ -251,6 +256,7 @@ namespace Quadrunner
                     stableId = stable.ThingID;
                     carrierId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                     CellRect clear = ClearRect(map, stable.InteractionCell, 3, 2, 12f, 20f);
+                    burnSite = clear.CenterCell;
                     Pawn burnt = SpawnDog(s, clear.CenterCell);
                     CompRobodog.Of(burnt).stable = stable;
                     CompRobodog.Of(burnt).SetBattery(0f);
@@ -266,7 +272,7 @@ namespace Quadrunner
                     });
                 })
                 .Expect("the dog goes to beat the fire", () => beat |= Carrier().CurJobDef == JobDefOf.BeatFire)
-                .Expect("the fire is out", () => !FireBy(Burnt()))
+                .Expect("the fire is out at the original pickup site", () => !FireAtSite())
                 .Expect("then it carries the dog home", () => Stable().Docked.Contains(Burnt()))
                 .Do("a dog at 0% walled in 10–20 cells out", () =>
                 {
