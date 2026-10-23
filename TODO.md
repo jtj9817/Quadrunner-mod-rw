@@ -16,11 +16,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md), the post-release [Hearthline 
 - [x] **T9**: Polish and release
 - [x] **Plan 0002**: Hearthline company lore, product descriptions and tooltips
 - [x] **Plan 0003**: Shared normal/war queues, local discovery and surveying, nearest available assignment, coordinator failover and progress monitoring
-- [ ] **Plan 0004 / QR-0001**: Area-aware survey routing, scan-certified finite sweeps, lifecycle and matched performance proof
+- [x] **Plan 0004 / QR-0001**: Area-aware survey routing, scan-certified finite sweeps, lifecycle and matched performance proof
 
 ## Current state
 
-- **QR-0001 behavior verified; performance decision pending:** final shared build `d30a4c8.20261023T103822Z` passed **75/75, 0 new errors** (2026-10-23 10:59). All sixteen Survey behavior cases, four matched benches, ten Network cases and existing lifecycle/gameplay cases pass in sequence. The failing-before native new-area regression now physically discovers/hauls 38 gold across reload without bypassing restrictions or excluding unranked workers. Walking improves in every final matched pair, but large-zone/open-fallback discovery and whole-phase CPU regress; room-heavy/large-zone accounted planner elapsed and cold-inclusive allocations are higher. Explicit acceptance remains open: prompt timeout defaults are not user sign-off. Fresh independent removal is **LOADED CLEAN**, zero new errors (11:04); verdict and rendered colony inspected. The private observer and Xvfb are stopped.
+- **Plan 0004 / QR-0001 complete:** final shared build `d30a4c8.20261023T103822Z` passed **75/75, 0 new errors** (2026-10-23 10:59), including all sixteen Survey behavior cases, four matched benches, ten Network cases and existing lifecycle/gameplay cases. Fresh independent removal is **LOADED CLEAN**, zero new errors (11:04); verdict and rendered colony inspected. The user explicitly accepted the [final matched performance tradeoffs](docs/plans/0004-area-aware-survey.md#final-shared-sequence-repetition) with **“Tradeoffs accepted.”** (2026-10-23), closing the last criterion without an unconditional optimization claim. The private observer and Xvfb are stopped. No next target scheduled.
 - **Plan 0003 complete:** all ten network cases passed from the actual package, including autonomous discovery, blocked-route ranking, active assignment reload, final-node clearing, repeated failover and war transitions. Packaged full sequence `d37532c.20261021T034353Z` was 54/55 with 0 new errors; its only failure was a fresh-filth fixture assumption, corrected and then passed from the refreshed package below. Independent removal is **LOADED CLEAN**, 0 new errors, with no Quadrunner assembly and preserved vanilla contents through 600 ticks, save/reload and 600 more. No next target scheduled.
 - **Previous personal wrap-up** (2026-10-20): the original scope was complete before Plan 0003. Public source repository (visibility changed at the user's request): [jtj9817/Quadrunner-mod-rw](https://github.com/jtj9817/Quadrunner-mod-rw). Wiki, issues, pull requests, discussions, projects and Actions disabled. Author is `jtj9817` in the mod, assembly metadata and preview; saved-game package ID stays `josh9817.quadrunner`. README documents personal-use scope, installation, build requirements and safe removal.
 - **Current personal-use package:** `dist/Quadrunner`, build `d5816cb.20261021T040229Z`. Lint/build 0 warnings/errors; actual packaged **Stable power loss 1/1 PASS**, 0 new errors (04:03). Gameplay matches the packaged full sequence above; only the fixture's eligibility timing changed. The private instance is stopped and the dev mod link restored.
@@ -46,7 +46,7 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md), the post-release [Hearthline 
 
 See the plan's [Open questions](docs/plans/0001-quadrunner.md#open-questions); keep the answered ones there with the answer.
 
-QR-0001 needs explicit acceptance of the [final matched performance tradeoffs](docs/plans/0004-area-aware-survey.md#final-shared-sequence-repetition). Functional integration and independent removal are verified; do not treat a decision-prompt timeout as approval.
+QR-0001's performance question is resolved: the user explicitly accepted the final disclosed tradeoffs on 2026-10-23; see the [recorded decision](docs/plans/0004-area-aware-survey.md#decisions). No open QR-0001 questions remain.
 
 ## Agent notes, gotchas and tips
 
