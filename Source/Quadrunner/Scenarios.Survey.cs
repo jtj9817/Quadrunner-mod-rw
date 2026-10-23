@@ -1793,6 +1793,85 @@ namespace Quadrunner
                 .Start();
         }
 
+        private static void SurveyNewAllowedArea()
+        {
+            var s = new Scenario("Survey: new allowed-area paths", 20000);
+            CellRect world = default, pile = default;
+            string dogId = null, localId = null;
+            var areaIds = new List<int>();
+            Pawn Dog() => (Pawn)Scenario.ById(dogId);
+            void PrimePathData()
+            {
+                Pawn dog = Dog();
+                if (dog.CurJob != null)
+                    dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                dog.pather.StopDead();
+                using (PawnPath path = dog.Map.pathFinder.FindPathNow(dog.Position, pile.CenterCell,
+                           TraverseParms.For(dog, Danger.Deadly), peMode: PathEndMode.OnCell))
+                    if (!path.Found)
+                        throw new InvalidOperationException("the controlled allowed-area fixture has no native route");
+            }
+            void RestrictToNewArea()
+            {
+                Map map = Find.CurrentMap;
+                if (!map.areaManager.TryMakeNewAllowed(out Area_Allowed area))
+                    throw new InvalidOperationException("couldn't create the new allowed area");
+                areaIds.Add(area.ID);
+                foreach (IntVec3 cell in world.Cells)
+                    area[cell] = true;
+                Dog().playerSettings.AreaRestrictionInPawnCurrentMap = area;
+            }
+            s.Do("stage a distant unreported stack and a worker on revealed controlled ground", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    DraftColonists(s);
+                    Map map = Find.CurrentMap;
+                    world = SurveyFindRect(map, 61, 17, 120f, controlledFixture: s);
+                    SurveyIsolate(s, world.Cells);
+                    SurveyHome(s, world);
+                    Pawn dog = SurveyStable(s, new IntVec3(world.minX + 6, 0, world.CenterCell.z), powered: false,
+                        out Building_Stable stable);
+                    dogId = dog.ThingID;
+                    pile = new CellRect(world.minX + 10, world.minZ + 5, 3, 2);
+                    SurveyStockpile(s, pile, ThingDefOf.Gold);
+                    SurveyPlace(dog, stable, stable.InteractionCell);
+                    NetStack(s, ThingDefOf.Gold, 31, new IntVec3(world.maxX - 3, 0, world.CenterCell.z));
+                    s.OnFinish(() =>
+                    {
+                        foreach (Area area in Find.CurrentMap.areaManager.AllAreas.ToList())
+                            if (areaIds.Contains(area.ID))
+                                area.Delete();
+                    });
+                })
+                .Do("request ordinary surveying immediately after a new restriction in the same cached tick", () =>
+                {
+                    PrimePathData();
+                    RestrictToNewArea();
+                    Job job = Net().TakeOrder(Dog());
+                    if (job != null)
+                        Dog().jobs.StartJob(job, JobCondition.InterruptForced);
+                })
+                .SaveAndReload()
+                .Expect("real surveying discovers and hauls the distant stack after reload", () =>
+                    CountIn(pile, ThingDefOf.Gold) == 31)
+                .Do("prime the grid, replace the restriction, and report a real nearby stack in that same tick", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    PrimePathData();
+                    RestrictToNewArea();
+                    Pawn dog = Dog();
+                    IntVec3 cell = OpenCell(Find.CurrentMap, dog.Position, 3f, 8f,
+                        c => world.Contains(c) && !pile.Contains(c) && !c.Fogged(Find.CurrentMap));
+                    localId = NetStack(s, ThingDefOf.Gold, 7, cell).ThingID;
+                    Net().Tick(force: true);
+                    Scenario.Resume();
+                })
+                .Expect("productive assignment also delivers without a stale-area path or duplicate task", () =>
+                    CountIn(pile, ThingDefOf.Gold) == 38 && !NetQueued(localId))
+                .Summary(() => $"stored {CountIn(pile, ThingDefOf.Gold)}, new areas {areaIds.Count}; {Net().Inspect(Dog())}")
+                .Start();
+        }
+
         // ---------------------------------------------------------------- legacy save arrivals
 
         private static void SurveyLegacySave()

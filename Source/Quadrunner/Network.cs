@@ -98,6 +98,7 @@ namespace Quadrunner
         private readonly List<NetworkTask> ordered = new List<NetworkTask>();
         private readonly List<string> goneReports = new List<string>();
         private readonly Comparison<NetworkTask> taskComparison;
+        private List<(int id, int firstTick)> pathAreas;
         private NetworkState state;
         private Thing coordinator;
         private int nextTick, nextScan;
@@ -128,6 +129,28 @@ namespace Quadrunner
         public IReadOnlyList<Pawn> Dogs => dogs;
         private static RobodogWork Tuning => QR_DefOf.QR_Quadrunner.race.GetModExtension<RobodogWork>();
         private static int Now => Find.TickManager.TicksGame;
+
+        /// <summary>Vanilla 1.6 gathers path grids at most once per tick. A newly assigned allowed area can be
+        /// absent from an already-gathered grid, so keep requests pending until a later tick can gather it.
+        /// Only transient area IDs are retained; unrestricted requests allocate nothing.</summary>
+        internal bool PathInputsReady(Pawn dog)
+        {
+            Area area = PathUtility.GetAllowedArea(dog);
+            if (area == null) return true;
+            if (pathAreas == null) pathAreas = new List<(int, int)>(Map.areaManager.AllAreas.Count);
+            foreach (var known in pathAreas)
+                if (known.id == area.ID)
+                    return Now != known.firstTick;
+            for (int i = pathAreas.Count - 1; i >= 0; i--)
+            {
+                bool live = false;
+                foreach (Area current in Map.areaManager.AllAreas)
+                    if (current.ID == pathAreas[i].id) { live = true; break; }
+                if (!live) pathAreas.RemoveAt(i);
+            }
+            pathAreas.Add((area.ID, Now));
+            return false;
+        }
 
         public static DogNetwork For(Map map)
         {
@@ -339,8 +362,7 @@ namespace Quadrunner
                 }
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
-                AssignAll(ordered);
-                if (!War)
+                if (AssignAll(ordered) && !War)
                 {
                     ordered.Clear(); ordered.AddRange(State.normal);
                     ordered.Sort(taskComparison);
@@ -482,7 +504,7 @@ namespace Quadrunner
             return DogWork.JobFor(dog, task);
         }
 
-        private void AssignAll(List<NetworkTask> tasks)
+        private bool AssignAll(List<NetworkTask> tasks)
         {
             foreach (NetworkTask task in tasks)
             {
@@ -491,9 +513,11 @@ namespace Quadrunner
                 Pawn nearest = null;
                 Job selected = null;
                 float cost = float.MaxValue;
+                bool deferred = false;
                 foreach (Pawn dog in dogs)
                 {
                     if (!dog.Spawned || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || !Capable(dog, task)) continue;
+                    if (!PathInputsReady(dog)) { deferred = true; continue; }
                     Job candidate = JobFor(dog, task, Map);
                     if (candidate == null) continue;
                     LocalTargetInfo destination = target;
@@ -510,6 +534,12 @@ namespace Quadrunner
                     }
                     else JobMaker.ReturnToPool(candidate);
                 }
+                if (deferred)
+                {
+                    // Do not silently exclude an unranked worker or let a lower-priority task pass this one.
+                    if (selected != null) JobMaker.ReturnToPool(selected);
+                    return false;
+                }
                 if (nearest == null)
                 {
                     task.retryAt = Now + Tuning.scanInterval;
@@ -523,6 +553,7 @@ namespace Quadrunner
                 if (nearest.CurJob?.loadID == task.jobId) task.phase = NetworkTaskPhase.Acknowledged;
                 QR.Log($"network assigned #{task.id} {task.kind} to {nearest}; path {cost:F0}, job {task.jobId}");
             }
+            return true;
         }
 
         /// <summary>Dogs request/acknowledge centrally owned orders, never independently search a global work list.</summary>

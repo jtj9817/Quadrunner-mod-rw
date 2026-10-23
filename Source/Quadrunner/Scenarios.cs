@@ -52,6 +52,7 @@ namespace Quadrunner
             ("Survey: interruption and unavailable workers", SurveyInterruption),
             ("Survey: live geometry and zone edits", SurveyLiveEdits),
             ("Survey: reshaped retained goal", SurveyReshapedGoal),
+            ("Survey: new allowed-area paths", SurveyNewAllowedArea),
             ("Survey: legacy save arrivals", SurveyLegacySave),
             ("Survey bench: room-heavy", SurveyBenchRoomHeavy),
             ("Survey bench: large zone", SurveyBenchLargeZone),

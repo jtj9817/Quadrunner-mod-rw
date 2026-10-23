@@ -293,6 +293,7 @@ namespace Quadrunner
                             ?? Find.FactionManager.RandomEnemyFaction();
                         Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
                             faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
+                        EquipRaidCooldownWeapon(raider);
                         IntVec3 cell = OpenCell(map, Stable().InteractionCell, 60f, 90f);
                         raiderId = s.Track(GenSpawn.Spawn(raider, cell, map)).ThingID;
                         LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(cell), map, new[] { raider });
@@ -359,6 +360,16 @@ namespace Quadrunner
                         .Select(t => $"{t.stackCount} at {t.PositionHeld}{(pile.Contains(t.PositionHeld) ? " (pile)" : "")}"))
                     + $", docked {Stable().Docked.Contains(Dog())}, job {Dog()?.CurJob.ToStringSafe()}; " + ColonistStates())
                 .Start();
+        }
+
+        /// <summary>The cooldown/departure fixtures require an actual equipped verb, not random pawn-kind gear.</summary>
+        private static void EquipRaidCooldownWeapon(Pawn raider)
+        {
+            if (raider?.equipment == null)
+                throw new InvalidOperationException("the cooldown fixture needs an equipable raider");
+            raider.equipment.DestroyAllEquipment();
+            raider.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(
+                DefDatabase<ThingDef>.GetNamed("Gun_Autopistol")));
         }
 
         /// <summary>

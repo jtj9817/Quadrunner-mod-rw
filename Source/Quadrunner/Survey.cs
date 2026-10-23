@@ -125,7 +125,8 @@ namespace Quadrunner
         /// travel legs. Failed returned routes are provisional for this sweep/revision, not certified observations.</summary>
         public Job JobFor(Pawn dog)
         {
-            if (dog?.Spawned != true || dog.Map != map || !DogNetwork.IsAvailable(dog) || network.War) return null;
+            if (dog?.Spawned != true || dog.Map != map || !DogNetwork.IsAvailable(dog) || network.War
+                || !network.PathInputsReady(dog)) return null;
             Refresh();
             Explorer e = ExplorerFor(dog);
             for (int pass = 0; pass < 2; pass++)

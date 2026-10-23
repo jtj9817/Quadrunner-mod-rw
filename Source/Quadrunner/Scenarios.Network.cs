@@ -584,6 +584,7 @@ namespace Quadrunner
                         ?? Find.FactionManager.RandomEnemyFaction();
                     Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
                         faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
+                    EquipRaidCooldownWeapon(raider);
                     raiderId = s.Track(GenSpawn.Spawn(raider, OpenCell(map, Stable().InteractionCell, 60f, 90f), map)).ThingID;
                     LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(raider.Position), map, new[] { raider });
                     Raid.Recheck(map);
