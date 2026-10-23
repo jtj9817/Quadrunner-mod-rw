@@ -24,18 +24,18 @@ Implement [QR-0001](../tickets/QR-0001-area-aware-survey-routing.md) without cha
 
 ### S1: Baseline and scan-certified routing
 
-- [ ] Matched current-selector baselines are recorded before making a speedup claim.
-- [ ] Home-first category order and residual Home discovery are demonstrated.
-- [ ] Vanilla returned route costs, unreachable/forbidden paths and deterministic ties govern area entry; within-area retention is separate from entry ranking.
-- [ ] Actual empty/local scans certify coverage; arrivals and old saved history cannot suppress unseen tasks.
-- [ ] Overlapping indoor storage avoids redundant travel; outdoor stockpiles/shelves remain represented.
+- [x] Matched current-selector baselines are recorded before making a speedup claim.
+- [x] Home-first category order and residual Home discovery are demonstrated.
+- [x] Vanilla returned route costs, unreachable/forbidden paths and deterministic ties govern area entry; within-area retention is separate from entry ranking.
+- [x] Actual empty/local scans certify coverage; arrivals and old saved history cannot suppress unseen tasks.
+- [x] Overlapping indoor storage avoids redundant travel; outdoor stockpiles/shelves remain represented.
 
 ### S2: Coverage, fairness and lifecycle
 
-- [ ] Large/non-convex footprints, blocked centers, alternative entrances, corridors and separated revealed coverage retain discovery.
-- [ ] Finite sweeps reach lower categories, revisit new work and travel beyond two initial 80-cell horizons without fixture teleports.
+- [x] Large/non-convex footprints, blocked centers, alternative entrances, corridors and separated revealed coverage retain discovery.
+- [x] Finite sweeps reach lower categories, revisit new work and travel beyond two initial 80-cell horizons without fixture teleports.
 - [ ] Multiple dogs coordinate pending claims without duplicate productive work; interruptions, expiry, maintenance, draft, riding, war and death do not invent coverage.
-- [ ] Room/door, zone reshape/create/delete, storage, Home and fog changes invalidate stale goals without permanent omissions.
+- [x] Room/door, zone reshape/create/delete, storage, Home and fog changes invalidate stale goals without permanent omissions.
 - [ ] Local discovery eligibility, productive/emergency ordering, player precedence and route-based worker assignment remain intact.
 - [ ] Save/load, legacy arrival history, failover, final-node clearing and independent clean removal pass.
 
@@ -44,6 +44,8 @@ Implement [QR-0001](../tickets/QR-0001-area-aware-survey-routing.md) without cha
 - [ ] Matched workloads record full-path requests, reachability, walked cells, discovery, selection CPU/allocations, cold/refresh/invalidation cost and median/tail selection cost.
 - [ ] Fewer redundant steps or lower discovery latency is demonstrated without lost eligible targets, and no repeatable total planner CPU/allocation regression is concealed.
 - [ ] Affected network cases and the necessary shared-code sequence pass with zero new errors; test evidence and ticket acceptance are updated and committed incrementally.
+
+S1, the geometry/fairness cases and live-edit proof: build `3954020-dirty.20261023T020344Z`, all fourteen Survey behavior cases and all four matched benches **18/18 PASS**, zero new errors ([run log](../test-runs.md)). The long fixture's initial target separation was 171 cells and its actual round-trip walking was 392 cells. Measurement showed higher cold/cache and some total planner costs; S3 remains open while that overhead is reduced and any remaining tradeoff is decided.
 
 ## Open questions
 

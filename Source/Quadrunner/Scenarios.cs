@@ -38,6 +38,24 @@ namespace Quadrunner
             ("Network: war suspends hauls", NetWarSuspension),
             ("Network: combatdog without a stable", NetNoStableCombat),
             ("Network: medic keeps rescuing in war", NetMedicWartime),
+            ("Survey: category order and Home gaps", SurveyCategoryOrder),
+            ("Survey: route-cost ranking", SurveyRouteRanking),
+            ("Survey: deterministic ties", SurveyDeterministicTies),
+            ("Survey: doors, fog and alternative entries", SurveyDoorsAndFog),
+            ("Survey: large area completion and resumption", SurveyAreaCompletion),
+            ("Survey: overlap and storage", SurveyOverlapStorage),
+            ("Survey: geometry and discovery", SurveyGeometry),
+            ("Survey: scan cadence and empty coverage", SurveyScanCadence),
+            ("Survey: progress beyond 160 cells", SurveyLongProgress),
+            ("Survey: finite sweep and revisit", SurveySweepRevisit),
+            ("Survey: competing claims and death", SurveyClaimsAndDeath),
+            ("Survey: interruption and unavailable workers", SurveyInterruption),
+            ("Survey: live geometry and zone edits", SurveyLiveEdits),
+            ("Survey: legacy save arrivals", SurveyLegacySave),
+            ("Survey bench: room-heavy", SurveyBenchRoomHeavy),
+            ("Survey bench: large zone", SurveyBenchLargeZone),
+            ("Survey bench: wall detour", SurveyBenchWallDetour),
+            ("Survey bench: open fallback", SurveyBenchOpenFallback),
             ("Stable power loss", StablePowerLoss),
             ("Stable fire with docked dogs", StableFire),
             ("Stable uninstall and reinstall", StableUninstall),
@@ -74,12 +92,13 @@ namespace Quadrunner
         /// <summary>
         /// Runs the scenarios whose names contain any comma-separated part of <paramref name="filter"/>
         /// (case-insensitive; empty = all), then calls <paramref name="done"/> with the PASS count and verdicts.
-        /// Live Run all omits the dedicated persistence scenario; it can still be selected explicitly.
+        /// Live Run all omits dedicated persistence fixtures and isolated benchmarks; select those explicitly instead.
         /// </summary>
         public static void RunAll(string filter, bool testSaveLoad, Action<int, List<string>> done)
         {
             string[] parts = (filter ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToArray();
-            Scenario.RunAll(All.Where(s => (testSaveLoad || s.setUp != SaveAndReload) && (parts.Length == 0 ||
+            Scenario.RunAll(All.Where(s => (testSaveLoad || (s.setUp != SaveAndReload && s.setUp != SurveyLegacySave
+                && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
                 parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))), testSaveLoad, done);
         }
 
