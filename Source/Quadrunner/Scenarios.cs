@@ -80,6 +80,7 @@ namespace Quadrunner
             ("Tier 3 and 4 weapons", Tier3And4Weapons),
             ("Combatdog endurance", CombatdogEndurance),
             ("Artwork showcase", ArtworkShowcase),
+            ("Stable dock indicators", StableDockIndicators),
             ("Walk animation", WalkAnimation),
             ("Rescue animation", RescueAnimation),
             ("Combat animation", CombatAnimation),

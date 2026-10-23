@@ -8,6 +8,7 @@
     <description>Hearthline Robotics — "A good dog for a bad world."\n\nBuilt for settlements beyond dependable supply routes, Hearthline's machines use locally fabricated parts and a common quadruped chassis. Utility and rescue models made its reputation; armed "settlement assurance" models made its margins. The later brochures show noticeably fewer settlers.\n\nA fabrication, dispatch and service hub for up to 15 Quadrunners, Medirunners and Combatdogs in shared docking slots. Add bills to assemble dogs, batteries and repair kits; use Overview to manage dogs and Combatdog upgrades. Docked dogs recharge and repair while the stable has power.</description>
     <thingClass>Quadrunner.Building_Stable</thingClass>
     <tickerType>Normal</tickerType>
+    <drawerType>MapMeshAndRealTime</drawerType>
     <graphicData>
       <texPath>Quadrunner/Buildings/Stable</texPath>
       <graphicClass>Graphic_Multi</graphicClass>

@@ -23,6 +23,13 @@ namespace Quadrunner
     {
         private static readonly Texture2D PatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/Patrol");
         private static readonly Texture2D ClearPatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/ClearPatrol");
+        private static readonly Material[,] DockIcons = MakeDockIcons();
+        private static readonly Material EmptyDockLamp = MaterialPool.MatFrom("Quadrunner/Buildings/DockLamp",
+            ShaderDatabase.Cutout, new Color(0.22f, 0.29f, 0.31f));
+        private static readonly Material OccupiedDockLamp = MaterialPool.MatFrom("Quadrunner/Buildings/DockLamp",
+            ShaderDatabase.Cutout, new Color(0.4f, 1f, 0.6f));
+        private static readonly Material UnpoweredDockLamp = MaterialPool.MatFrom("Quadrunner/Buildings/DockLamp",
+            ShaderDatabase.Cutout, new Color(1f, 0.65f, 0.2f));
 
         private ThingOwner<Pawn> docked;
         public NetworkState networkState;
@@ -207,6 +214,53 @@ namespace Quadrunner
                     icon = ClearPatrolIcon,
                     action = ClearWaypoints,
                 };
+        }
+
+        private static Material[,] MakeDockIcons()
+        {
+            var icons = new Material[3, 2];
+            string[] types = { "Quadrunner", "Combatdog", "Medirunner" };
+            for (int i = 0; i < types.Length; i++)
+            {
+                string path = "Quadrunner/Buildings/Dock" + types[i];
+                icons[i, 0] = MaterialPool.MatFrom(path, ShaderDatabase.Cutout, new Color(0.3f, 0.34f, 0.36f));
+                icons[i, 1] = MaterialPool.MatFrom(path, ShaderDatabase.Cutout);
+            }
+            return icons;
+        }
+
+        /// <summary>Live occupancy, not assignment: dog emblems on the floor and lamps on the service gantry.</summary>
+        protected override void DrawAt(Vector3 drawLoc, bool flip = false)
+        {
+            base.DrawAt(drawLoc, flip);
+            if (!Spawned)
+                return;
+            int occupied = 0;
+            for (int i = 0; i < docked.Count; i++)
+            {
+                Pawn dog = docked[i];
+                if (dog.Dead)
+                    continue;
+                RobodogWork work = RobodogWork.Of(dog);
+                int type = work?.combat == true ? 1 : work?.rescue == true ? 2 : 0;
+                occupied |= 1 << type;
+            }
+            // The south SVG is the layout origin: 384 pixels across a three-cell canvas.
+            Quaternion rotation = Quaternion.AngleAxis(Rotation.AsAngle - 180f, Vector3.up);
+            drawLoc.y += Altitudes.AltInc * 2f;
+            bool powered = CanCharge;
+            for (int type = 0; type < 3; type++)
+            {
+                bool present = (occupied & (1 << type)) != 0;
+                float x = (type - 1) * 0.84375f;
+                Vector3 icon = drawLoc + rotation * new Vector3(x, 0f, -0.18f);
+                Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(icon, rotation, new Vector3(0.7f, 1f, 0.7f)),
+                    DockIcons[type, present ? 1 : 0], 0);
+                Vector3 lamp = drawLoc + rotation * new Vector3(x, 0f, 0.758f);
+                Material light = !present ? EmptyDockLamp : powered ? OccupiedDockLamp : UnpoweredDockLamp;
+                Graphics.DrawMesh(MeshPool.plane10, Matrix4x4.TRS(lamp, rotation, new Vector3(0.54f, 1f, 0.1f)),
+                    light, 0);
+            }
         }
 
         public override void DrawExtraSelectionOverlays()

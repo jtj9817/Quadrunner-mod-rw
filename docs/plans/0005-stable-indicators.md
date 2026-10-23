@@ -19,10 +19,12 @@ Show which dog types are physically inside a stable using icons and lights drawn
 
 ### S1: In-building dock indicators
 
-- [ ] Icons and lights distinguish all three types, including a higher-tier Combatdog.
-- [ ] Empty, occupied, undocked and unpowered appearances match the actual dock contents.
-- [ ] Indicators stay inside the building and aligned in all four rotations.
-- [ ] Actual isolated-game captures are inspected at close and ordinary zoom; save/load preserves the indicated contents with zero new errors.
+- [x] Icons and lights distinguish all three types, including a higher-tier Combatdog.
+- [x] Empty, occupied, undocked and unpowered appearances match the actual dock contents.
+- [x] Indicators stay inside the building and aligned in all four rotations.
+- [x] Actual isolated-game captures are inspected at close and ordinary zoom; save/load preserves the indicated contents with zero new errors.
+
+Verified by **Stable dock indicators**, build `545f4ca-dirty.20261023T162202Z`, 2026-10-23 16:22 UTC: **1/1 PASS, zero new errors**. Actual screenshots inspected in `.devlog/screens/stable-docks-*.png`, including the four powered rotations, reloaded dock, empty dock and ordinary zoom. The unchanged production implementation also passed **Dock and undock** and **Stable power loss** in the 16:19 focused run (**3/3 PASS, zero new errors**); see [test runs](../test-runs.md).
 
 ## Open questions
 
