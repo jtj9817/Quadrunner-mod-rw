@@ -1537,13 +1537,14 @@ namespace Quadrunner
             Map map = Find.CurrentMap;
             CellRect world = default, room = default;
             IntVec3 leftCenter = default, rightCenter = default, g = default, homeCell = default;
+            IntVec3 fogGoal = IntVec3.Invalid, fogReplacement = IntVec3.Invalid, fogStart = IntVec3.Invalid;
             string dogId = null;
             Zone_Stockpile stock = null;
             CellRect stockRect = default;
             Zone_Growing growing = null;
             Building_Storage shelf = null;
             IntVec3 shelfCell = default;
-            bool stockReshaped = false, growingMade = false, shelfMade = false, fogEdited = false;
+            bool stockReshaped = false, growingMade = false, shelfMade = false;
             bool sawLeft = false, sawRight = false;
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Survey S() => SurveyOf();
@@ -1558,7 +1559,8 @@ namespace Quadrunner
                         out Building_Stable stable);
                     dogId = dog.ThingID;
                     room = new CellRect(world.minX + 16, world.minZ + 6, 41, 19);
-                    SurveyBuildRoom(s, room, new IntVec3(room.minX - 1, 0, room.CenterCell.z));
+                    SurveyBuildRoom(s, room, new IntVec3(room.minX - 1, 0, room.CenterCell.z),
+                        new IntVec3(room.minX - 1, 0, room.CenterCell.z + 6));
                     SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel,
                         new IntVec3(room.minX + 5, 0, room.minZ + 5), Rot4.North);
                     SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel,
@@ -1657,34 +1659,48 @@ namespace Quadrunner
                 .Expect("the Home edit is re-read", () => S().CategoryAt(homeCell) == SurveyCategory.Outside)
                 .Do("restore Home on that cell", () => map.areaManager.Home[homeCell] = true)
                 .Expect("restoring Home is re-read too", () => S().CategoryAt(homeCell) == SurveyCategory.Home)
+                .Do("fog a distant active goal while the worker's starting cell stays revealed", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    Pawn dog = Dog();
+                    if (dog.CurJob != null)
+                        dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    dog.pather.StopDead();
+                    fogStart = new IntVec3(world.minX + 2, 0, world.minZ + 2);
+                    Teleport(dog, fogStart);
+                    Job probe = SurveyFreshProbe(dog, out fogGoal, out _);
+                    if (probe == null || !fogGoal.IsValid || fogGoal.DistanceTo(fogStart) <= RobodogWork.Utility.scanRadius
+                        || S().CategoryAt(fogGoal) != SurveyCategory.Room)
+                    {
+                        SurveyReturn(probe);
+                        throw new InvalidOperationException($"no remote room goal for fog invalidation: {fogStart}->{fogGoal}");
+                    }
+                    dog.jobs.StartJob(probe, JobCondition.InterruptForced);
+                    map.fogGrid.Refog(CellRect.SingleCell(fogGoal));
+                    if (dog.Position.Fogged(map) || !fogGoal.Fogged(map))
+                        throw new InvalidOperationException($"invalid fog fixture: worker {dog.Position}, goal {fogGoal}");
+                    QR.Log($"survey fog edit: worker {fogStart} revealed; active remote goal {fogGoal} fogged");
+                })
+                .Do("resume after the remote fog edit", () => Scenario.Resume())
                 .Expect("a fogged goal is replaced by a revealed one", () =>
                 {
                     Pawn dog = Dog();
-                    Survey survey = S();
-                    if (dog == null)
+                    if (dog?.CurJobDef != QR_DefOf.QR_Survey)
                         return false;
-                    IntVec3 goal = survey.Goal(dog);
-                    if (!fogEdited)
-                    {
-                        if (!goal.IsValid || goal.Fogged(map) || dog.CurJobDef != QR_DefOf.QR_Survey)
-                            return false;
-                        fogEdited = true;
-                        map.fogGrid.Refog(CellRect.SingleCell(goal));
-                        if (survey.Observed(goal))
-                            throw new InvalidOperationException("a fogged cell stayed observed");
+                    IntVec3 goal = S().Goal(dog);
+                    if (!goal.IsValid || goal == fogGoal || goal.Fogged(map) || !SurveyAccepted(dog, goal, out _))
                         return false;
-                    }
-                    if (dog.CurJobDef != QR_DefOf.QR_Survey)
-                        return false;
-                    return goal.IsValid && !goal.Fogged(map)
-                        && SurveyAccepted(dog, goal, out _);
+                    fogReplacement = goal;
+                    return true;
                 })
+                .Expect("the replacement footprint is actually scanned", () => S().Observed(fogReplacement))
                 .Do("unfog every fixture cell again", () =>
                 {
                     foreach (IntVec3 cell in world.Cells)
                         if (map.fogGrid.IsFogged(cell))
                             map.fogGrid.Unfog(cell);
                 })
+                .Expect("the restored remote footprint is actually surveyed", () => S().Observed(fogGoal))
                 .Do("create and reshape a stockpile, then a growing zone and a shelf", () =>
                 {
                     stockRect = new CellRect(world.minX + 4, world.minZ + 2, 3, 3);
@@ -1734,7 +1750,8 @@ namespace Quadrunner
                 .Expect("the shelf despawn is re-read", () =>
                     S().CategoryAt(shelfCell) != SurveyCategory.Storage)
                 .Summary(() => $"stockpile {stockReshaped}, growing {growingMade}, shelf {shelfMade}; " +
-                    $"sweep {S().Sweep}; stale result {g}; {Net().Inspect(Dog())}")
+                    $"sweep {S().Sweep}; stale result {g}; fog {fogStart}->{fogGoal}, replacement {fogReplacement}; " +
+                    $"worker {Dog()?.Position}; {Net().Inspect(Dog())}")
                 .Start();
         }
 

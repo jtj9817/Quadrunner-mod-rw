@@ -40,21 +40,21 @@ This research snapshot describes local baseline commit `27d7bfd`, before the rou
 
 Evidence: [`Docking.cs:56–99`](../../Source/Quadrunner/Docking.cs#L56-L99); local RimWorld 1.6 source `.tools/decomp/Verse/PathFinder.cs:523–591` and `PathFinderJob.cs:90–200,221–237`; [nearest-neighbor algorithm tradeoffs](https://scikit-learn.org/stable/modules/neighbors.html#nearest-neighbor-algorithms). The external reference explains the algorithms; it is **not** a proposed Python or third-party runtime dependency.
 
-## Proposed behavior — not yet implemented
+## Implemented routing contract
 
 ### Area priority and classification
 
-Preserve the requested category order. The following definitions are recommended defaults to settle in the implementation plan, not descriptions of shipped behavior.
+The implementation follows the Home-first interpretation and coverage policies recorded in [Plan 0004](../plans/0004-area-aware-survey.md). These categories govern survey destinations, not productive task priority.
 
-| Priority | Area | Proposed interpretation |
+| Priority | Area | Interpretation |
 | --- | --- | --- |
-| 1 | Rooms | Revealed, reachable enclosed rooms with outstanding survey coverage. Exclude doorway rooms and the map-wide outdoor room. Consider `ProperRoom`, `IsDoorway` and an explicit outdoor policy rather than assuming every vanilla `Room` is indoors. |
-| 2 | Storage areas | Stockpiles **and player storage buildings**, including shelves; skip coverage already satisfied by room surveying. Storage buildings are not zones. |
-| 3 | Planting zones | `Zone_Growing` footprints, surveyed for existing utility tasks. This does not authorize sowing, harvesting or new plant work givers. |
-| 4 | Other zones | Other supported Core `Zone` footprints, if any. In the researched Core-only game the usable zone types are stockpile and growing; do not add a DLC dependency to populate this category or treat named allowed Areas as zones. |
-| 5 | Outside Home | Remaining revealed, reachable exterior coverage after the earlier categories and the Home-gap fallback described below. This remains a search area for eligible tasks, not permission to clean outside Home. |
+| 1 | Rooms | Revealed, reachable enclosed Home footprints with outstanding survey coverage. Exclude doorway rooms, map-edge rooms and rooms outdoors for work. Do not exclude bedrooms or prisons. |
+| 2 | Storage areas | Home footprints of stockpiles **and player storage buildings**, including shelves; skip coverage already satisfied by room surveying. Storage buildings are not zones. |
+| 3 | Planting zones | Home footprints of `Zone_Growing`, surveyed for existing utility tasks. This does not authorize sowing, harvesting or new plant work givers. |
+| 4 | Other zones | Home footprints of other supported Core `Zone` types, if any. In the researched Core-only game the usable zone types are stockpile and growing; do not add a DLC dependency to populate this category or treat named allowed Areas as zones. |
+| 5 | Outside Home | All remaining revealed, reachable coverage after the earlier categories and the Home-gap fallback, even where an exterior room or storage exists. This remains a search area for eligible tasks, not permission to clean outside Home. |
 
-**Home-gap fallback:** the requested categories omit unzoned outdoor cells inside Home, such as colony paths and construction sites. Survey these after other zones and before outside-Home coverage; otherwise they could disappear from the search entirely. This is a proposed completeness safeguard, not a new work type.
+**Home-gap fallback:** survey unzoned outdoor Home cells, such as colony paths and construction sites, after other zones and before outside-Home coverage. This prevents a search omission; it is not a new work type.
 
 **Overlap:** a room can contain storage or a growing zone. Satisfy overlapping categories from actual scan coverage instead of automatically scheduling a second visit. Do not mark an area covered merely because it was classified or a waypoint was reserved.
 
@@ -76,13 +76,13 @@ Preserve the requested category order. The following definitions are recommended
 - Room topology can change after walls/doors are edited. Vanilla exposes `map.events.RegionsRoomsChanged`; roof and fog changes also matter to classification. Zone/Home edits do not expose an equivalent general MapEvents notification: re-read live membership or use bounded refresh rather than assuming the room event covers them. Same-cell-count reshapes must also be detected.
 - Keep geometry/index data transient. Do not save `Room`/`Region` references or runtime room IDs. Preserve coordinator ownership, failover and clean removal. Existing saved `surveyCells`/`surveyTicks` are arrival history, not certified scan observations: an older save must rebuild unverified coverage rather than silently importing it as completed scans, while retaining productive queues/assignments. Any necessary new saved coverage/sweep state needs explicit serialization and a documented load interpretation.
 
-## Policy details to settle before implementation
+## Recorded policy decisions
 
-Record the chosen answers in the new numbered implementation plan required by the repository workflow; do not silently change Plan 0003's completed acceptance results.
+The numbered implementation plan records these choices without changing Plan 0003's completed acceptance history:
 
-1. **Home precedence:** does outside-Home always mean last, even for a room or stockpile there? Recommended interpretation: apply the first four tiers to their Home footprint, include residual Home coverage, then survey all remaining revealed outside-Home cells. This makes the user's final priority explicit rather than accidentally promoting an exterior ruin to the room tier.
-2. **Revisit policy:** confirm finite sweeps versus an age-based revisit window. Recommended default is finite category sweeps with shared coverage and later revisits, so an unchanged high-priority area cannot permanently starve exterior discovery.
-3. **Search horizon:** confirm how the existing 80-cell candidate horizon applies to area selection. Recommended default is bounded local travel legs with an explicit frontier/progression rule: reach known uncovered areas beyond the current horizon before resetting a completed local pass. Repeated legs alone are not a liveness argument. Prove progress to work beyond two initial leg horizons without fixture teleports; do not restore a stable/Home distance boundary or present local selection as globally nearest-room selection.
+1. **Home precedence:** apply the first four tiers to their Home footprints, include residual Home coverage, then survey all remaining revealed outside-Home cells. Exterior ruins and stockpiles do not bypass that final priority.
+2. **Revisit policy:** use finite category sweeps with shared scan-certified coverage and later revisits. An unchanged high-priority area cannot indefinitely restart the pass while lower categories remain pending.
+3. **Travel horizon:** bound each physical travel leg at the existing 80-cell setting, retaining the final coverage target across legs. Do not bound area selection by stable/Home distance or a geometric shortlist. Real movement beyond two initial leg horizons is verified separately.
 
 ## Acceptance criteria
 

@@ -52,6 +52,8 @@ S1, geometry/fairness and live-edit proof initially passed in build `3954020-dir
 
 The corrected tracing/riding build `ad76f81-dirty.20261023T075350Z` passed all four benchmarks and three riding cases **7/7**, zero new errors. Every measured phase had zero collision recoveries, rejected jumps and external moves. The riding case retained mount/drain/reload/dismount/on-foot arrival and physically retrieved/docked the stopped dog, without a post-stop coverage reset. The measured tradeoffs are accepted; final cross-case sequence proof remains pending.
 
+The 08:16 shared sequence passed **73/74**, zero new errors; all Network, benchmark, riding and removal-export cases passed. Its only failure was a live-edit fixture that sealed its sole room entrance with the preceding wall move and could refog an occupied goal. The corrected fixture preserves an alternate entrance and stages a distant active fog goal while paused. Build `08c4859-dirty.20261023T082729Z` passed that case **1/1**, zero new errors, with real scans of both the revealed replacement and restored remote footprint before the zone/storage checks completed. Final sequential acceptance remains open.
+
 Independent removal of the current runtime export is **LOADED CLEAN**, zero new errors (2026-10-23 06:54): no Quadrunner assembly, 600 ticks, save/reload, 600 more ticks, expected vanilla contents retained and the private rendered surface inspected. This completes persistence/removal evidence alongside the clean legacy-save and network failover/final-node runs.
 
 ## Matched workload evidence
