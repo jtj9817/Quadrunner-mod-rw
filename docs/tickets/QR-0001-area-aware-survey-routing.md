@@ -3,11 +3,11 @@
 | Field | Value |
 | --- | --- |
 | Issue type | Improvement / performance |
-| Status | Open — implementation not started |
+| Status | In Progress — implementation authorized 2026-10-22 |
 | Component | Survey routing and local task discovery |
 | Ticket key | QR-0001 — local documentation identifier, not an external Jira issue |
 | Related design | [Plan 0003: Shared robodog dispatch network](../plans/0003-network-dispatch.md) |
-| Authorized change | Research, document and commit this ticket only; do not implement it yet |
+| Authorized change | Implement and verify this ticket with incremental commits (user, 2026-10-22); see [Plan 0004](../plans/0004-area-aware-survey.md) |
 
 ## Summary
 

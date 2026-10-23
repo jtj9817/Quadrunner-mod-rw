@@ -16,9 +16,11 @@ Tracks [Plan 0001](docs/plans/0001-quadrunner.md), the post-release [Hearthline 
 - [x] **T9**: Polish and release
 - [x] **Plan 0002**: Hearthline company lore, product descriptions and tooltips
 - [x] **Plan 0003**: Shared normal/war queues, local discovery and surveying, nearest available assignment, coordinator failover and progress monitoring
+- [ ] **Plan 0004 / QR-0001**: Area-aware survey routing, scan-certified finite sweeps, lifecycle and matched performance proof
 
 ## Current state
 
+- **QR-0001 in progress:** implementation authorized on 2026-10-22. [Plan 0004](docs/plans/0004-area-aware-survey.md) records Home-first categories, finite shared sweeps, retained long-range targets with bounded travel legs, and transient exploration state. Baseline/behavior/measurement evidence is pending; Plan 0003's completed results are unchanged.
 - **Plan 0003 complete:** all ten network cases passed from the actual package, including autonomous discovery, blocked-route ranking, active assignment reload, final-node clearing, repeated failover and war transitions. Packaged full sequence `d37532c.20261021T034353Z` was 54/55 with 0 new errors; its only failure was a fresh-filth fixture assumption, corrected and then passed from the refreshed package below. Independent removal is **LOADED CLEAN**, 0 new errors, with no Quadrunner assembly and preserved vanilla contents through 600 ticks, save/reload and 600 more. No next target scheduled.
 - **Previous personal wrap-up** (2026-10-20): the original scope was complete before Plan 0003. Public source repository (visibility changed at the user's request): [jtj9817/Quadrunner-mod-rw](https://github.com/jtj9817/Quadrunner-mod-rw). Wiki, issues, pull requests, discussions, projects and Actions disabled. Author is `jtj9817` in the mod, assembly metadata and preview; saved-game package ID stays `josh9817.quadrunner`. README documents personal-use scope, installation, build requirements and safe removal.
 - **Current personal-use package:** `dist/Quadrunner`, build `d5816cb.20261021T040229Z`. Lint/build 0 warnings/errors; actual packaged **Stable power loss 1/1 PASS**, 0 new errors (04:03). Gameplay matches the packaged full sequence above; only the fixture's eligibility timing changed. The private instance is stopped and the dev mod link restored.
