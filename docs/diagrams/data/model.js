@@ -406,18 +406,19 @@ window.SYSTEM_MODEL = {
    "level": 2,
    "kind": "job",
    "parent": "sub.network",
-   "description": "What an idle worker does instead of docking: walk to the least-recently-surveyed lattice point within 80 cells, keep spacing from other explorers, record the visit.",
+   "description": "Idle exploration: Home-first rooms, storage and zones, then residual Home and exterior; shared scan-certified finite sweeps and vanilla route-cost area selection with retained 80-cell travel legs.",
    "tech": [
     "Survey, JobDriver_Survey"
    ],
    "responsibilities": [
     "Choose a survey goal",
     "Keep fog-free paths",
-    "Record surveyed cells in NetworkState"
+    "Credit actual local scan footprints in transient shared sweeps"
    ],
    "evidence": [
-    "Source/Quadrunner/Survey.cs:19-137",
-    "Source/Quadrunner/Network.cs:584-596"
+    "Source/Quadrunner/Survey.cs",
+    "Source/Quadrunner/Survey.Geometry.cs",
+    "Source/Quadrunner/Network.cs"
    ]
   },
   {
@@ -1422,10 +1423,10 @@ window.SYSTEM_MODEL = {
    "label": "survey job for an idle worker",
    "kind": "control",
    "protocol": "think node",
-   "mechanism": "Least-recently-surveyed 20-cell lattice point within 80 cells with a fog-free path; the job expires every 600 ticks so found work preempts the travel; no reachable area means Wait.",
+   "mechanism": "Home-first area categories, vanilla returned route-cost entry ranking, retained within-area coverage and bounded 80-cell legs; 600-tick expiry permits work preemption; unavailable goals remain unobserved.",
    "evidence": [
-    "Source/Quadrunner/Network.cs:584-596",
-    "Source/Quadrunner/Survey.cs:19-59"
+    "Source/Quadrunner/Network.cs",
+    "Source/Quadrunner/Survey.cs"
    ]
   },
   {
@@ -1796,7 +1797,7 @@ window.SYSTEM_MODEL = {
     "comp.stable",
     "comp.battery"
    ],
-   "contract": "NetworkState via Scribe_Deep: normal, war, surveyCells/Ticks, nextId, warActive",
+   "contract": "NetworkState via Scribe_Deep: normal, war, nextId, warActive; exploration is transient and old arrival tags are ignored",
    "description": "One saved queue owner per map. Exactly one stable or dog carries it; it is transferred on election and cleared when the last eligible node goes, so removing the mod leaves no map component behind."
   },
   {
@@ -1995,7 +1996,7 @@ window.SYSTEM_MODEL = {
   {
    "id": "REQ-NET-001",
    "level": 1,
-   "text": "Each map runs one dispatch network whose persistent state (normal queue, war queue, survey history) is stored on exactly one elected node - the oldest spawned stable, else the newest-built active dog - and losing the node transfers the same tasks to the next.",
+   "text": "Each map runs one dispatch network whose persistent productive queues are stored on exactly one elected node - the oldest spawned stable, else the newest-built active dog - and losing the node transfers the same tasks to the next.",
    "allocated_to": [
     "comp.net-node"
    ],
@@ -2295,7 +2296,7 @@ window.SYSTEM_MODEL = {
   {
    "id": "REQ-NET-007",
    "level": 2,
-   "text": "When the last eligible node disappears, both queues and the survey history clear and are not resurrected by a new stable or dog after reload.",
+   "text": "When the last eligible node disappears, both productive queues and transient exploration clear and are not resurrected by a new stable or dog after reload.",
    "allocated_to": [
     "comp.net-node"
    ],
@@ -2306,7 +2307,7 @@ window.SYSTEM_MODEL = {
   {
    "id": "REQ-NET-008",
    "level": 2,
-   "text": "Idle workers survey revealed, reachable areas on a 20-cell lattice (80 cells per leg), least-recently-surveyed first, keeping spacing from other explorers; a discovered task preempts survey travel.",
+   "text": "Idle workers survey Home-first native areas by vanilla returned entry-route cost, retain within-area coverage over bounded legs, and credit only actual local scans in finite shared sweeps; productive work preempts travel.",
    "allocated_to": [
     "comp.survey"
    ],
@@ -2921,7 +2922,7 @@ window.SYSTEM_MODEL = {
    "verifies": [
     "REQ-NET-007"
    ],
-   "procedure": "Kill the last dog and burn the last stable: both queues and the survey history clear; reload resurrects nothing; a new stable and dog never pick up the discarded backlog.",
+   "procedure": "Kill the last dog and burn the last stable: both queues clear; reload resurrects nothing; a new stable and dog never pick up the discarded backlog.",
    "status": "passing",
    "evidence": [
     "Source/Quadrunner/Scenarios.Network.cs:399 (Network: last node clears the backlog)"
@@ -3409,7 +3410,7 @@ window.SYSTEM_MODEL = {
      "to": "comp.survey",
      "action": "Survey when there is nothing",
      "condition": "no task assignable to this dog",
-     "mechanism": "Least-recently-surveyed 20-cell point; 600-tick expiry so work preempts."
+     "mechanism": "Home-first scan-certified area sweep; 600-tick expiry so work preempts."
     }
    ],
    "failure_modes": [

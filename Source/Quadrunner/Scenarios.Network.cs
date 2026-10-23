@@ -98,7 +98,10 @@ namespace Quadrunner
                 .SaveAndReload()
                 .Expect("still stored after reload; idle work resumes surveying", () =>
                     CountIn(pile, ThingDefOf.Gold) == 30 && NetSurveying(Dog()))
-                .Summary(() => $"surveyed and hauled from {farGoldCell}; pile {CountIn(pile, ThingDefOf.Gold)}; {Net().Inspect(Dog())}")
+                .Summary(() => $"surveyed and hauled from {farGoldCell}; pile {CountIn(pile, ThingDefOf.Gold)}; " +
+                    $"at {Dog()?.Position}, job {Dog()?.CurJobDef?.defName}:{Dog()?.CurJob?.targetA}, " +
+                    $"goal {Net().Survey.Goal(Dog())}, area {Net().Survey.AreaKey(Dog())}, " +
+                    $"scan {Net().Survey.LastScan(Dog())}, sweep {Net().Survey.Sweep}; {Net().Inspect(Dog())}")
                 .Start();
         }
 
@@ -393,7 +396,7 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// N2 finality: the last dog dies and the last stable burns — both queues and the survey history clear, a reload
+        /// N2 finality: the last dog dies and the last stable burns — both queues clear, a reload
         /// resurrects nothing, and a brand-new stable and dog never pick up the discarded backlog.
         /// </summary>
         private static void NetLastNodeClears()
@@ -419,8 +422,7 @@ namespace Quadrunner
                     Teleport(Dog(), OpenCell(map, home, 60f, 80f));
                     Net().Tick(force: true);
                 })
-                .Expect("the dog surveys and survey history accumulates", () =>
-                    NetSurveying(Dog()) && Net().State.surveyCells.Count > 0)
+                .Expect("the dog surveys", () => NetSurveying(Dog()))
                 .Do("stage a haul it cannot reach quickly", () =>
                 {
                     Net().Report(NetworkTaskKind.Haul, Scenario.ById(goldId), NetHaulGiver);
@@ -434,12 +436,11 @@ namespace Quadrunner
                     Scenario.ById(stableId).Kill(new DamageInfo(DamageDefOf.Flame, 99999f));
                     Net().Tick(force: true);
                 })
-                .Expect("no eligible node: both queues and the survey history are cleared", () =>
-                    Net().Coordinator == null && Net().NormalQueue.Count == 0 && Net().WarQueue.Count == 0
-                    && Net().State.surveyCells.Count == 0)
+                .Expect("no eligible node: both queues are cleared", () =>
+                    Net().Coordinator == null && Net().NormalQueue.Count == 0 && Net().WarQueue.Count == 0)
                 .SaveAndReload()
                 .Expect("nothing resurrected by the load", () =>
-                    Net().NormalQueue.Count == 0 && Net().State.surveyCells.Count == 0 && !NetQueued(goldId))
+                    Net().NormalQueue.Count == 0 && !NetQueued(goldId))
                 .Do("a new stable far away with a new dog", () =>
                 {
                     Building_Stable stable = SpawnStable(s, powered: false, near: goldCell, minDist: 45f, maxDist: 70f);
@@ -450,8 +451,7 @@ namespace Quadrunner
                     !NetQueued(goldId) && Scenario.ById(goldId)?.Position == goldCell && Net().Coordinator != null)
                 .Wait(300)
                 .Expect("the old stack was never touched", () => Scenario.ById(goldId)?.Position == goldCell)
-                .Summary(() => $"queue {Net().NormalQueue.Count}, surveys {Net().State.surveyCells.Count}, " +
-                    $"coordinator {Net().Coordinator?.LabelShortCap ?? "none"}")
+                .Summary(() => $"queue {Net().NormalQueue.Count}; coordinator {Net().Coordinator?.LabelShortCap ?? "none"}")
                 .Start();
         }
 

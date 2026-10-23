@@ -57,8 +57,6 @@ namespace Quadrunner
     public sealed class NetworkState : IExposable
     {
         public List<NetworkTask> normal = new List<NetworkTask>(), war = new List<NetworkTask>();
-        public List<IntVec3> surveyCells = new List<IntVec3>();
-        public List<int> surveyTicks = new List<int>();
         public int nextId = 1;
         public bool warActive;
 
@@ -66,16 +64,12 @@ namespace Quadrunner
         {
             Scribe_Collections.Look(ref normal, "normal", LookMode.Deep);
             Scribe_Collections.Look(ref war, "war", LookMode.Deep);
-            Scribe_Collections.Look(ref surveyCells, "surveyCells", LookMode.Value);
-            Scribe_Collections.Look(ref surveyTicks, "surveyTicks", LookMode.Value);
             Scribe_Values.Look(ref nextId, "nextId", 1);
             Scribe_Values.Look(ref warActive, "warActive");
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 normal = normal ?? new List<NetworkTask>();
                 war = war ?? new List<NetworkTask>();
-                surveyCells = surveyCells ?? new List<IntVec3>();
-                surveyTicks = surveyTicks ?? new List<int>();
             }
         }
     }
@@ -101,7 +95,6 @@ namespace Quadrunner
         private readonly Dictionary<string, Pawn> dogById = new Dictionary<string, Pawn>();
         private readonly Dictionary<string, NetworkTask> assignments = new Dictionary<string, NetworkTask>();
         private readonly Dictionary<string, DogReport> reports = new Dictionary<string, DogReport>();
-        private readonly Dictionary<IntVec3, int> surveys = new Dictionary<IntVec3, int>();
         private readonly List<NetworkTask> ordered = new List<NetworkTask>();
         private readonly List<string> goneReports = new List<string>();
         private readonly Comparison<NetworkTask> taskComparison;
@@ -110,8 +103,9 @@ namespace Quadrunner
         private int nextTick, nextScan;
         private bool ticking;
 
-        private DogNetwork(Map map) { Map = map; taskComparison = CompareTasks; }
+        private DogNetwork(Map map) { Map = map; Survey = new Survey(this); taskComparison = CompareTasks; }
         public Map Map { get; }
+        public Survey Survey { get; }
         public Thing Coordinator { get { _ = State; return coordinator; } }
         public NetworkState State
         {
@@ -141,13 +135,20 @@ namespace Quadrunner
             if (!networks.TryGetValue(map, out DogNetwork network))
             {
                 foreach (Map gone in networks.Keys.Where(m => !Find.Maps.Contains(m)).ToList())
+                {
+                    networks[gone].Survey.Dispose();
                     networks.Remove(gone);
+                }
                 networks[map] = network = new DogNetwork(map);
             }
             return network;
         }
 
-        public static void ClearAll() => networks.Clear();
+        public static void ClearAll()
+        {
+            foreach (DogNetwork network in networks.Values) network.Survey.Dispose();
+            networks.Clear();
+        }
         public static bool IsWorker(Pawn dog) => RobodogWork.Of(dog) is RobodogWork w && !w.rescue && !w.combat;
 
         private static bool Active(Pawn dog) => dog.Spawned && !dog.Dead && !dog.Downed
@@ -220,8 +221,6 @@ namespace Quadrunner
                 foreach (Building_Stable stable in stables) if (state == null) state = stable.networkState;
                 foreach (Pawn dog in dogs) if (state == null) state = CompRobodog.Of(dog).networkState;
                 if (state == null) state = new NetworkState();
-                for (int i = 0; i < Math.Min(state.surveyCells.Count, state.surveyTicks.Count); i++)
-                    surveys[state.surveyCells[i]] = state.surveyTicks[i];
             }
             if (elected == coordinator && elected != null) return;
             if (coordinator != null) Store(coordinator, null);
@@ -230,9 +229,9 @@ namespace Quadrunner
             coordinator = elected;
             if (elected == null)
             {
-                state.normal.Clear(); state.war.Clear(); state.surveyCells.Clear(); state.surveyTicks.Clear();
+                state.normal.Clear(); state.war.Clear();
                 state.warActive = false;
-                assignments.Clear(); reports.Clear(); surveys.Clear();
+                assignments.Clear(); reports.Clear(); Survey.Clear();
                 return;
             }
             Store(elected, state);
@@ -288,15 +287,6 @@ namespace Quadrunner
             Tick(force: true);
         }
 
-        public int LastSurvey(IntVec3 cell) => surveys.TryGetValue(cell, out int tick) ? tick : int.MinValue / 2;
-
-        public void Surveyed(IntVec3 cell)
-        {
-            surveys[cell] = Now;
-            int index = State.surveyCells.IndexOf(cell);
-            if (index < 0) { State.surveyCells.Add(cell); State.surveyTicks.Add(Now); }
-            else State.surveyTicks[index] = Now;
-        }
 
         public void Tick(bool force = false)
         {
@@ -585,7 +575,7 @@ namespace Quadrunner
             {
                 if (dog.CurJobDef == QR_DefOf.QR_Survey)
                     return dog.CurJob;
-                Job survey = Survey.JobFor(dog, this);
+                Job survey = Survey.JobFor(dog);
                 if (survey != null)
                     return survey;
                 // No reachable revealed survey area: do not fall through to vanilla wandering into fog.

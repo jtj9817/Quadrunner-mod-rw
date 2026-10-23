@@ -16,6 +16,7 @@ The moving parts, at runtime:
 | `Building_Stable` | Docking, charging, repair, bills, patrol waypoints, optional network host | `ThingDef.thingClass` (`Defs/ThingDefs_Buildings/QR_Stable.xml:9`) | yes | `CompRobodog`, `DogNetwork`, bills |
 | Robodog pawn (`CompRobodog`) | Battery, stable affiliation, gun choices, powered-down state, optional network host | `ThingComp` on every dog race (`Source/Quadrunner/Robodog.cs:30`) | yes | stable, `DogNetwork`, jobs |
 | `DogNetwork` | One dispatcher per map: discovery intake, queues, assignment, reconciliation, war mode | static dictionary keyed by `Map`, never saved (`Network.cs:98`) | no (state hosted on a node, see below) | every dog and stable on its map |
+| `Survey` | Scan-certified finite sweeps, native area geometry, route-ranked idle travel and transient claims | one instance per `DogNetwork` (`Survey.cs`, `Survey.Geometry.cs`) | no | native rooms/zones/slot groups, local scanner, vanilla pathfinder |
 | `ChargeSpots` | Cached conduit charge spots, rebuilt from buildings | static dictionary keyed by `Map` (`ChargeSpots.cs:40`) | no | `CompPowerTransmitter` buildings |
 | Think-tree job givers | Charge, take-order, dock, wait-in-room | def-driven nodes (`Defs/ThinkTreeDefs/QR_ThinkTrees.xml:6-49`) | no | pawn job system, `DogNetwork` |
 | Harmony patches | Six shipped fixes, one test-gated fix | attributes on static classes (`QR.cs:19`) | n/a | vanilla methods |
@@ -23,21 +24,21 @@ The moving parts, at runtime:
 
 ## Code map by concern
 
-All paths are under `Source/Quadrunner/`. Files are partials only for the scenario suite (`Scenarios*.cs`); production code is one type per concern.
+All paths are under `Source/Quadrunner/`. Scenarios use `Scenarios*.cs` partials; `Survey` separates routing/observation from native geometry in two partial files.
 
 | Concern | Files | What it owns |
 | --- | --- | --- |
 | Bootstrap, defs, settings, UI | `QR.cs`, `QR_DefOf.cs`, `Settings.cs`, `DebugActions.cs`, `ITab_StableOverview.cs` | Harmony startup, the `[DefOf]` cache of mod defs that code references directly (`QR_DefOf.cs:6-38`), the one mod setting (turbine distance), dev-mode debug actions, the stable's Overview tab |
 | Stable and fabrication | `Building_Stable.cs`, `Assembly.cs`, `Tiers.cs` | Docking container and capacity, charge/repair tick, bills, assemble/rebuild/upgrade recipe workers, per-dog upgrade bills, built-in gun selection |
 | Dog pawn | `Robodog.cs`, `Docking.cs` | `CompRobodog` battery/affiliation/guns/siren, powered-down hediff, dock/undock drivers, idle return, wait-in-room fallback |
-| Dispatch | `Network.cs`, `Work.cs`, `Survey.cs` | `DogNetwork`, `NetworkState`/`NetworkTask`, task lifecycle, local discovery scanner, coordinator-owned job construction, idle surveying |
+| Dispatch | `Network.cs`, `Work.cs`, `Survey.cs`, `Survey.Geometry.cs` | `DogNetwork`, `NetworkState`/`NetworkTask`, task lifecycle, local discovery scanner, coordinator-owned job construction, scan-certified area surveying |
 | Charging | `Charging.cs`, `ChargeSpots.cs` | Stable-vs-conduit decision, conduit charge driver, spot cache, spot eligibility |
 | Rescue, retrieval, field fixes | `Rescue.cs`, `Retrieval.cs`, `FieldFix.cs` | Patient ranking and vanilla rescue jobs; carrying powered-down dogs home; colonist-delivered batteries/repair kits |
 | Riding | `Riding.cs` | Ride order and float menu, rider and dog job drivers, ridden-speed stat part, rider draw patch |
 | Combat and drafting | `Combat.cs`, `Tiers.cs`, `Drafting.cs` | War-queue job construction, capture/carry-to-room, patrol/guard, tier guns, draft controller patches |
 | Rendering | `Rendering.cs` | Per-part gait, whole-body pose animation, mount layer, carried-patient body angle |
 | Clean removal | `Removal.cs` | Confirmed export to a save with no Quadrunner content or references |
-| Tests | `AutoTest.cs`, `Scenario.cs`, `Scenarios*.cs` | File-protocol driver, scenario DSL, the 55-scenario suite |
+| Tests | `AutoTest.cs`, `Scenario.cs`, `Scenarios*.cs` | File-protocol driver, scenario DSL and in-game behavioral/measurement fixtures |
 
 ## What actually ticks
 
@@ -57,13 +58,13 @@ Consequences worth knowing: the dispatcher's cadence follows whichever node tick
 
 ### Ownership and election
 
-There is exactly one `DogNetwork` per `Map`, created lazily and pruned when maps are removed (`Network.cs:138-150`). The network object holds only transient caches (roster, assignments, reports, survey dictionary); the persistent `NetworkState` — normal queue, war queue, survey history, `nextId`, `warActive` — is stored on exactly one physical node:
+There is exactly one `DogNetwork` per `Map`, created lazily and pruned when maps are removed. The network holds transient roster, assignment, report and survey data; persistent `NetworkState` — normal queue, war queue, `nextId`, `warActive` — is stored on exactly one physical node (`Network.cs`, `NetworkState` and `DogNetwork.Elect`):
 
 - `NetworkState` is `Scribe_Deep` on the stable (`Building_Stable.cs:293`) and on `CompRobodog` (`Robodog.cs:224`). Only the elected coordinator holds it; election clears it everywhere else and stores it on the new owner (`Network.cs:226-239`).
 - Election prefers the spawned player stable with the **lowest `thingIDNumber`**; with no stable, the **newest active** player dog by `BuildOrder` (`Network.cs:207-215`). `BuildOrder` is a saved integer that falls back to the pawn's thing ID when zero (`Robodog.cs:34-35`) and is copied forward on tier upgrades (`Building_Stable.cs:148`), so a dog's seniority survives save/load and rebuilds.
 - "Active" means spawned, alive, not downed, player faction, and not powered down (`Network.cs:153-154`).
-- First access after a load recovers the state from the elected node if it has one, otherwise scans all stables then all dogs, and adopts the survey history (`Network.cs:216-225`). The `State` getter re-rosters and re-elects when the coordinator is dead or unspawned, which also covers a wiped node leaving a cleared-but-non-null state (`Network.cs:116-129`).
-- Losing the last eligible node permanently clears both queues and survey history (`Network.cs:231-237`); a later node never resurrects the old backlog.
+- First access after a load recovers the productive state from the elected node if it has one, otherwise scans all stables then all dogs. Exploration starts a new unverified sweep; old `surveyCells`/`surveyTicks` arrival tags are ignored, not imported as scan observations (`Network.cs`, `NetworkState.ExposeData`, `DogNetwork.Elect`; `Survey.cs`).
+- Losing the last eligible node permanently clears both queues and transient exploration; a later node never resurrects the old backlog (`Network.cs`, `DogNetwork.Elect`).
 
 The roster is rebuilt from the map: all spawned player stables, and all player robodogs on the map, including ones held in a stable's dock, because vanilla's `MapPawns.AllPawns` includes pawns inside map things (`Network.cs:185-198`; vanilla `MapPawns.AllPawnsUnspawned` walks `ThingOwnerUtility.GetAllThingsRecursively`, `.tools/decomp/Verse/MapPawns.cs:117-146`). Rostered is not the same as active: docked dogs fail `Active` until the network undocks them (`Network.cs:325-331`).
 
@@ -85,7 +86,7 @@ Deduplication is per queue and by `(kind, targetId)` (`Network.cs:254-256`). Com
 
 ### Flow: one haul end to end
 
-1. An idle Quadrunner is surveying (`Survey.JobFor`, `Survey.cs:19-60`). On the dispatch tick, the network scans it and `DogWork.ReportLocal` sees a steel stack in range, unfogged and unforbidden, on vanilla's haulables list (`Work.cs:71-94`).
+1. An idle Quadrunner is surveying (`Survey.JobFor`, `Survey.cs`). On the dispatch tick, the network scans it and `DogWork.ReportLocal` sees a steel stack in range, unfogged and unforbidden, on vanilla's haulables list (`Work.cs:71-94`).
 2. `DogNetwork.Report` refuses duplicates and appends a `Haul` task with the stack's ThingID to the normal queue (`Network.cs:250-262`).
 3. `AssignAll` sorts the war queue (rescue rank, then bleeding rate, then kind, then id; `Network.cs:370-385, 350-358`) and the normal queue by kind and id, finds the nearest available worker by path cost, stores the assignment, and calls `StartJob` with the haul job the vanilla scanner built for that stack (`Network.cs:495-536`).
 4. The job runs on vanilla rails: storage filters, reservations, stack counts and hauling toils are all vanilla. Only the target choice was centralized (`Work.cs:137-167`).
@@ -106,6 +107,17 @@ Normal assignment is skipped while war is on; war tasks still assign (`Network.c
 ### A dog's own orders
 
 `JobGiver_RobodogWork` is the bridge from RimWorld's think tree to the network: it returns `DogNetwork.TakeOrder(pawn)` (`Work.cs:205-211`). `TakeOrder` returns the current assigned job while the assignment is valid, rebuilds the next combat job for a combat assignment (adopting a vanilla continuation instead of restarting), refuses to interrupt player-forced or otherwise unavailable jobs, and otherwise returns an idle job — war standby or survey — or null so the later dock/wait nodes run (`Network.cs:539-601`). This is why the think tree never needs a "find work" branch of its own.
+
+### Area-aware idle surveying
+
+`Survey` is exploration policy, not another task dispatcher. Home footprints are classified in order: enclosed rooms, player stockpiles and storage buildings, growing zones, other supported Core zones, then unzoned Home. All remaining revealed coverage is last, including outside-Home rooms and storage. Native inventories supply geometry only; enumeration never reads remote items or filth (`Survey.Geometry.cs`, `Refresh`).
+
+Each area declares actual-cell candidates from 20-cell tiles, door-adjacent alternative entries and geometric gap filling. For the first pending category, selection compares accepted vanilla `PawnPath.TotalCost` values across entry candidates. It then retains the chosen area for successive useful points, including across productive-work interruptions. A nonnegative vanilla movement-cost lower bound can prune candidates that cannot beat an already accepted cost; it is not a geometric top-k shortlist or a claim of globally optimal routes (`Survey.cs`, `Select`; vanilla 1.6 `PathFinderJob.IndexCost` and step costs).
+
+The shared sweep credits only the actual revealed 15-cell footprint after `DogWork.ReportLocal` completes, even when no task was found. Arrivals and claims provide no credit. The survey driver waits interruptibly for the existing scheduled scan at its final goal; scans remain active during travel and work. Pending claims never close the sweep. Rejected routes are provisional until a later sweep or geometry revision (`Work.cs`, `ReportLocal`; `Survey.cs`, `Scanned`, `JobFor`, `JobDriver_Survey`).
+
+The 80-cell setting bounds a walked leg toward a retained final target, not candidate enumeration or distance from a stable. Topology, roof, fog, terrain and relevant thing events dirty geometry. Full live Home/zone membership is also reread within 600 ticks, detecting same-count reshapes; unchanged refreshes reuse candidate lists. Current legs and route nodes are revalidated. All coverage, claims, native room references and geometry caches are transient and rebuilt after load (`Survey.cs`, `Leg`, `Valid`; `Survey.Geometry.cs`).
+
 
 ## The robodog pawn
 
@@ -223,7 +235,7 @@ The mod is removable because it saves **no map-scoped state of its own**. Everyt
 | Data | Owner | Serialized at | Removal behaviour |
 | --- | --- | --- | --- |
 | Docked dogs, stable waypoints | `Building_Stable` | `Building_Stable.cs:289-299` | Stable is destroyed; docked dogs are dropped first (`Building_Stable.cs:263-280`) |
-| `NetworkState` (queues, survey history) | elected stable or dog | `Building_Stable.cs:293`, `Robodog.cs:224` | Both node types are removed; nothing remains |
+| `NetworkState` (productive queues and mode) | elected stable or dog | `Building_Stable.cs:293`, `Robodog.cs:224` | Both node types are removed; nothing remains |
 | Battery, affiliation, gun picks, patrol cursor | `CompRobodog` | `Robodog.cs:220-231` | Dog pawns are destroyed |
 | Upgrade bill and its dog | stable `BillStack` | `Tiers.cs:128-132` | Bill lives on the removed stable |
 | Rider/dog job progress | vanilla jobs | `Riding.cs:188-193`, `Retrieval.cs:134-138`, `Charging.cs:125-129` | Jobs stop; vanilla serializes them |
@@ -285,6 +297,7 @@ Related documents, each the canonical home for its subject:
 - [docs/design.md](design.md) — the original design snapshot; **dispatch and queue sections are superseded by plan 0003** (`docs/design.md:6`).
 - [docs/plans/0001-quadrunner.md](plans/0001-quadrunner.md) — targets T0–T9 and the decision record, with the dispatch parts explicitly superseded at line 6.
 - [docs/plans/0003-network-dispatch.md](plans/0003-network-dispatch.md) — the authoritative dispatch decisions (discovery, assignment, coordination, war, persistence).
+- [docs/plans/0004-area-aware-survey.md](plans/0004-area-aware-survey.md) — area-aware exploration policies, transient load interpretation and measured acceptance for QR-0001.
 - [docs/plans/0002-hearthline-lore.md](plans/0002-hearthline-lore.md) — lore and tooltip scope.
 - [docs/test-runs.md](test-runs.md) — the per-run verification log.
 - [AGENTS.md](../AGENTS.md) — the development loop, tool reference and test-instance rules.

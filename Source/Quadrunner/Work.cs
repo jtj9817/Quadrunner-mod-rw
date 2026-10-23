@@ -30,11 +30,11 @@ namespace Quadrunner
         public int dispatchInterval = 60;
         /// <summary>Dispatch: reassign a task whose assignee has made no progress for this many ticks.</summary>
         public int progressTimeout = 2500;
-        /// <summary>Exploration: distance between survey goals, and kept from another explorer's goal.</summary>
+        /// <summary>Exploration: geometric coverage spacing and distance kept from another explorer's goal.</summary>
         public int surveySpacing = 20;
         /// <summary>Exploration: a survey job expires this often, so found work can preempt the travel.</summary>
         public int surveyJobTicks = 600;
-        /// <summary>Exploration: maximum distance from the dog considered for its next survey destination.</summary>
+        /// <summary>Exploration: maximum walked distance per leg toward a retained map-wide coverage goal.</summary>
         public float surveySearchRadius = 80f;
 
         public static RobodogWork Of(Thing thing) => thing?.def.GetModExtension<RobodogWork>();
@@ -67,6 +67,9 @@ namespace Quadrunner
             RobodogWork work = RobodogWork.Utility;
             if (work == null)
                 return;
+            Survey survey = network.Survey;
+            long started = survey.Measure ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
+            long bytes = survey.Measure && Survey.AllocatedBytes != null ? Survey.AllocatedBytes() : 0;
             Map map = observer.Map;
             ICollection<Thing> haulables = map.listerHaulables.ThingsPotentiallyNeedingHauling();
             foreach (IntVec3 cell in GenRadial.RadialCellsAround(observer.Position, work.scanRadius, useCenter: true))
@@ -91,6 +94,12 @@ namespace Quadrunner
                             break;
                         }
                 }
+            }
+            network.Survey.Scanned(observer);
+            if (survey.Measure)
+            {
+                survey.LocalScanElapsedTicks += System.Diagnostics.Stopwatch.GetTimestamp() - started;
+                if (Survey.AllocatedBytes != null) survey.LocalScanAllocatedBytes += Survey.AllocatedBytes() - bytes;
             }
         }
 
