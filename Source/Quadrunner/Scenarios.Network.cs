@@ -247,8 +247,10 @@ namespace Quadrunner
             {
                 // Stage the item only after fixing both posts: discovery during the preceding frame must not
                 // let a worker pick it up before path ranking is observed.
-                A().TryUndock(ADog());
-                B().TryUndock(BDog());
+                if (!ADog().Spawned && !A().TryUndock(ADog()))
+                    throw new InvalidOperationException("the north worker could not leave its stable");
+                if (!BDog().Spawned && !B().TryUndock(BDog()))
+                    throw new InvalidOperationException("the south worker could not leave its stable");
                 Teleport(ADog(), mid + new IntVec3(0, 0, 5));
                 Teleport(BDog(), mid + new IntVec3(0, 0, -14));
                 ADog().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
@@ -264,16 +266,17 @@ namespace Quadrunner
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
-                    IntVec3 left = FindClearArea(map, map.Center, 120f, c => new CellRect(c.x, c.z, 41, 1).ExpandedBy(3));
-                    wall = new CellRect(left.x, left.z, 41, 1);
+                    CellRect world = SurveyFindRect(map, 61, 45, 120f, controlledFixture: s);
+                    SurveyIsolate(s, world.Cells);
+                    wall = new CellRect(world.minX + 10, world.minZ + 24, 41, 1);
                     foreach (IntVec3 c in wall.Cells)
                         SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel, c, Rot4.North);
                     mid = wall.CenterCell;
                     IntVec3 south = mid + new IntVec3(0, 0, -3);
                     pile = ClearRect(map, south, 3, 1, 6f, 12f, r => r.Cells.All(c => c.z < wall.minZ));
                     Stockpile(s, pile, ThingDefOf.Gold);
-                    Building_Stable a = SpawnStable(s, powered: false, near: mid + new IntVec3(0, 0, 3), minDist: 10f, maxDist: 16f);
-                    Building_Stable b = SpawnStable(s, powered: false, near: south, minDist: 22f, maxDist: 34f);
+                    Building_Stable a = SpawnStable(s, powered: false, near: mid + new IntVec3(8, 0, 10), minDist: 0f, maxDist: 0f);
+                    Building_Stable b = SpawnStable(s, powered: false, near: mid + new IntVec3(8, 0, -18), minDist: 0f, maxDist: 0f);
                     aId = a.ThingID;
                     bId = b.ThingID;
                     aDogId = s.Track(a.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
