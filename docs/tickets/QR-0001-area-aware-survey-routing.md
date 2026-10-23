@@ -13,9 +13,11 @@
 
 Replace the utility dog's age-first lattice surveying with area-aware exploration: choose the closest available room, then prioritize storage areas, planting zones, other zones and finally outside the Home area. Use greedy nearest-neighbor selection for successive survey destinations, backed by RimWorld's existing pathfinder rather than a second movement algorithm.
 
-This is both a proposed exploration-policy change and a performance improvement. Changing where dogs look first can improve useful discovery without necessarily reducing CPU cost. **No runtime profiling or speedup measurement was performed for this ticket.** The findings below distinguish existing behavior from recommendations.
+This ticket began as both an exploration-policy proposal and a performance investigation. Changing where dogs look first can improve useful discovery without necessarily reducing CPU cost. Implementation and runtime evidence are now tracked in [Plan 0004](../plans/0004-area-aware-survey.md) and [test-runs.md](../test-runs.md); a speedup claim must account for cold construction, invalidation and total planner costs.
 
-## Current behavior and findings
+## Pre-implementation behavior and findings
+
+This research snapshot describes local baseline commit `27d7bfd`, before the routing cutover. Its source line anchors refer to that revision, not the current selector.
 
 | Finding | Evidence and implication |
 | --- | --- |
@@ -84,29 +86,36 @@ Record the chosen answers in the new numbered implementation plan required by th
 
 ## Acceptance criteria
 
-All boxes below describe future implementation work and are intentionally unchecked.
+Check boxes only after the corresponding private-game run proves them; measured tradeoffs require the explicit decision described below.
 
-- [ ] The chosen Home precedence, revisit/sweep behavior and search-horizon interpretation are recorded, and deterministic fixtures demonstrate the requested category order plus coverage of unzoned Home cells.
-- [ ] Within a priority category, wall detours and forbidden doors affect selection correctly: geometric proximity alone cannot win, an unreachable candidate is skipped, and ties are deterministic. Describe selection as vanilla route-cost ranking, not exact global shortest-path optimization.
-- [ ] Area selection and within-area coverage are separate: a fixture with competing rooms demonstrates the declared entry-cost ranking and completion/resumption of the chosen area's coverage, rather than nearest-point hopping between rooms.
-- [ ] Indoor stockpiles/storage buildings do not trigger redundant visits when room scans already covered them; outdoor stockpiles and shelves remain represented under the chosen Home policy.
-- [ ] Large and non-convex rooms/zones, blocked centers, alternative entrances, narrow corridors and separated revealed coverage all retain discoverability. A far-corner task is not missed because the area was marked visited at its entrance. Arrival between scan ticks does not credit an unscanned footprint; a genuinely scanned empty area can complete its pass.
-- [ ] Lower-priority areas are eventually surveyed by idle workers on a finite, static fixture even while higher-priority rooms continue to exist. A separate fixture reaches eligible work beyond two initial 80-cell leg horizons through real travel, without resetting local sweeps indefinitely. New work appearing after an earlier sweep is eventually discovered on a revisit.
+- [x] The chosen Home precedence, revisit/sweep behavior and search-horizon interpretation are recorded, and deterministic fixtures demonstrate the requested category order plus coverage of unzoned Home cells.
+- [x] Within a priority category, wall detours and forbidden doors affect selection correctly: geometric proximity alone cannot win, an unreachable candidate is skipped, and ties are deterministic. Describe selection as vanilla route-cost ranking, not exact global shortest-path optimization.
+- [x] Area selection and within-area coverage are separate: a fixture with competing rooms demonstrates the declared entry-cost ranking and completion/resumption of the chosen area's coverage, rather than nearest-point hopping between rooms.
+- [x] Indoor stockpiles/storage buildings do not trigger redundant visits when room scans already covered them; outdoor stockpiles and shelves remain represented under the chosen Home policy.
+- [x] Large and non-convex rooms/zones, blocked centers, alternative entrances, narrow corridors and separated revealed coverage all retain discoverability. A far-corner task is not missed because the area was marked visited at its entrance. Arrival between scan ticks does not credit an unscanned footprint; a genuinely scanned empty area can complete its pass.
+- [x] Lower-priority areas are eventually surveyed by idle workers on a finite, static fixture even while higher-priority rooms continue to exist. A separate fixture reaches eligible work beyond two initial 80-cell leg horizons through real travel, without resetting local sweeps indefinitely. New work appearing after an earlier sweep is eventually discovered on a revisit.
 - [ ] Multiple workers distinguish temporarily claimed coverage from completed scans and avoid conflicting goals. Repeated reports of the same observed target are allowed, but queued tasks and productive assignments remain unique. Interruption, expiry, charging, drafting, riding, war and death release or revalidate claims without inventing coverage or resetting unrelated progress.
-- [ ] Room split/merge, door access changes, stockpile/growing-zone creation/reshape/deletion, storage-building spawn/despawn, Home edits and fog changes do not leave stale goals or permanently omitted coverage.
-- [ ] Normal tasks are not queued from remote area enumeration. Existing 15-cell/120-tick observation, fog/forbidden checks, Home-only mature-filth cleaning, task deduplication and vanilla job eligibility remain intact unless a separately recorded decision changes a tunable.
+- [x] Room split/merge, door access changes, stockpile/growing-zone creation/reshape/deletion, storage-building spawn/despawn, Home edits and fog changes do not leave stale goals or permanently omitted coverage.
+- [x] Normal tasks are not queued from remote area enumeration. Existing 15-cell/120-tick observation, fog/forbidden checks, Home-only mature-filth cleaning, task deduplication and vanilla job eligibility remain intact unless a separately recorded decision changes a tunable.
 - [ ] Existing emergency rescue/raid alerts, productive task ordering, route-based worker assignment and productive/player-ordered job precedence remain unchanged. Plant work, DLC support and a replacement movement pathfinder are not introduced.
 - [ ] Save/load and coordinator failover preserve productive tasks and safely restore or rebuild exploration state without saved room references. Loading pre-change arrival history cannot suppress an unobserved task; losing the final node and clean mod removal retain their existing behavior.
 - [ ] Matched room/zone fixtures demonstrate fewer redundant survey steps or lower task-discovery latency than the current selector, with no loss of discovered eligible targets. Record full-path requests, reachability checks, walked cells, selection cost/allocations and cache construction/invalidation cost; include median and tail selection cost, not only a warm-cache best case.
 - [ ] The measured improvement does not conceal a repeatable regression in total survey CPU cost or allocations under matched workloads. If faster discovery trades against increased planner cost, present the measured tradeoff for an explicit decision rather than accepting it as an unconditional optimization. Do not claim a percentage improvement without measurements.
 
-## Verification plan — future implementation only
+## Implementation verification plan
 
 - Capture a baseline and the proposed behavior on identical controlled geometry, dog counts, task eligibility and tuning. Separate cold construction/refresh cost from repeated selection cost; include a room-heavy colony, a large zone, a wall-detour case and an open-map fallback.
 - Extend behavior scenarios around real observed discovery and physical task completion, not assertions about source text or data structures. Cover room selection versus point selection, scan/arrival misalignment, empty-area completion, a far-corner item, overlapping storage, unzoned Home work, competing worker claims and exterior work beyond two initial search horizons.
 - Run the affected network scenarios through `tools/autotest.py run Network`, including discovery beyond the old boundary, scan eligibility, queue persistence and nearest-dog assignment. Add focused coverage for the criteria above. Run the shared-code sequence only when the implementation changes shared dispatch/ownership or needs final sequence proof under the repository test rules.
 - Exercise actual private-instance movement and queue transitions, then perform save/load and failover checks, including an older save whose arrival history must not become certified scan coverage. If saved state/removal paths change, repeat the independent removal check. Never use the user's running game or profile.
-- Record measured results in `docs/test-runs.md` and update the implementation plan/progress only after those runs prove the behavior. None of these game scenarios or benchmarks were run for this documentation-only ticket.
+- Record measured results in `docs/test-runs.md` and update the implementation plan/progress only after those runs prove the behavior. The original documentation-only ticket did not run these scenarios; the authorized implementation now records each exercised result there.
+
+## Implementation progress
+
+- Core cutover: `3954020`; initial behavioral and matched-workload fixtures: `fcd9d92`.
+- The initial focused build `3954020-dirty.20261023T020344Z` passed all fourteen Survey behavior cases and four benches, with zero new errors. Network behavior separately passed all ten cases. These runs support the checked policy/coverage/eligibility criteria above.
+- Replay-controlled measurements repeated **18/18 PASS** on `fcd9d92-dirty.20261023T053956Z`; all four proposed phases discovered both staged targets, while historical phases missed one within their cap. A separately reproduced distant retained-goal reshape now physically hauls 31 gold on `fcd9d92-dirty.20261023T060457Z` (**1/1 PASS**, zero new errors).
+- Real process-CPU measurements, shared-sequence compatibility, independent removal and the explicit cold-allocation tradeoff decision remain in progress. Higher cold/cache cost is not being accepted as an unconditional optimization.
 
 ## Implementation touchpoints
 

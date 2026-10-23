@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.IO;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -14,14 +16,14 @@ namespace Quadrunner
     /// <summary>
     /// QR-0001 matched benchmark: the pre-cutover selector (an exact test-only local copy) and the proposed
     /// <see cref="Survey"/> planner are measured on the same fixture, in the same process, with the same observer,
-    /// targets, scan cadence and XML tuning. Physical baseline and proposed phases reuse the identical live geometry;
-    /// a geometry signature checked at each phase start proves it.
+    /// targets, scan cadence and XML tuning. Each physical phase cold-loads the same private saved fixture, so native
+    /// doors, wildlife, vegetation, Home and queued state share initial conditions; its geometry signature is checked.
     ///
     /// Real local scans at the existing 120-tick cadence discover real staged items; nothing is enumerated remotely.
     /// Medirunner observers are spawned and Active (so <see cref="DogWork.ReportLocal"/> runs and feeds scans) but are
     /// not utility workers, so the runtime dispatcher never replaces the benchmark's movement job. Baseline movement
     /// runs the exact historical QR_Survey toils and arrival writer; the fixture temporarily swaps its driver type,
-    /// rejects unrelated robodogs and restores the type on success or failure. No unregistered job is saved.
+    /// rejects unrelated robodogs and restores the type on success or failure. Snapshots contain no movement job.
     /// The proposed phase uses the normal QR_Survey driver and completed scan footprints.
     ///
     /// Selection cost/allocation is measured externally around every planner call. New geometry timing and counters
@@ -34,6 +36,12 @@ namespace Quadrunner
         private const int WarmIterations = 120;
         private const int PhysicalTicks = 15000;
         private const int MaxSelections = 80;
+        private static SurveyBenchRunner activeBench = null;
+
+        // No native movement event exists in 1.6. These fixture-only postfixes are installed explicitly (not by
+        // PatchAll) and removed on every finish, so walked cells and movement path requests are not frame samples.
+        private static void SurveyBenchMoved(Pawn ___pawn) => activeBench?.Moved(___pawn);
+        private static void SurveyBenchRequested(Pawn ___pawn) => activeBench?.Requested(___pawn);
 
         // ---------------------------------------------------------------- registration
 
@@ -50,9 +58,6 @@ namespace Quadrunner
             s.Do($"build the {KindName(kind)} fixture", () =>
                 {
                     DraftColonists(s);
-                    bool autoHome = Find.PlaySettings.autoHomeArea;
-                    Find.PlaySettings.autoHomeArea = false;
-                    s.OnFinish(() => Find.PlaySettings.autoHomeArea = autoHome);
                     fixture = SurveyBenchBuild(kind, s);
                     runner = new SurveyBenchRunner(s, fixture);
                 })
@@ -107,7 +112,7 @@ namespace Quadrunner
 
         private static IntVec3 SurveyBenchGround(Scenario s, Map map, int width, int height)
         {
-            CellRect site = SurveyFindRect(map, width, height, 120f, waterFixture: s);
+            CellRect site = SurveyFindRect(map, width, height, 120f, controlledFixture: s);
             var fogged = site.Cells.Where(c => c.Fogged(map)).ToList();
             foreach (IntVec3 cell in fogged) map.fogGrid.Unfog(cell);
             s.OnFinish(() =>
@@ -295,23 +300,8 @@ namespace Quadrunner
             return null;
         }
 
-        private static void BenchHome(Scenario s, CellRect rect, bool value)
-        {
-            Map map = Find.CurrentMap;
-            var prior = new List<(IntVec3 cell, bool value)>();
-            foreach (IntVec3 cell in rect.Cells)
-            {
-                prior.Add((cell, map.areaManager.Home[cell]));
-                map.areaManager.Home[cell] = value;
-            }
-            s.OnFinish(() =>
-            {
-                Map now = Find.CurrentMap;
-                if (now == null) return;
-                foreach ((IntVec3 cell, bool old) in prior)
-                    now.areaManager.Home[cell] = old;
-            });
-        }
+        private static void BenchHome(Scenario s, CellRect rect, bool value) =>
+            SurveyHome(s, value ? rect : new CellRect(0, 0, 0, 0));
 
         private static void BenchRoom(Scenario s, CellRect rect, bool doorNorth)
         {
@@ -321,17 +311,8 @@ namespace Quadrunner
                 if (cell != door)
                     SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.Steel, cell, Rot4.North);
             SpawnBuilding(s, ThingDefOf.Door, ThingDefOf.Steel, door, Rot4.North);
-            IntVec3[] cells = rect.Cells.ToArray();
-            RoofDef[] before = cells.Select(c => map.roofGrid.RoofAt(c)).ToArray();
-            foreach (IntVec3 cell in cells)
+            foreach (IntVec3 cell in rect.Cells)
                 map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
-            s.OnFinish(() =>
-            {
-                Map now = Find.CurrentMap;
-                if (now == null) return;
-                for (int i = 0; i < cells.Length && i < before.Length; i++)
-                    now.roofGrid.SetRoof(cells[i], before[i]);
-            });
         }
 
         private static Zone_Stockpile BenchStockpile(Scenario s, CellRect rect, ThingDef only)
@@ -343,11 +324,11 @@ namespace Quadrunner
                 zone.AddCell(cell);
             zone.settings.filter.SetDisallowAll();
             zone.settings.filter.SetAllow(only, true);
+            int id = zone.ID;
             s.OnFinish(() =>
             {
                 Map now = Find.CurrentMap;
-                if (now != null && now.zoneManager.AllZones.Contains(zone))
-                    zone.Delete();
+                now?.zoneManager.AllZones.FirstOrDefault(z => z.ID == id)?.Delete();
             });
             return zone;
         }
@@ -361,11 +342,11 @@ namespace Quadrunner
                 zone.AddCell(cell);
             zone.allowSow = false;
             zone.allowCut = false;
+            int id = zone.ID;
             s.OnFinish(() =>
             {
                 Map now = Find.CurrentMap;
-                if (now != null && now.zoneManager.AllZones.Contains(zone))
-                    zone.Delete();
+                now?.zoneManager.AllZones.FirstOrDefault(z => z.ID == id)?.Delete();
             });
         }
 
@@ -379,8 +360,8 @@ namespace Quadrunner
             shelf.settings.filter.SetAllow(ThingDefOf.Gold, true);
         }
 
-        /// <summary>Stable numeric fingerprint of cells/buildings/zones/Home/rooms/roofs in the fixture. Checked at
-        /// each physical phase start so the two modes provably ran on the same live geometry.</summary>
+        /// <summary>Stable numeric fingerprint of native fixture geometry, terrain, Home, zones and fog. Checked after
+        /// each replay load, before physical movement, rather than pretending a long-running live world is static.</summary>
         private static long BenchGeometrySignature(Map map, CellRect site)
         {
             const ulong Offset = 1469598103934665603UL, Prime = 1099511628211UL;
@@ -404,6 +385,8 @@ namespace Quadrunner
                 RoofDef roof = map.roofGrid.RoofAt(cell);
                 Mix(building == null ? -1 : building.shortHash);
                 Mix(roof == null ? -1 : roof.shortHash);
+                Mix(cell.GetTerrain(map).shortHash);
+                Mix(cell.Fogged(map) ? 1 : 0);
                 Mix(cell.Standable(map) ? 1 : 0);
             }
             return unchecked((long)hash);
@@ -531,6 +514,7 @@ namespace Quadrunner
         {
             public long PathRequests, ReachChecks, Anchors, HistoryScans;
             public long GeometryBuilds, GeometryChecks, GeometryElapsedTicks, GeometryAllocatedBytes, ObservedCells;
+            public long CandidateBuilds, CandidateTicks, CandidateBytes;
             public long LocalScanTicks, LocalScanBytes, ObservationTicks, ObservationBytes, ValidationTicks, ValidationBytes;
             public bool HasGeometry => GeometryBuilds >= 0;
 
@@ -542,6 +526,9 @@ namespace Quadrunner
                 GeometryChecks = survey.GeometryChecks,
                 GeometryElapsedTicks = survey.GeometryElapsedTicks,
                 GeometryAllocatedBytes = survey.GeometryAllocatedBytes,
+                CandidateBuilds = survey.CandidateBuilds,
+                CandidateTicks = survey.CandidateElapsedTicks,
+                CandidateBytes = survey.CandidateAllocatedBytes,
                 ObservedCells = survey.ObservedCellCount,
                 LocalScanTicks = survey.LocalScanElapsedTicks, LocalScanBytes = survey.LocalScanAllocatedBytes,
                 ObservationTicks = survey.ObservationElapsedTicks, ObservationBytes = survey.ObservationAllocatedBytes,
@@ -558,6 +545,9 @@ namespace Quadrunner
                 GeometryChecks = Sub(GeometryChecks, before.GeometryChecks),
                 GeometryElapsedTicks = Sub(GeometryElapsedTicks, before.GeometryElapsedTicks),
                 GeometryAllocatedBytes = Sub(GeometryAllocatedBytes, before.GeometryAllocatedBytes),
+                CandidateBuilds = Sub(CandidateBuilds, before.CandidateBuilds),
+                CandidateTicks = Sub(CandidateTicks, before.CandidateTicks),
+                CandidateBytes = Sub(CandidateBytes, before.CandidateBytes),
                 ObservedCells = Sub(ObservedCells, before.ObservedCells),
                 LocalScanTicks = Sub(LocalScanTicks, before.LocalScanTicks), LocalScanBytes = Sub(LocalScanBytes, before.LocalScanBytes),
                 ObservationTicks = Sub(ObservationTicks, before.ObservationTicks), ObservationBytes = Sub(ObservationBytes, before.ObservationBytes),
@@ -606,10 +596,8 @@ namespace Quadrunner
         {
             public readonly string Id;
             public readonly IntVec3 Cell;
-            public readonly Thing Thing;
             public int EnteredTick = -1, DiscoveredTick = -1;
-            public float DistanceAtDiscovery;
-            public BenchTarget(string id, IntVec3 cell, Thing thing) { Id = id; Cell = cell; Thing = thing; }
+            public BenchTarget(string id, IntVec3 cell) { Id = id; Cell = cell; }
             public int ScanLatency => EnteredTick < 0 || DiscoveredTick < 0 ? -1 : DiscoveredTick - EnteredTick;
         }
 
@@ -629,6 +617,7 @@ namespace Quadrunner
                 + (Baseline ? 0 : ConstructionAlloc) + Runtime.LocalScanBytes
                 - (Baseline ? Runtime.ObservationBytes : 0) + Runtime.ValidationBytes;
             public int StartTick, EndTick, Selections, WalkedCells, VisitedCells;
+            public int MovementPaths;
             public float WalkedDistance;
             public long Signature;
             public string Selected = "";
@@ -645,7 +634,7 @@ namespace Quadrunner
 
             private readonly Scenario scenario;
             private readonly SurveyBenchFixture fixture;
-            private readonly Map map;
+            private Map map;
             private readonly HistoricalSurvey historical;
             private readonly Dictionary<Pawn, IntVec3> goals = new Dictionary<Pawn, IntVec3>();
             private readonly List<Pawn> observers = new List<Pawn>();
@@ -671,13 +660,16 @@ namespace Quadrunner
             private BenchPhase baselinePhase, proposedPhase;
             private IntVec3 goal = IntVec3.Invalid;
             private int nextSelectTick, lastDiscoveryTick = -1;
-            private int lastPathConsumed;
-            private PawnPath lastPath;
             private IntVec3 lastPos;
             private float walkedDistance;
             private int walkedCells;
-            private bool prepared, finished;
+            private bool prepared, finished, measuringTravel;
             private readonly Type surveyDriver;
+            private readonly Harmony profiler;
+            private readonly MethodInfo moveMethod, requestMethod;
+            private readonly string snapshotName = "QR_survey_bench_" + Guid.NewGuid().ToString("N");
+            private string observerId;
+            private bool replaying, replayBaseline, snapshotSaved;
 
             public SurveyBenchRunner(Scenario scenario, SurveyBenchFixture fixture)
             {
@@ -690,6 +682,11 @@ namespace Quadrunner
                     throw new InvalidOperationException("survey benchmark needs an isolated map without unrelated robodogs");
                 surveyDriver = QR_DefOf.QR_Survey.driverClass;
                 historical = new HistoricalSurvey(goals);
+                moveMethod = AccessTools.Method(typeof(Pawn_PathFollower), "TryEnterNextPathCell")
+                    ?? throw new MissingMethodException("Pawn_PathFollower.TryEnterNextPathCell");
+                requestMethod = AccessTools.Method(typeof(Pawn_PathFollower), "GenerateNewPathRequest")
+                    ?? throw new MissingMethodException("Pawn_PathFollower.GenerateNewPathRequest");
+                profiler = new Harmony("josh9817.quadrunner.survey-benchmark");
                 priorAllocHook = Survey.AllocatedBytes;
                 Survey.AllocatedBytes = GcAllocated;
                 scenario.OnFinish(() =>
@@ -698,20 +695,39 @@ namespace Quadrunner
                     Survey.AllocatedBytes = priorAllocHook;
                     QR_DefOf.QR_Survey.driverClass = surveyDriver;
                     HistoricalArrival = null;
+                    activeBench = null;
+                    profiler.Unpatch(moveMethod, HarmonyPatchType.Postfix, profiler.Id);
+                    profiler.Unpatch(requestMethod, HarmonyPatchType.Postfix, profiler.Id);
+                    string path = GenFilePaths.FilePathForSavedGame(snapshotName);
+                    if (snapshotSaved && File.Exists(path)) File.Delete(path);
                 });
+                activeBench = this;
+                profiler.Patch(moveMethod, postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchMoved))));
+                profiler.Patch(requestMethod, postfix: new HarmonyMethod(AccessTools.Method(typeof(Scenarios), nameof(SurveyBenchRequested))));
             }
 
             public bool Step()
             {
                 if (finished) return true;
                 if (!prepared) { Prepare(); return false; }
-                if (phase == null) { StartPhysical(true); return false; }
+                if (replaying)
+                {
+                    if (ReferenceEquals(map, Find.CurrentMap)) return false;
+                    map = Find.CurrentMap;
+                    observers.Clear();
+                    observers.Add(Scenario.ById(observerId) as Pawn
+                        ?? throw new InvalidOperationException("the snapshot observer did not reload"));
+                    StartPhysical(replayBaseline);
+                    replaying = false;
+                    Scenario.Resume();
+                    return false;
+                }
                 if (!DrivePhysical()) return false;
                 EndPhysical();
                 if (phase.Baseline)
                 {
                     baselinePhase = phase;
-                    StartPhysical(false);
+                    BeginReplay(false);
                     return false;
                 }
                 proposedPhase = phase;
@@ -797,6 +813,22 @@ namespace Quadrunner
                 for (int i = 1; i < observers.Count; i++)
                     observers[i].Destroy(DestroyMode.Vanish);
                 observers.RemoveRange(1, observers.Count - 1);
+                observerId = observers[0].ThingID;
+                observers[0].jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                GameDataSaveLoader.SaveGame(snapshotName);
+                snapshotSaved = true;
+                BeginReplay(true);
+            }
+
+            private void BeginReplay(bool baseline)
+            {
+                if (dog?.Spawned == true) dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                replayBaseline = baseline;
+                replaying = true;
+                QR_DefOf.QR_Survey.driverClass = surveyDriver;
+                Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                GameDataSaveLoader.LoadGame(snapshotName);
             }
 
             private void CreateNetwork()
@@ -845,9 +877,8 @@ namespace Quadrunner
                 proposedWarmNumbers = BenchNumbers.FromSurvey(survey).Delta(propBefore);
                 proposedWarmObserved = survey.ObservedCellCount.ToString(CultureInfo.InvariantCulture);
 
-                // A real topology edit, not a synthetic flag: the wall is spawned after the selector is warm, the
-                // runtime's own event marks geometry dirty, and Refresh is timed; then the wall is removed and
-                // geometry restored so both physical phases see the original fixture.
+                // Time a real topology invalidation AND its next selection, including any required lazy candidate
+                // build. Remove the probe before saving the common initial physical fixture.
                 if (fixture.RefreshCell.IsValid)
                 {
                     Thing wall = SpawnBuilding(scenario, ThingDefOf.Wall, ThingDefOf.Steel, fixture.RefreshCell, Rot4.North);
@@ -855,8 +886,10 @@ namespace Quadrunner
                     long allocBefore = AllocatedNow();
                     Watch.Restart();
                     survey.Refresh();
+                    Job refreshed = survey.JobFor(observers[0]);
                     Watch.Stop();
                     long allocAfter = AllocatedNow();
+                    ReturnPool(refreshed);
                     refresh = new BenchSample
                     {
                         Ms = Watch.Elapsed.TotalMilliseconds,
@@ -904,11 +937,6 @@ namespace Quadrunner
 
             private void StartPhysical(bool baseline)
             {
-                if (phase != null)
-                    foreach (BenchTarget target in phase.Targets)
-                        if (target.Thing != null && !target.Thing.Destroyed)
-                            target.Thing.Destroy();
-                if (dog != null) dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
                 dog = observers[0];
                 goal = IntVec3.Invalid;
                 goals.Clear();
@@ -916,8 +944,6 @@ namespace Quadrunner
                 visited.Clear();
                 walkedCells = 0;
                 walkedDistance = 0;
-                lastPath = null;
-                lastPathConsumed = 0;
                 lastPos = dog.Position;
                 Teleport(dog, fixture.DogStart);
                 lastPos = dog.Position;
@@ -937,7 +963,7 @@ namespace Quadrunner
                 foreach (IntVec3 cell in fixture.TargetCells)
                 {
                     Thing thing = NetStack(scenario, ThingDefOf.Steel, 30, cell);
-                    phase.Targets.Add(new BenchTarget(thing.ThingID, cell, thing));
+                    phase.Targets.Add(new BenchTarget(thing.ThingID, cell));
                 }
                 phase.Before = baseline ? historical.Numbers() : BenchNumbers.FromSurvey(survey);
                 phase.RuntimeBefore = BenchNumbers.FromSurvey(survey);
@@ -945,6 +971,8 @@ namespace Quadrunner
                 nextSelectTick = phase.StartTick;
                 phase.VisitedCells = 1;
                 visited.Add(dog.Position);
+                RecordEntry(phase.StartTick);
+                measuringTravel = true;
             }
 
             private bool DrivePhysical()
@@ -953,11 +981,9 @@ namespace Quadrunner
                 // Keep the benchmark observer on station in both phases; battery drain is not the subject and the
                 // runtime would otherwise power it down or send it charging during long physical runs.
                 CompRobodog.Of(dog)?.SetBattery(1f);
-                PollTargets(now);
-                TrackWalked();
+                PollTargets();
                 if (phase.Baseline) DriveHistorical(now);
                 else DriveProposed(now);
-                TrackWalked();
 
                 if (phase.Targets.Count > 0 && phase.Targets.All(t => t.DiscoveredTick >= 0))
                 {
@@ -1037,53 +1063,48 @@ namespace Quadrunner
                     - (survey.ValidationAllocatedBytes - validationBytes) - (phase.ArrivalAlloc - arrivalAlloc);
             }
 
-            private void PollTargets(int now)
+            private void PollTargets()
             {
-                float scanRadius = RobodogWork.Utility.scanRadius;
                 foreach (BenchTarget target in phase.Targets)
                 {
-                    if (target.Thing == null || !target.Thing.Spawned || target.Thing.Destroyed) continue;
-                    if (target.EnteredTick < 0 && dog.Position.DistanceTo(target.Cell) <= scanRadius)
-                        target.EnteredTick = now;
                     if (target.DiscoveredTick >= 0) continue;
-                    if (network.NormalQueue.Any(t => t.targetId == target.Id))
-                    {
-                        target.DiscoveredTick = now;
-                        target.DistanceAtDiscovery = dog.Position.DistanceTo(target.Cell);
-                        lastDiscoveryTick = now;
-                    }
+                    NetworkTask report = network.NormalQueue.FirstOrDefault(t => t.targetId == target.Id);
+                    if (report == null) continue;
+                    target.DiscoveredTick = report.reportedAt;
+                    lastDiscoveryTick = report.reportedAt;
                 }
             }
 
-            private void TrackWalked()
+            private void RecordEntry(int now)
             {
-                PawnPath path = dog.pather.curPath;
-                if (path != null)
-                {
-                    if (!ReferenceEquals(path, lastPath))
-                    {
-                        walkedCells += Math.Max(0, path.NodesConsumedCount);
-                        lastPath = path;
-                        lastPathConsumed = path.NodesConsumedCount;
-                    }
-                    else
-                    {
-                        int delta = path.NodesConsumedCount - lastPathConsumed;
-                        if (delta > 0) walkedCells += delta;
-                        lastPathConsumed = path.NodesConsumedCount;
-                    }
-                }
-                IntVec3 pos = dog.Position;
-                if (lastPos.IsValid && pos != lastPos)
-                {
-                    walkedDistance += pos.DistanceTo(lastPos);
-                    visited.Add(pos);
-                }
-                lastPos = pos;
+                foreach (BenchTarget target in phase.Targets)
+                    if (target.EnteredTick < 0 && dog.Position.DistanceTo(target.Cell) <= RobodogWork.Utility.scanRadius)
+                        target.EnteredTick = now;
+            }
+
+            public void Moved(Pawn pawn)
+            {
+                if (!measuringTravel || pawn != dog || phase == null) return;
+                IntVec3 position = pawn.Position;
+                if (position == lastPos) return;
+                float distance = position.DistanceTo(lastPos);
+                if (distance > 1.5f)
+                    throw new InvalidOperationException($"benchmark movement was not a native adjacent step: {lastPos}->{position}");
+                walkedCells++;
+                walkedDistance += distance;
+                visited.Add(position);
+                lastPos = position;
+                RecordEntry(Find.TickManager.TicksGame);
+            }
+
+            public void Requested(Pawn pawn)
+            {
+                if (measuringTravel && pawn == dog && phase != null) phase.MovementPaths++;
             }
 
             private void EndPhysical()
             {
+                measuringTravel = false;
                 phase.EndTick = Find.TickManager.TicksGame;
                 phase.Runtime = BenchNumbers.FromSurvey(survey).Delta(phase.RuntimeBefore);
                 survey.Measure = false;
@@ -1153,6 +1174,14 @@ namespace Quadrunner
                         ("baseline_scan_ms", Round(TicksToMs(baselinePhase.Runtime.LocalScanTicks - baselinePhase.Runtime.ObservationTicks))),
                         ("proposed_scan_ms", Round(TicksToMs(proposedPhase.Runtime.LocalScanTicks))),
                         ("proposed_validation_ms", Round(TicksToMs(proposedPhase.Runtime.ValidationTicks))),
+                        ("baseline_driver_ms", Round(TicksToMs(baselinePhase.Runtime.ValidationTicks))),
+                        ("proposed_candidate_builds", proposedPhase.Counters.CandidateBuilds),
+                        ("proposed_candidate_ms", Round(TicksToMs(proposedPhase.Counters.CandidateTicks))),
+                        ("proposed_candidate_alloc", proposedPhase.Counters.CandidateBytes),
+                        ("baseline_movement_paths", baselinePhase.MovementPaths),
+                        ("proposed_movement_paths", proposedPhase.MovementPaths),
+                        ("baseline_full_path_requests", baselinePhase.Counters.PathRequests + baselinePhase.MovementPaths),
+                        ("proposed_full_path_requests", proposedPhase.Counters.PathRequests + proposedPhase.MovementPaths),
                         ("baseline_targets", baseTargets),
                         ("proposed_targets", propTargets),
                         ("candidates", candidateReport));
@@ -1166,12 +1195,15 @@ namespace Quadrunner
 
             private static string PhaseEvent(BenchPhase phase) =>
                 $"selections {phase.Selections}, ticks {phase.EndTick - phase.StartTick}, walked {phase.WalkedCells} " +
-                $"({phase.WalkedDistance:F1} straight, {phase.VisitedCells} visited), select " +
+                $"({phase.WalkedDistance:F1} distance, {phase.VisitedCells} visited), select " +
                 $"{phase.Select.MedianMs:F2}/{phase.Select.P95Ms:F2}/{phase.Select.TailMs:F2} ms total " +
                 $"{phase.Select.TotalMs:F1} ms, alloc " +
-                $"{phase.Select.TotalAlloc} B, paths {phase.Counters.PathRequests}, reach {phase.Counters.ReachChecks}, " +
+                $"{phase.Select.TotalAlloc} B, selector paths {phase.Counters.PathRequests}, movement paths {phase.MovementPaths}, " +
+                $"reach {phase.Counters.ReachChecks}, " +
                 $"geometry {phase.Counters.GeometryBuilds}/{TicksToMs(phase.Counters.GeometryElapsedTicks):F2} ms/" +
-                $"{phase.Counters.GeometryAllocatedBytes} B, observed {phase.Observed}, {phase.Selected}";
+                $"{phase.Counters.GeometryAllocatedBytes} B, candidates {phase.Counters.CandidateBuilds}/" +
+                $"{TicksToMs(phase.Counters.CandidateTicks):F2} ms/{phase.Counters.CandidateBytes} B, " +
+                $"observed {phase.Observed}, {phase.Selected}";
 
             private static string PhaseText(BenchPhase phase) =>
                 $"{phase.Selections} sel, {phase.EndTick - phase.StartTick} ticks, {phase.WalkedCells} walked, " +
@@ -1181,8 +1213,7 @@ namespace Quadrunner
             private static string TargetsText(BenchPhase phase) => string.Join(" | ", phase.Targets.Select(t =>
                 $"{t.Cell}: {(t.DiscoveredTick < 0 ? "missed" : $"d+{t.DiscoveredTick - phase.StartTick}")}" +
                 $", enter {(t.EnteredTick < 0 ? "no" : (t.EnteredTick - phase.StartTick).ToString(CultureInfo.InvariantCulture))}" +
-                $", latency {(t.ScanLatency < 0 ? "n/a" : t.ScanLatency + "t")}" +
-                $", dist {t.DistanceAtDiscovery:F1}"));
+                $", latency {(t.ScanLatency < 0 ? "n/a" : t.ScanLatency + "t")}"));
 
             public string Summary()
             {
@@ -1222,7 +1253,12 @@ namespace Quadrunner
             Toil go = Toils_Goto.GotoCell(TargetIndex.A, PathEndMode.OnCell);
             go.AddPreTickAction(() =>
             {
-                if (pawn.pather.Moving && pawn.Map.fogGrid.IsFogged(pawn.pather.nextCell)) ReadyForNextToil();
+                Survey survey = DogNetwork.For(pawn.Map).Survey;
+                long started = Stopwatch.GetTimestamp();
+                long bytes = Survey.AllocatedBytes != null ? Survey.AllocatedBytes() : 0;
+                bool fogged = pawn.pather.Moving && pawn.Map.fogGrid.IsFogged(pawn.pather.nextCell);
+                survey.RecordDriverCost(started, bytes);
+                if (fogged) ReadyForNextToil();
             });
             yield return go;
             Toil arrival = ToilMaker.MakeToil("HistoricalSurveyArrival");

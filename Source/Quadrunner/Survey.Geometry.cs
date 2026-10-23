@@ -11,7 +11,7 @@ namespace Quadrunner
         // Save/load clears Map's reference fields before stale networks are pruned. Keep the actual publisher.
         private readonly MapEvents events;
         private Area[] owners, nextOwners;
-        private bool[] standable, nextStandable;
+        private bool[] standable;
         private int[] planned;
         private int planStamp;
         private readonly object homeKey = new object(), outsideKey = new object();
@@ -28,7 +28,7 @@ namespace Quadrunner
         {
             int count = map.cellIndices.NumGridCells;
             owners = new Area[count]; nextOwners = new Area[count];
-            standable = new bool[count]; nextStandable = new bool[count]; planned = new int[count];
+            standable = new bool[count]; planned = new int[count];
             events.RegionsRoomsChanged += Dirty;
             events.RoofChanged += DirtyCell;
             events.CellFogChanged += FogChanged;
@@ -61,8 +61,8 @@ namespace Quadrunner
         private void Forget(IntVec3 cell)
         {
             int index = map.cellIndices.CellToIndex(cell);
-            if (observed[index] != sweep) return;
-            observed[index] = 0; observedCount--; observationVersion++;
+            if (!observed[index]) return;
+            observed[index] = false; observedCount--; observationVersion++;
             if (owners[index] != null) owners[index].remaining++;
         }
 
@@ -76,20 +76,28 @@ namespace Quadrunner
         public IReadOnlyList<IntVec3> CandidateCells(IntVec3 areaCell)
         {
             Refresh();
-            return areaCell.InBounds(map) && owners[map.cellIndices.CellToIndex(areaCell)] is Area area
-                ? area.candidates : noCandidates;
+            if (!areaCell.InBounds(map) || !(owners[map.cellIndices.CellToIndex(areaCell)] is Area area)) return noCandidates;
+            EnsureCandidates(area);
+            return area.candidates;
         }
 
-        /// <summary>Native topology events invalidate immediately. Full live Home/zone/slot membership is reread at
-        /// most one survey-job interval apart: this detects same-count reshapes without hashes or saved room IDs.
-        /// Unchanged refreshes reuse all candidate lists. A current goal is also checked live by the driver.</summary>
+        /// <summary>Topology events invalidate immediately. Bounded polling compares exact effective Home/zone/slot
+        /// ownership without rebuilding unchanged geometry or relying on counts, hashes or saved room IDs. Live route
+        /// checks handle temporary occupancy/forbidden changes; rejected routes are reconsidered on each poll.</summary>
         public void Refresh()
         {
             if (!dirty && built && Now < refreshAt) return;
             long start = Measure ? Stopwatch.GetTimestamp() : 0;
             long bytes = Measure && AllocatedBytes != null ? AllocatedBytes() : 0;
             if (Measure) GeometryChecks++;
+            RevalidateObservers();
             map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+            if (!dirty && built && !EditableInputsChanged())
+            {
+                refreshAt = Now + Tuning.surveyJobTicks;
+                RecordGeometryCost(start, bytes);
+                return;
+            }
             dirty = false; refreshAt = Now + Tuning.surveyJobTicks;
             Array.Clear(nextOwners, 0, nextOwners.Length);
             foreach (Area area in areas) area.live = false;
@@ -102,7 +110,7 @@ namespace Quadrunner
             }
             foreach (SlotGroup group in map.haulDestinationManager.AllGroupsListForReading)
             {
-                if (!(group.parent is Zone_Stockpile) && !(group.parent is Building_Storage { Faction: var f } && f == Faction.OfPlayer)) continue;
+                if (!IsStorage(group.parent)) continue;
                 Area area = GetArea(group.parent, SurveyCategory.Storage);
                 foreach (IntVec3 cell in group.CellsList) AddCell(area, cell, homeOnly: true);
             }
@@ -115,23 +123,30 @@ namespace Quadrunner
             // Residual Home/exterior footprints stay separated by native room topology. An observer outside a sealed
             // courtyard cannot be its only declared candidate just because its scan disk geometrically overlaps it.
             foreach (Room room in map.regionGrid.AllRooms)
+            {
+                Area residualHome = null, residualOutside = null;
                 foreach (IntVec3 cell in room.Cells)
                 {
                     int index = map.cellIndices.CellToIndex(cell);
                     if (nextOwners[index] != null || cell.Fogged(map) || !cell.Walkable(map)) continue;
-                    SurveyCategory category = map.areaManager.Home[cell] ? SurveyCategory.Home : SurveyCategory.Outside;
-                    nextOwners[index] = GetArea(room, category);
+                    nextOwners[index] = map.areaManager.Home[index]
+                        ? residualHome ?? (residualHome = GetArea(room, SurveyCategory.Home))
+                        : residualOutside ?? (residualOutside = GetArea(room, SurveyCategory.Outside));
                 }
+            }
             bool changed = !built;
+            Area fallbackHome = null, fallbackOutside = null;
             for (int i = 0; i < nextOwners.Length; i++)
             {
                 IntVec3 cell = map.cellIndices.IndexToCell(i);
                 bool visible = !cell.Fogged(map);
                 if (nextOwners[i] == null && visible && cell.Walkable(map))
-                    nextOwners[i] = map.areaManager.Home[cell] ? GetArea(homeKey, SurveyCategory.Home)
-                        : GetArea(outsideKey, SurveyCategory.Outside);
-                nextStandable[i] = visible && cell.Standable(map);
-                if (owners[i] != nextOwners[i] || standable[i] != nextStandable[i]) changed = true;
+                    nextOwners[i] = map.areaManager.Home[i]
+                        ? fallbackHome ?? (fallbackHome = GetArea(homeKey, SurveyCategory.Home))
+                        : fallbackOutside ?? (fallbackOutside = GetArea(outsideKey, SurveyCategory.Outside));
+                bool canStand = visible && cell.Standable(map);
+                if (owners[i] != nextOwners[i] || standable[i] != canStand) changed = true;
+                standable[i] = canStand;
                 // A newly opened/revealed cell has not been seen in its current accessible form. Initial construction
                 // is different: scans may legitimately precede the first geometry query and must be retained.
                 if (built && owners[i] == null && nextOwners[i] != null) Forget(cell);
@@ -141,16 +156,17 @@ namespace Quadrunner
                 if (Measure) GeometryBuilds++;
                 revision++;
                 Area[] previous = owners; owners = nextOwners; nextOwners = previous;
-                bool[] oldStandable = standable; standable = nextStandable; nextStandable = oldStandable;
-                foreach (Area area in areas) { area.cells.Clear(); area.candidates.Clear(); area.remaining = 0; }
+                foreach (Area area in areas)
+                {
+                    area.cells.Clear(); area.candidates.Clear(); area.remaining = 0; area.candidatesReady = false;
+                }
                 for (int i = 0; i < owners.Length; i++)
                 {
                     Area area = owners[i];
                     if (area == null) continue;
                     area.live = true; area.cells.Add(i);
-                    if (observed[i] != sweep) area.remaining++;
+                    if (!observed[i]) area.remaining++;
                 }
-                foreach (Area area in areas) if (area.live) BuildCandidates(area);
                 for (int i = areas.Count - 1; i >= 0; i--)
                     if (!areas[i].live)
                     {
@@ -161,11 +177,58 @@ namespace Quadrunner
             else
                 foreach (Area area in areas) area.live = area.cells.Count != 0;
             built = true;
-            if (Measure)
+            RecordGeometryCost(start, bytes);
+        }
+
+        private void RecordGeometryCost(long start, long bytes)
+        {
+            if (!Measure) return;
+            GeometryElapsedTicks += Stopwatch.GetTimestamp() - start;
+            if (AllocatedBytes != null) GeometryAllocatedBytes += AllocatedBytes() - bytes;
+        }
+
+        private void RevalidateObservers()
+        {
+            foreach (var pair in explorers)
+                if (pair.Key.Dead || pair.Key.Destroyed || pair.Key.MapHeld != map) retiredObservers.Add(pair.Key);
+                else pair.Value.rejected.Clear();
+            foreach (Pawn pawn in retiredObservers) explorers.Remove(pawn);
+            retiredObservers.Clear();
+        }
+
+        private static bool IsStorage(object parent) =>
+            parent is Zone_Stockpile || parent is Building_Storage storage && storage.Faction == Faction.OfPlayer;
+
+        private bool EditableInputsChanged()
+        {
+            var home = map.areaManager.Home;
+            for (int i = 0; i < owners.Length; i++)
             {
-                GeometryElapsedTicks += Stopwatch.GetTimestamp() - start;
-                if (AllocatedBytes != null) GeometryAllocatedBytes += AllocatedBytes() - bytes;
+                Area prior = owners[i];
+                bool inHome = home[i];
+                if (prior != null && inHome != (prior.category != SurveyCategory.Outside)) return true;
+                if (!inHome || prior?.category == SurveyCategory.Room) continue;
+                IntVec3 cell = map.cellIndices.IndexToCell(i);
+                if (cell.Fogged(map)) continue;
+                object key;
+                SurveyCategory category;
+                SlotGroup storage = map.haulDestinationManager.SlotGroupAt(cell);
+                if (IsStorage(storage?.parent))
+                {
+                    key = storage.parent; category = SurveyCategory.Storage;
+                }
+                else if (cell.GetZone(map) is Zone zone && !(zone is Zone_Stockpile))
+                {
+                    key = zone; category = zone is Zone_Growing ? SurveyCategory.Growing : SurveyCategory.OtherZone;
+                }
+                else
+                {
+                    if (prior == null) continue;
+                    key = prior.key; category = SurveyCategory.Home;
+                }
+                if (prior == null || prior.key != key || prior.category != category) return true;
             }
+            return false;
         }
 
         private Area GetArea(object key, SurveyCategory category)
@@ -183,6 +246,19 @@ namespace Quadrunner
             if (!cell.InBounds(map) || cell.Fogged(map) || homeOnly && !map.areaManager.Home[cell]) return;
             int index = map.cellIndices.CellToIndex(cell);
             if (nextOwners[index] == null) nextOwners[index] = area;
+        }
+
+        private void EnsureCandidates(Area area)
+        {
+            if (area.candidatesReady) return;
+            long started = Measure ? Stopwatch.GetTimestamp() : 0;
+            long bytes = Measure && AllocatedBytes != null ? AllocatedBytes() : 0;
+            BuildCandidates(area);
+            area.candidatesReady = true;
+            if (!Measure) return;
+            CandidateBuilds++;
+            CandidateElapsedTicks += Stopwatch.GetTimestamp() - started;
+            if (AllocatedBytes != null) CandidateAllocatedBytes += AllocatedBytes() - bytes;
         }
 
         private void BuildCandidates(Area area)

@@ -20,7 +20,7 @@ namespace Quadrunner
             internal readonly List<int> cells = new List<int>();
             internal readonly List<IntVec3> candidates = new List<IntVec3>();
             internal int remaining;
-            internal bool live;
+            internal bool live, candidatesReady;
         }
 
         private sealed class Explorer
@@ -43,13 +43,14 @@ namespace Quadrunner
         private readonly DogNetwork network;
         private readonly Map map;
         private readonly Dictionary<Pawn, Explorer> explorers = new Dictionary<Pawn, Explorer>();
+        private readonly List<Pawn> retiredObservers = new List<Pawn>();
         private readonly List<Choice> choices = new List<Choice>();
         private static readonly Comparison<Choice> choiceComparison = (a, b) =>
             a.bound != b.bound ? a.bound.CompareTo(b.bound) : a.index != b.index ? a.index.CompareTo(b.index)
                 : a.area.cells[0].CompareTo(b.area.cells[0]);
         private static readonly Comparison<IntVec3> cellComparison = (a, b) =>
             a.z != b.z ? a.z.CompareTo(b.z) : a.x.CompareTo(b.x);
-        private readonly int[] observed;
+        private readonly bool[] observed;
         private int observedCount, observationVersion;
         private int sweep = 1, revision;
         private static int Now => Find.TickManager.TicksGame;
@@ -60,6 +61,7 @@ namespace Quadrunner
         internal long PathRequests, GeometryBuilds, GeometryChecks;
         internal long ReachabilityChecks = 0;
         internal long GeometryElapsedTicks, GeometryAllocatedBytes;
+        internal long CandidateBuilds, CandidateElapsedTicks, CandidateAllocatedBytes;
         internal long ObservationElapsedTicks, ObservationAllocatedBytes, ValidationElapsedTicks, ValidationAllocatedBytes;
         internal long LocalScanElapsedTicks, LocalScanAllocatedBytes;
         internal static Func<long> AllocatedBytes = null;
@@ -69,13 +71,13 @@ namespace Quadrunner
             this.network = network;
             map = network.Map;
             events = map.events;
-            observed = new int[map.cellIndices.NumGridCells];
+            observed = new bool[map.cellIndices.NumGridCells];
             InitializeGeometry();
         }
 
         public int Sweep => sweep;
         public int ObservedCellCount => observedCount;
-        public bool Observed(IntVec3 cell) => cell.InBounds(map) && observed[map.cellIndices.CellToIndex(cell)] == sweep;
+        public bool Observed(IntVec3 cell) => cell.InBounds(map) && observed[map.cellIndices.CellToIndex(cell)];
         public int LastScan(Pawn dog) => explorers.TryGetValue(dog, out Explorer e) ? e.scanTick : -1;
         public IntVec3 Goal(Pawn dog) => explorers.TryGetValue(dog, out Explorer e) ? e.goal : IntVec3.Invalid;
         public object AreaKey(Pawn dog) => explorers.TryGetValue(dog, out Explorer e) ? e.area?.key : null;
@@ -107,8 +109,8 @@ namespace Quadrunner
                 IntVec3 cell = observer.Position + GenRadial.RadialPattern[n];
                 if (!cell.InBounds(map) || cell.Fogged(map)) continue;
                 int index = map.cellIndices.CellToIndex(cell);
-                if (observed[index] == sweep) continue;
-                observed[index] = sweep; observedCount++;
+                if (observed[index]) continue;
+                observed[index] = true; observedCount++;
                 Area area = owners[index];
                 if (area != null) area.remaining--;
             }
@@ -130,7 +132,9 @@ namespace Quadrunner
             {
                 if (e.area?.live == true && e.area.remaining > 0)
                 {
-                    if (e.goal.IsValid && !e.rejected.Contains(e.goal) && Useful(e.area, e.goal) && !Taken(dog, e.goal))
+                    EnsureCandidates(e.area);
+                    if (e.goal.IsValid && e.area.candidates.Contains(e.goal) && !e.rejected.Contains(e.goal)
+                        && Useful(e.area, e.goal) && !Taken(dog, e.goal))
                     {
                         Job continued = RouteJob(dog, e, e.area, e.goal);
                         if (continued != null) return continued;
@@ -165,6 +169,7 @@ namespace Quadrunner
             foreach (Area area in areas)
             {
                 if (!area.live || area.category != category || area.remaining == 0 || only != null && area != only) continue;
+                EnsureCandidates(area);
                 foreach (IntVec3 cell in area.candidates)
                 {
                     if (e.rejected.Contains(cell) || !Useful(area, cell) || Taken(dog, cell)) continue;
@@ -254,7 +259,7 @@ namespace Quadrunner
                 IntVec3 cell = point + GenRadial.RadialPattern[n];
                 if (!cell.InBounds(map)) continue;
                 int index = map.cellIndices.CellToIndex(cell);
-                if (owners[index] == area && observed[index] != sweep) return true;
+                if (owners[index] == area && !observed[index]) return true;
             }
             return false;
         }
@@ -284,6 +289,7 @@ namespace Quadrunner
             foreach (Area area in areas)
             {
                 if (!area.live || area.remaining == 0) continue;
+                EnsureCandidates(area);
                 foreach (IntVec3 cell in area.candidates)
                     if (Useful(area, cell) && !e.rejected.Contains(cell)) return false;
             }
@@ -292,7 +298,8 @@ namespace Quadrunner
 
         private void BeginSweep()
         {
-            if (++sweep == int.MaxValue) { Array.Clear(observed, 0, observed.Length); sweep = 1; }
+            if (++sweep == int.MaxValue) sweep = 1;
+            Array.Clear(observed, 0, observed.Length);
             observedCount = 0; observationVersion++;
             foreach (Area area in areas) if (area.live) area.remaining = area.cells.Count;
             foreach (Explorer e in explorers.Values) { e.area = null; e.goal = IntVec3.Invalid; e.jobId = -1; }
@@ -302,6 +309,7 @@ namespace Quadrunner
         {
             Array.Clear(observed, 0, observed.Length); observedCount = 0; observationVersion++;
             explorers.Clear(); dirty = true; built = false;
+            retiredObservers.Clear();
             byKey.Clear(); areas.Clear(); choices.Clear(); tiles.Clear(); candidateSet.Clear();
             Array.Clear(owners, 0, owners.Length);
             Array.Clear(nextOwners, 0, nextOwners.Length);
@@ -314,10 +322,29 @@ namespace Quadrunner
             long started = System.Diagnostics.Stopwatch.GetTimestamp();
             long bytes = AllocatedBytes != null ? AllocatedBytes() : 0;
             bool valid = CheckGoal(dog, job);
-            ValidationElapsedTicks += System.Diagnostics.Stopwatch.GetTimestamp() - started;
-            if (AllocatedBytes != null) ValidationAllocatedBytes += AllocatedBytes() - bytes;
+            RecordDriverCost(started, bytes);
             return valid;
         }
+
+        internal void RecordDriverCost(long started, long bytes)
+        {
+            if (!Measure) return;
+            ValidationElapsedTicks += System.Diagnostics.Stopwatch.GetTimestamp() - started;
+            if (AllocatedBytes != null) ValidationAllocatedBytes += AllocatedBytes() - bytes;
+        }
+
+        internal bool DoneWaiting(Pawn dog, int arrived)
+        {
+            if (!Measure) return ScanComplete(dog, arrived);
+            long started = System.Diagnostics.Stopwatch.GetTimestamp();
+            long bytes = AllocatedBytes != null ? AllocatedBytes() : 0;
+            bool complete = ScanComplete(dog, arrived);
+            RecordDriverCost(started, bytes);
+            return complete;
+        }
+
+        private bool ScanComplete(Pawn dog, int arrived) =>
+            !explorers.TryGetValue(dog, out Explorer e) || dog.Position != e.goal || e.scanTick >= arrived;
 
         private bool CheckGoal(Pawn dog, Job job)
         {
@@ -330,6 +357,7 @@ namespace Quadrunner
             if (!explorers.TryGetValue(dog, out Explorer e) || e.jobId != job.loadID || e.area?.live != true) return false;
             if (e.checkedObservation != observationVersion || e.checkedRevision != revision)
             {
+                EnsureCandidates(e.area);
                 e.goalUseful = e.area.candidates.Contains(e.goal) && Useful(e.area, e.goal);
                 e.checkedObservation = observationVersion; e.checkedRevision = revision;
             }
@@ -358,7 +386,7 @@ namespace Quadrunner
             {
                 Survey survey = DogNetwork.For(pawn.Map).Survey;
                 // Intermediate travel legs need no artificial scan stop; the final goal waits for a real scan.
-                if (pawn.Position != survey.Goal(pawn) || survey.LastScan(pawn) >= arrived) ReadyForNextToil();
+                if (survey.DoneWaiting(pawn, arrived)) ReadyForNextToil();
             };
             observe.defaultCompleteMode = ToilCompleteMode.Never;
             yield return observe;

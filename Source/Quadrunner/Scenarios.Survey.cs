@@ -37,8 +37,9 @@ namespace Quadrunner
                 throw new InvalidOperationException($"couldn't hold {dog}");
         }
 
-        /// <summary>Clear ground near the map center, ignoring fog. A large controlled pad may temporarily replace water.</summary>
-        private static CellRect SurveyFindRect(Map map, int width, int height, float maxDist, Scenario waterFixture = null)
+        /// <summary>Find a fixture pad without player structures/pawns. Controlled pads use uniform soil, restore
+        /// natural rock/roof/terrain footprints, and temporarily move wildlife so long/tied routes do not depend on seed.</summary>
+        private static CellRect SurveyFindRect(Map map, int width, int height, float maxDist, Scenario controlledFixture = null)
         {
             foreach (IntVec3 origin in CellRect.CenteredOn(map.Center, (int)maxDist).ClipInsideMap(map).Cells
                          .OrderBy(c => c.DistanceToSquared(map.Center)))
@@ -49,39 +50,76 @@ namespace Quadrunner
                 bool clear = true;
                 foreach (IntVec3 cell in rect.Cells)
                 {
-                    bool water = cell.GetTerrain(map).IsWater;
-                    if ((cell.Walkable(map) && !water || waterFixture != null && water)
-                        && cell.GetFirstBuilding(map) == null && cell.GetFirstPawn(map) == null)
-                        continue;
+                    Building building = cell.GetFirstBuilding(map);
+                    Pawn pawn = cell.GetFirstPawn(map);
+                    bool scenery = building == null || controlledFixture != null && building.Faction != Faction.OfPlayer
+                        && (building.def.building.isNaturalRock || building.def.building.isResourceRock);
+                    bool ground = controlledFixture != null || cell.Walkable(map) && !cell.GetTerrain(map).IsWater;
+                    bool wildlife = pawn == null || controlledFixture != null && pawn.Faction != Faction.OfPlayer && pawn.RaceProps.Animal;
+                    if (scenery && ground && wildlife) continue;
                     clear = false;
                     break;
                 }
-                if (!clear)
-                    continue;
-                if (waterFixture != null)
+                if (!clear) continue;
+                if (controlledFixture != null)
                 {
-                    var terrain = new List<(IntVec3 cell, TerrainDef def)>();
+                    var ground = new List<(IntVec3 cell, TerrainDef terrain, RoofDef roof)>();
+                    var rocks = new List<(IntVec3 cell, ThingDef def, ThingDef stuff, Rot4 rotation, int hp)>();
+                    var visitors = new List<(string id, IntVec3 cell)>();
                     foreach (IntVec3 cell in rect.Cells)
-                        if (cell.GetTerrain(map).IsWater)
+                    {
+                        ground.Add((cell, cell.GetTerrain(map), map.roofGrid.RoofAt(cell)));
+                        map.roofGrid.SetRoof(cell, null);
+                        Building rock = cell.GetFirstBuilding(map);
+                        if (rock != null)
                         {
-                            terrain.Add((cell, cell.GetTerrain(map)));
-                            map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
+                            rocks.Add((cell, rock.def, rock.Stuff, rock.Rotation, rock.HitPoints));
+                            rock.Destroy();
                         }
-                    waterFixture.OnFinish(() =>
+                        Pawn visitor = cell.GetFirstPawn(map);
+                        if (visitor != null)
+                        {
+                            IntVec3 outside = IntVec3.Invalid;
+                            foreach (IntVec3 candidate in map.AllCells)
+                                if (!rect.Contains(candidate) && candidate.x >= 2 && candidate.z >= 2
+                                    && candidate.x < map.Size.x - 2 && candidate.z < map.Size.z - 2
+                                    && candidate.Standable(map) && candidate.GetFirstPawn(map) == null)
+                                { outside = candidate; break; }
+                            if (!outside.IsValid) throw new InvalidOperationException("no temporary wildlife position outside the pad");
+                            visitors.Add((visitor.ThingID, cell));
+                            Teleport(visitor, outside);
+                        }
+                        map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
+                    }
+                    controlledFixture.OnFinish(() =>
                     {
                         Map now = Find.CurrentMap;
-                        if (now != null)
-                            foreach (var prior in terrain) now.terrainGrid.SetTerrain(prior.cell, prior.def);
+                        if (now == null) return;
+                        foreach (var prior in rocks)
+                        {
+                            Thing rock = ThingMaker.MakeThing(prior.def, prior.stuff);
+                            rock.HitPoints = prior.hp;
+                            GenSpawn.Spawn(rock, prior.cell, now, prior.rotation);
+                        }
+                        foreach (var prior in ground)
+                        {
+                            now.terrainGrid.SetTerrain(prior.cell, prior.terrain);
+                            now.roofGrid.SetRoof(prior.cell, prior.roof);
+                        }
+                        foreach (var prior in visitors)
+                            if (Scenario.ById(prior.id) is Pawn pawn) Teleport(pawn, prior.cell);
                     });
                 }
                 foreach (IntVec3 cell in rect.Cells)
-                    foreach (Thing thing in cell.GetThingList(map).ToList())
-                        if (thing.def.category == ThingCategory.Plant || thing.def.category == ThingCategory.Item || thing is Filth)
-                            thing.Destroy();
+                {
+                    List<Thing> things = cell.GetThingList(map);
+                    for (int i = things.Count - 1; i >= 0; i--)
+                        if (things[i].def.category == ThingCategory.Plant || things[i].def.category == ThingCategory.Item || things[i] is Filth)
+                            things[i].Destroy();
+                }
                 return rect;
             }
-            throw new InvalidOperationException(
-                $"no {width}x{height} clear fixture area within {maxDist} cells of the map center");
+            throw new InvalidOperationException($"no {width}x{height} fixture pad within {maxDist} cells of the map center");
         }
 
         /// <summary>Refog the rest of the map, reveal exactly <paramref name="revealed"/>, and restore the original fog on finish.</summary>
@@ -542,12 +580,12 @@ namespace Quadrunner
                 {
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                     DraftColonists(s);
-                    world = SurveyFindRect(map, 41, 15, 120f);
+                    world = SurveyFindRect(map, 41, 15, 120f, controlledFixture: s);
                     SurveyIsolate(s, world.Cells);
                     SurveyHome(s, world);
                     Pawn dog = SurveyStable(s, new IntVec3(world.minX + 20, 0, world.CenterCell.z), powered: false,
                         out Building_Stable stable);
-                    SurveyPlace(dog, stable, stable.InteractionCell);
+                    SurveyPlace(dog, stable, new IntVec3(world.CenterCell.x, 0, world.minZ + 2));
                     IntVec3 post = dog.Position;
                     var directions = new[]
                     {
@@ -1152,7 +1190,7 @@ namespace Quadrunner
                 {
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                     DraftColonists(s);
-                    world = SurveyFindRect(map, 180, 13, 120f, waterFixture: s);
+                    world = SurveyFindRect(map, 180, 13, 120f, controlledFixture: s);
                     hub = new CellRect(world.minX, world.minZ, 15, 13);
                     corridor = new CellRect(world.minX + 15, world.minZ + 5, 165, 3);
                     var revealed = new List<IntVec3>(hub.Cells);
@@ -1774,6 +1812,52 @@ namespace Quadrunner
                 })
                 .Summary(() => $"legacy {legacyCell}, queued {queuedCell}, pile {CountIn(pile, ThingDefOf.Gold)}, " +
                     $"sweep {S().Sweep}; {Net().Inspect(Dog())}")
+                .Start();
+        }
+
+        private static void SurveyReshapedGoal()
+        {
+            var s = new Scenario("Survey: reshaped retained goal", 6000);
+            Map map = Find.CurrentMap;
+            CellRect oldZone = default, movedZone = default;
+            Zone_Stockpile stock = null;
+            string dogId = null;
+            IntVec3 oldGoal = IntVec3.Invalid;
+            Pawn Dog() => (Pawn)Scenario.ById(dogId);
+            s.Do("retain a distant stockpile goal before a manual interruption", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    DraftColonists(s);
+                    CellRect world = SurveyFindRect(map, 61, 17, 120f, controlledFixture: s);
+                    SurveyIsolate(s, world.Cells);
+                    SurveyHome(s, new CellRect(world.minX + 33, world.minZ + 5, 14, 9));
+                    oldZone = new CellRect(world.minX + 35, world.minZ + 7, 3, 3);
+                    movedZone = new CellRect(oldZone.minX + 6, oldZone.minZ, 3, 3);
+                    stock = SurveyStockpile(s, oldZone, ThingDefOf.Gold);
+                    Pawn dog = SurveyStable(s, new IntVec3(world.minX + 6, 0, world.minZ + 8),
+                        powered: true, out Building_Stable stable);
+                    dogId = dog.ThingID;
+                    SurveyPlace(dog, stable, stable.InteractionCell);
+                    Job job = SurveyFreshProbe(dog, out oldGoal, out object key);
+                    if (job == null || !oldZone.Contains(oldGoal) || !object.Equals(key, stock))
+                        throw new InvalidOperationException("the distant stockpile was not selected");
+                    dog.jobs.StartJob(job, JobCondition.InterruptForced);
+                    SurveyHold(dog, 10000);
+                    foreach (IntVec3 cell in movedZone.Cells)
+                        stock.AddCell(cell);
+                    foreach (IntVec3 cell in oldZone.Cells)
+                        stock.RemoveCell(cell);
+                    NetStack(s, ThingDefOf.Gold, 31,
+                        new IntVec3(movedZone.maxX + 2, 0, movedZone.CenterCell.z));
+                })
+                .Do("resume the held observer through a metadata poll interval", () => Scenario.Resume())
+                .Wait(720)
+                .Do("release the order without resetting the retained survey", () =>
+                    Dog().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false))
+                .Expect("real local travel discovers and hauls into the reshaped stockpile", () =>
+                    CountIn(movedZone, ThingDefOf.Gold) == 31)
+                .Summary(() => $"old goal {oldGoal}, current {SurveyOf().Goal(Dog())}, " +
+                    $"worker {Dog()?.Position}, stored {CountIn(movedZone, ThingDefOf.Gold)}; {Net().Inspect(Dog())}")
                 .Start();
         }
 
