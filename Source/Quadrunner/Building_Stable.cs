@@ -299,8 +299,24 @@ namespace Quadrunner
                     SimpleColor.Yellow);
         }
 
-        /// <summary>Manual and debug dispatch actions refresh the shared network, not a stable-local job search.</summary>
-        public void TryDispatch(bool force = false) => DogNetwork.For(Map)?.Tick(force);
+        /// <summary>Explicit forced dispatch retries pending rescues before refreshing the shared network.</summary>
+        public void TryDispatch(bool force = false)
+        {
+            DogNetwork network = DogNetwork.For(Map);
+            if (network == null)
+                return;
+            if (force)
+            {
+                IReadOnlyList<NetworkTask> tasks = network.WarQueue;
+                for (int i = 0; i < tasks.Count; i++)
+                {
+                    NetworkTask task = tasks[i];
+                    if (task.kind == NetworkTaskKind.Rescue && task.assigneeId == null)
+                        task.retryAt = 0;
+                }
+            }
+            network.Tick(force);
+        }
 
         protected override void Tick()
         {

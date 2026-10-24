@@ -57,6 +57,7 @@ namespace Quadrunner
         {
             var s = new Scenario("Manual rescue dispatch", 12000);
             string stableId = null;
+            int pausedTick = 0;
             var medicIds = new List<string>();
             var patientIds = new List<string>();
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
@@ -95,6 +96,26 @@ namespace Quadrunner
                     Find.MainTabsRoot.SetCurrentTab(MainButtonDefOf.Inspect, playSound: false);
                     Find.CameraDriver.SetRootPosAndSize(Stable().DrawPos, 12f);
                 });
+            s.Do("queue patients while medics charge; automatic retry still waits after recharging", () =>
+                {
+                    pausedTick = Find.TickManager.TicksGame;
+                    for (int i = 0; i < 2; i++)
+                        CompRobodog.Of(Medic(i)).SetBattery(0.04f);
+                    DogNetwork network = DogNetwork.For(Find.CurrentMap);
+                    network.Tick(force: true);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        string patientId = patientIds[i];
+                        NetworkTask task = network.WarQueue.Single(t =>
+                            t.kind == NetworkTaskKind.Rescue && t.targetId == patientId);
+                        if (task.assigneeId != null || task.retryAt <= pausedTick || Rescuing(Medic(i)))
+                            throw new InvalidOperationException("Unavailable medics did not leave a deferred rescue");
+                        CompRobodog.Of(Medic(i)).SetBattery(1f);
+                    }
+                    network.Tick(force: true);
+                    if (Rescuing(Medic(0)) || Rescuing(Medic(1)))
+                        throw new InvalidOperationException("Automatic dispatch bypassed rescue retry backoff");
+                });
             CaptureArtwork(s, "manual-rescue-ready", () => { });
             s.Do("dispatch immediately without advancing simulation", () =>
                 {
@@ -102,7 +123,7 @@ namespace Quadrunner
                     if (command.Disabled)
                         throw new InvalidOperationException(command.disabledReason);
                     command.ProcessInput(new UnityEngine.Event());
-                    if (!Rescuing(Medic(0)) || !Rescuing(Medic(1))
+                    if (Find.TickManager.TicksGame != pausedTick || !Rescuing(Medic(0)) || !Rescuing(Medic(1))
                         || Medic(0).CurJob.targetA.Thing == Medic(1).CurJob.targetA.Thing)
                         throw new InvalidOperationException("Manual dispatch did not immediately assign distinct patients");
                     int first = Medic(0).CurJob.loadID, second = Medic(1).CurJob.loadID;
