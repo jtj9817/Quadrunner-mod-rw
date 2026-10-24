@@ -48,6 +48,8 @@ Review regressions (2026-10-24): the unchanged gameplay implementation failed al
 
 The review-fix shared run at 10:18 (`1425402-dirty.20261024T100304Z`) passed **79/87 with zero new errors**, including every new regression. Map-generated centipedes/scythers became active during riding and disrupted eight later riding/combat/setup cases. Those eight passed unchanged on a fresh map at 10:22 (`1425402-dirty.20261024T101940Z`, **8/8, zero new errors**). No clean 87/87 sequence or new independent removal-observer result is claimed.
 
+Actual release package `64f134e.20261024T102338Z` passed **12/12 with zero new errors** at 10:28, verifying loaded BUILD and package root. The three review regressions, original recall/recovery/rebuild cases, peaceful uninstall/reinstall and manual rescue all passed. A first package launch passed its assertions but failed the error check on an unsaved generated pawn's Parent relation; both launch results are retained in the iteration log.
+
 ## Open questions
 
 None. Automatic rebuilding with existing material costs was selected explicitly; the other recorded network decisions remain unchanged except where revised above.
