@@ -197,10 +197,10 @@ namespace Quadrunner
         /// <summary>An unspawned dog, new or rebuilt: docked if a slot is free, else left beside the stable, unassigned.</summary>
         public void TakeNewDog(Pawn dog)
         {
-            // A rebuilt dog used to carry this stable's assignment. At capacity it must not dock as an extra or keep a
-            // phantom assignment, so it waits outside like any other new dog.
+            // A wreck may have come from a different, even destroyed stable. Receiving it establishes a fresh
+            // assignment; if this stable is full, the rebuilt dog must remain free to adopt a future slot.
             CompRobodog comp = CompRobodog.Of(dog);
-            if (!HasFreeSlot && comp?.stable == this)
+            if (comp != null)
                 comp.stable = null;
             if (!TryDock(dog))
             {

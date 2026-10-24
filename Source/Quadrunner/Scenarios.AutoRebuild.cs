@@ -230,6 +230,108 @@ namespace Quadrunner
         }
 
         /// <summary>
+        /// A wreck taken from a destroyed stable still carries its dead dog's old affiliation. The full receiving stable
+        /// rebuilds it but must leave it outside, unassigned, rather than counting it as an extra dog or keeping the
+        /// phantom assignment. After a reload it is still free to adopt that stable, and does so once one slot opens.
+        /// </summary>
+        private static void CrossStableRebuildAtCapacity()
+        {
+            var s = new Scenario("Cross-stable rebuild at capacity", 30000);
+            string homeId = null, stableId = null, dogId = null, name = null, occupantId = null;
+            IntVec3 homeDelivery = IntVec3.Invalid;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Dog() => Scenario.ById(dogId) as Pawn;
+            s.Do("a powered stable holding the wreck of its assigned Tier 2 Combatdog", () =>
+                {
+                    DraftColonists(s);
+                    Building_Stable home = SpawnStable(s, powered: true);
+                    homeId = home.ThingID;
+                    homeDelivery = home.InteractionCell;
+                    Pawn dog = s.Track(home.AddNewDog(QR_DefOf.QR_CombatdogTwo));
+                    dogId = dog.ThingID;
+                    name = dog.Name.ToStringShort;
+                    CompRobodog.Of(dog).PickGun(0, QR_DefOf.QR_Gun_LMG);
+                    if (!home.TryUndock(dog))
+                        throw new InvalidOperationException("the Combatdog didn't undock");
+                    dog.Kill(null);
+                    Corpse wreck = dog.Corpse;
+                    if (wreck == null || !home.AcceptWreck(wreck))
+                        throw new InvalidOperationException("the Combatdog wreck wasn't taken by its stable");
+                    s.Track(wreck);
+                })
+                .Do("destroy the home stable, releasing the wreck with its dead dog still affiliated to it", () =>
+                {
+                    Scenario.ById(homeId).Kill(new DamageInfo(DamageDefOf.Flame, 99999f));
+                    Corpse wreck = AutoRebuildCorpseOf(dogId);
+                    if (Scenario.ById(homeId) != null || wreck == null || !wreck.Spawned)
+                        throw new InvalidOperationException("the destroyed stable did not release the wreck");
+                })
+                .Do("a second powered stable, full with fifteen living dogs, takes the wreck and a full delivery", () =>
+                {
+                    Building_Stable stable = SpawnStable(s, powered: true, near: homeDelivery,
+                        minDist: 30f, maxDist: 60f);
+                    stableId = stable.ThingID;
+                    for (int i = 0; i < 15; i++)
+                    {
+                        Pawn occupant = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                        if (i == 0)
+                            occupantId = occupant.ThingID;
+                    }
+                    Corpse wreck = AutoRebuildCorpseOf(dogId);
+                    if (wreck == null || !stable.AcceptWreck(wreck))
+                        throw new InvalidOperationException("the full receiving stable refused the wreck");
+                    SpawnStack(s, ThingDefOf.Steel, 50, stable.InteractionCell);
+                    SpawnStack(s, ThingDefOf.Plasteel, 25, stable.InteractionCell);
+                })
+                .Expect("the receiving stable is full and powered while it pays for the rebuild", () =>
+                    Stable().CanCharge && Stable().Dogs().Count == 15 && !Stable().HasFreeSlot
+                    && Stable().RebuildPaid && Stable().RecoveredWrecks.Count == 1)
+                .Expect("the receiving stable finishes rebuilding the same dog", () =>
+                    Dog() is Pawn dog && dog.Spawned && !dog.Dead && Stable().RecoveredWrecks.Count == 0)
+                .Do("the rebuilt dog waits outside, unassigned, while the receiving stable stays full", () =>
+                {
+                    Pawn dog = Dog();
+                    if (CompRobodog.Of(dog).stable != null || Stable().Docked.Contains(dog)
+                        || Stable().Dogs().Count != 15
+                        || AutoRebuildDelivered(Stable(), ThingDefOf.Steel) != 0
+                        || AutoRebuildDelivered(Stable(), ThingDefOf.Plasteel) != 0)
+                        throw new InvalidOperationException("the cross-stable rebuild kept an old affiliation or overfilled its receiver");
+                })
+                .Expect("the same name, tier and gun pick survived the cross-stable rebuild", () =>
+                {
+                    Pawn dog = Dog();
+                    CompRobodog comp = CompRobodog.Of(dog);
+                    return dog.Name.ToStringShort == name && dog.kindDef == QR_DefOf.QR_CombatdogTwo
+                        && CombatTier.Of(dog)?.tier == 2 && comp.PickedGun(0) == QR_DefOf.QR_Gun_LMG;
+                })
+                .SaveAndReload()
+                .Expect("after the load it is still outside, unassigned and waiting for a slot", () =>
+                {
+                    Pawn dog = Dog();
+                    return dog != null && dog.Spawned && !dog.Dead
+                        && CompRobodog.Of(dog).stable == null && !Stable().Docked.Contains(dog)
+                        && Stable().Dogs().Count == 15 && !Stable().HasFreeSlot;
+                })
+                .Do("delete one tracked occupant, opening exactly one slot", () =>
+                {
+                    Thing occupant = Scenario.ById(occupantId);
+                    if (occupant == null || occupant.Destroyed)
+                        throw new InvalidOperationException("the tracked occupant is gone");
+                    if (occupant is Pawn pawn && !pawn.Spawned && !Stable().TryUndock(pawn))
+                        throw new InvalidOperationException("the tracked occupant couldn't leave its dock");
+                    occupant.Destroy(DestroyMode.Vanish);
+                    if (Stable().Dogs().Count != 14 || !Stable().HasFreeSlot)
+                        throw new InvalidOperationException("the freed slot didn't open");
+                    Dog()?.jobs?.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
+                })
+                .Expect("the waiting dog walks in and docks, adopting the receiving stable", () =>
+                    Dog() is Pawn dog && Stable().Docked.Contains(dog)
+                    && CompRobodog.Of(dog).stable == Stable() && Stable().Dogs().Count == 15)
+                .Summary(() => $"rebuilt {name} at a full second stable; docked after a slot opened")
+                .Start();
+        }
+
+        /// <summary>
         /// Destroying or uninstalling a stable must not swallow its recovered wrecks, even after a partially delivered
         /// or already funded rebuild. The released corpses keep their dead dog, name and tier across a reload.
         /// </summary>

@@ -474,11 +474,11 @@ namespace Quadrunner
                 }
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
-                if (AssignAll(ordered) && !War)
+                if (AssignAll(ordered, hasPatient) && !War)
                 {
                     ordered.Clear(); ordered.AddRange(State.normal);
                     ordered.Sort(taskComparison);
-                    AssignAll(ordered);
+                    AssignAll(ordered, hasPatient);
                 }
                 foreach (Pawn dog in dogs)
                 {
@@ -654,12 +654,12 @@ namespace Quadrunner
                 if (task.assigneeId != null) assignments[task.assigneeId] = task;
         }
 
-        private bool Capable(Pawn dog, NetworkTask task)
+        private bool Capable(Pawn dog, NetworkTask task, bool hasPatient)
         {
             RobodogWork work = RobodogWork.Of(dog);
-            // Healthy workers and Medirunners both carry Combatdog casualties; Combatdogs do not.
+            // Deferred medical emergencies also reserve medics; retry backoff must not send them to a wreck first.
             if (task.kind == NetworkTaskKind.Recover)
-                return (IsWorker(dog) || work.rescue)
+                return (IsWorker(dog) || work.rescue && !hasPatient)
                     && !dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().Any();
             return task.kind == NetworkTaskKind.Rescue ? work.rescue
                 : task.kind == NetworkTaskKind.Combat ? work.combat : IsWorker(dog);
@@ -673,7 +673,7 @@ namespace Quadrunner
             return DogWork.JobFor(dog, task);
         }
 
-        private bool AssignAll(List<NetworkTask> tasks)
+        private bool AssignAll(List<NetworkTask> tasks, bool hasPatient)
         {
             foreach (NetworkTask task in tasks)
             {
@@ -685,7 +685,8 @@ namespace Quadrunner
                 bool deferred = false;
                 foreach (Pawn dog in dogs)
                 {
-                    if (!dog.Spawned || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || !Capable(dog, task)) continue;
+                    if (!dog.Spawned || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID)
+                        || !Capable(dog, task, hasPatient)) continue;
                     if (!PathInputsReady(dog)) { deferred = true; continue; }
                     Job candidate = JobFor(dog, task, Map);
                     if (candidate == null) continue;
@@ -765,7 +766,7 @@ namespace Quadrunner
             if (IsWorker(dog) && War)
             {
                 // Recall workers before standing by; only an unavailable dock means holding position.
-                Job dock = JobGiver_Dock.DockJob(dog);
+                Job dock = JobGiver_Dock.DockJob(dog, allowFallback: true);
                 if (dock != null)
                     return dock;
                 if (dog.CurJobDef == JobDefOf.Wait && !dog.CurJob.playerForced)

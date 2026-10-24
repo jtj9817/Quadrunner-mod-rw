@@ -23,6 +23,7 @@ Recall noncombat workers to safety during hostile events, then recover Combatdog
 - [x] Multiple field workers return and dock during a hostile event; normal cargo is safely released.
 - [x] No reachable receiving stable means wait in place, not wandering; a restored route resumes docking.
 - [x] Docked workers remain inside across reload and resume normal work after hostilities clear.
+- [x] An inaccessible or uninstalled home does not prevent wartime docking at another reachable stable; both assignment transfers survive reload.
 
 ### W2: Recovery
 
@@ -30,6 +31,7 @@ Recall noncombat workers to safety during hostile events, then recover Combatdog
 - [x] Orders survive wartime save/load and coordinator transfer, and do not deploy carriers during hostilities.
 - [x] After hostilities, worker and medic carriers physically recover living casualties and wrecks ahead of ordinary work without duplicate assignment; medical emergencies retain priority.
 - [x] Missing/blocked receiver or unavailable carrier leaves recovery safely queued; interruption can reassign it.
+- [x] A retry-deferred medical emergency keeps its available Medirunner ahead of a fresh casualty order, then recovery proceeds after the patient reaches bed.
 
 ### W3: Automatic stable rebuild
 
@@ -37,9 +39,14 @@ Recall noncombat workers to safety during hostile events, then recover Combatdog
 - [x] Powered stable progresses without colonist labor; power loss pauses and save/load resumes without duplicate charges.
 - [x] Same dog, name, tier and weapon selections return healthy/charged and functional.
 - [x] Stable uninstall/destroy safely releases stored wrecks, including a partially funded rebuild.
+- [x] A full second stable leaves a rebuilt dog unassigned despite its destroyed former home; after reload it adopts the receiver when a slot opens.
 - [x] Affected game scenarios pass with zero new errors; shared-code integration and clean-removal behavior are verified.
 
 Evidence: focused runs at 08:33 and 08:37 on 2026-10-24 proved recall, recovery and rebuild behaviors. The 84-case shared sequence (`1645533-dirty.20261024T083733Z`) passed 82 cases with zero new errors; its two fixture-only failures were corrected and passed in the 09:05 affected sequence (`1645533-dirty.20261024T090414Z`, 3/3). No clean 84/84 run is claimed. The independent no-Quadrunner observer then loaded the shared-sequence export, ticked 600, saved/reloaded, ticked another 600 and retained expected vanilla cargo/history with zero new errors. Native rebuild/delivery-area and clean-removal captures were inspected. See [test runs](../test-runs.md) for each build-specific result.
+
+Review regressions (2026-10-24): the unchanged gameplay implementation failed all three new cases at 10:01 (`1425402-dirty.20261024T100055Z`, 0/3, zero new errors). The fixes passed **Wartime alternate stable**, **Combat recovery: deferred rescue priority**, and **Cross-stable rebuild at capacity** at 10:02 (`1425402-dirty.20261024T100210Z`, 3/3, zero new errors), including physical delivery/docking and save/load. Shared integration and packaged evidence are recorded separately in [test runs](../test-runs.md).
+
+The review-fix shared run at 10:18 (`1425402-dirty.20261024T100304Z`) passed **79/87 with zero new errors**, including every new regression. Map-generated centipedes/scythers became active during riding and disrupted eight later riding/combat/setup cases. Those eight passed unchanged on a fresh map at 10:22 (`1425402-dirty.20261024T101940Z`, **8/8, zero new errors**). No clean 87/87 sequence or new independent removal-observer result is claimed.
 
 ## Open questions
 

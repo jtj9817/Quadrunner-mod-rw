@@ -48,6 +48,64 @@ namespace Quadrunner
                 throw new InvalidOperationException($"{dog} wasn't downed by injuries");
         }
 
+        /// <summary>A deferred medical emergency keeps its medic even if a fresh wreck is ready for recovery.</summary>
+        private static void CombatRecoveryMedicalPriority()
+        {
+            var s = new Scenario("Combat recovery: deferred rescue priority", 30000);
+            string stableId = null, medicId = null, patientId = null, casualtyId = null;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Medic() => (Pawn)Scenario.ById(medicId);
+            Pawn Patient() => (Pawn)Scenario.ById(patientId);
+            s.Do("defer a rescue while the only medic charges, then report a fresh Combatdog wreck", () =>
+                {
+                    DraftColonists(s);
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    Pawn medic = s.Track(stable.AddNewDog(QR_DefOf.QR_Medirunner));
+                    medicId = medic.ThingID;
+                    CompRobodog.Of(medic).SetBattery(0.04f);
+                    Pawn patient = SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer,
+                        OpenCell(stable.Map, stable.InteractionCell, 16f, 24f));
+                    patientId = patient.ThingID;
+                    DownBleeding(s, patient, 2f);
+                    SpawnMedicalBed(s, stable.InteractionCell, 4f, 10f);
+                    Net().Tick(force: true);
+                    NetworkTask rescue = Net().WarQueue.Single(t =>
+                        t.kind == NetworkTaskKind.Rescue && t.targetId == patientId);
+                    if (rescue.assigneeId != null || rescue.retryAt <= Find.TickManager.TicksGame)
+                        throw new InvalidOperationException("the charging medic did not defer the rescue");
+                    CompRobodog.Of(medic).SetBattery(1f);
+                    Pawn casualty = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog));
+                    casualtyId = casualty.ThingID;
+                    stable.TryUndock(casualty);
+                    Teleport(casualty, OpenCell(stable.Map, stable.InteractionCell, 28f, 38f));
+                    casualty.Kill(null);
+                    s.Track(casualty.Corpse ?? throw new InvalidOperationException("no casualty wreck"));
+                    Net().Tick(force: true);
+                    if (CasualtyTask(casualtyId) == null)
+                        throw new InvalidOperationException("the fresh wreck was not reported");
+                    if (CasualtyTask(casualtyId).assigneeId != null
+                        || medic.CurJobDef == QR_DefOf.QR_CarryToStable)
+                        throw new InvalidOperationException("wreck recovery took the only medic from a deferred emergency");
+                })
+                .Expect("automatic rescue retries before the medic takes any casualty recovery", () =>
+                {
+                    if (CasualtyTask(casualtyId)?.assigneeId != null)
+                        throw new InvalidOperationException("recovery preempted the waiting medical emergency");
+                    return Rescuing(Medic());
+                })
+                .Expect("the medic physically picks up the patient", () =>
+                    Medic().carryTracker.CarriedThing == Patient())
+                .SaveAndReload()
+                .Expect("the patient reaches a bed before recovery", () => Patient().InBed())
+                .Expect("the medic then carries the Combatdog wreck", () =>
+                    CarryingCasualty(Medic(), casualtyId))
+                .Expect("the same wreck reaches the stable", () =>
+                    Stable().RecoveredWrecks.Any(c => c.InnerPawn?.ThingID == casualtyId))
+                .Summary(() => $"medical rescue before recovery of {casualtyId}")
+                .Start();
+        }
+
         /// <summary>
         /// A lone worker, a dead Combatdog and an injured one far beyond its scan: both report to the elected node
         /// (which transfers twice), the backlog survives a wartime reload, a destroyed wreck leaves no phantom, and
