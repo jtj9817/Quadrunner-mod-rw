@@ -31,6 +31,7 @@ namespace Quadrunner
         public static RecipeDef QR_AssembleQuadrunner;
         public static RecipeDef QR_AssembleMedirunner;
         public static RecipeDef QR_AssembleCombatdog;
+        public static RecipeDef QR_RebuildCombatdog;
         public static WorkGiverDef QR_DoBillsStable;
         public static ResearchProjectDef MicroelectronicsBasics;
 

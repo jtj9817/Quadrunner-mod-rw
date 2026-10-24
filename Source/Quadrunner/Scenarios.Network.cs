@@ -580,13 +580,8 @@ namespace Quadrunner
                 {
                     Map map = Find.CurrentMap;
                     carriedId = Dog().carryTracker.CarriedThing.ThingID;
-                    Faction faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate)
-                        ?? Find.FactionManager.RandomEnemyFaction();
-                    Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
-                        faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
-                    EquipRaidCooldownWeapon(raider);
-                    raiderId = s.Track(GenSpawn.Spawn(raider, OpenCell(map, Stable().InteractionCell, 60f, 90f), map)).ThingID;
-                    LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(raider.Position), map, new[] { raider });
+                    // Walled in: hostile presence and the saved cooldown, without incidental shots at the dog.
+                    raiderId = SpawnContainedRaid(s, OpenCell(map, Stable().InteractionCell, 60f, 90f)).ThingID;
                     Raid.Recheck(map);
                 })
                 .Expect("war: the haul is suspended at once, not finished first", () =>

@@ -109,6 +109,9 @@ namespace Quadrunner
             {
                 Dog.health.AddHediff(QR_DefOf.QR_PoweredDown);
                 QR.Log($"{Dog} powered down");
+                // A Combatdog casualty tells the elected node before leaving the roster, wherever it happened.
+                if (RobodogWork.Of(Dog)?.combat == true)
+                    DogNetwork.For(parent.MapHeld)?.ReportCasualty(Dog);
                 DogNetwork.For(parent.MapHeld)?.NodeLeaving(Dog);
             }
             else if (battery > 0f && poweredDown)
@@ -151,6 +154,9 @@ namespace Quadrunner
 
         public override void PostDestroy(DestroyMode mode, Map previousMap)
         {
+            // Vanilla has already spawned the real corpse by now: report it before this dog leaves the roster.
+            if (Dog.Dead)
+                DogNetwork.For(previousMap)?.ReportDeath(Dog);
             base.PostDestroy(mode, previousMap);
             DogNetwork.For(previousMap)?.NodeLeaving(Dog);
         }
@@ -189,6 +195,10 @@ namespace Quadrunner
         public override void Notify_Killed(Map prevMap, DamageInfo? dinfo = null)
         {
             base.Notify_Killed(prevMap, dinfo);
+            // Idempotent: normally the PostDestroy hook already reported the wreck; this covers a delay in corpse
+            // creation without ever creating a second order (identity dedupes it).
+            if (Dog.Dead)
+                DogNetwork.For(prevMap)?.ReportDeath(Dog);
             DogNetwork.For(prevMap)?.NodeLeaving(Dog);
             QR.Log($"{Dog} killed by {dinfo?.Instigator.ToStringSafe()} ({dinfo?.Def?.defName}, {dinfo?.Weapon?.defName}, {dinfo?.HitPart?.LabelShort}); "
                 + $"destroyed: {string.Join(", ", Dog.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part.LabelShort))}");

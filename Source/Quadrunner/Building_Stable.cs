@@ -33,19 +33,76 @@ namespace Quadrunner
             ShaderDatabase.Cutout, new Color(1f, 0.65f, 0.2f));
 
         private ThingOwner<Pawn> docked;
+        // Recovered Combatdog wrecks (corpses) waiting for, or under, automatic rebuilding. Wrapped in a holder so
+        // vanilla's recursive content walk (saving helpers, removal) sees the wrecks like any other contained content.
+        private RecoveredHolder recoveredHolder;
+        private int rebuildProgress;
+        private bool rebuildPaid;
         public NetworkState networkState;
         private List<IntVec3> waypoints = new List<IntVec3>();
         // Set by a click while placing waypoints, so the targeter starts again once vanilla stops it after the click.
         private bool placingMore;
         private bool destroying;
 
-        public Building_Stable() => docked = new ThingOwner<Pawn>(this);
+        private sealed class RecoveredHolder : IThingHolder
+        {
+            private readonly Building_Stable stable;
+            public ThingOwner<Corpse> Contents;
+
+            public RecoveredHolder(Building_Stable stable)
+            {
+                this.stable = stable;
+                Contents = new ThingOwner<Corpse>(this);
+            }
+
+            public IThingHolder ParentHolder => stable;
+
+            public ThingOwner GetDirectlyHeldThings() => Contents;
+
+            public void GetChildHolders(List<IThingHolder> outChildren) =>
+                ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, Contents);
+        }
+
+        public Building_Stable()
+        {
+            docked = new ThingOwner<Pawn>(this);
+            recoveredHolder = new RecoveredHolder(this);
+        }
+
+        private ThingOwner<Corpse> recovered => recoveredHolder.Contents;
 
         private StableProps Props => def.GetModExtension<StableProps>();
 
         public int Capacity => Props.capacity;
 
         public IReadOnlyList<Pawn> Docked => docked.InnerListForReading;
+
+        /// <summary>Wrecks taken from recovery carriers, waiting for materials or rebuilding, oldest first.</summary>
+        public IReadOnlyList<Corpse> RecoveredWrecks => recovered.InnerListForReading;
+
+        /// <summary>Work done on <see cref="RecoveredWrecks"/>[0], in ticks; the recipe's work amount is the total.</summary>
+        public int RebuildProgress => rebuildProgress;
+
+        /// <summary>True once this wreck's recipe ingredients were physically consumed; a reload must not charge again.</summary>
+        public bool RebuildPaid => rebuildPaid;
+
+        /// <summary>The existing Combatdog rebuild recipe supplies both cost and duration; there is no local tuning.</summary>
+        public RecipeDef RebuildRecipe => QR_DefOf.QR_RebuildCombatdog;
+
+        public int RebuildWork
+        {
+            get
+            {
+                RecipeDef recipe = RebuildRecipe;
+                return recipe == null ? 0 : Mathf.CeilToInt(recipe.WorkAmountTotal(null));
+            }
+        }
+
+        /// <summary>The physical 3x3 delivery area: the interaction cell and its eight neighbours.</summary>
+        public CellRect RebuildDeliveryCells => CellRect.CenteredOn(InteractionCell, 1).ClipInsideMap(Map);
+
+        public string RebuildDeliveryDescription =>
+            $"the 3x3 area around ({InteractionCell.x}, {InteractionCell.z})";
 
         /// <summary>Every living dog of this stable on its map: docked, out, or carried.</summary>
         public List<Pawn> Dogs() =>
@@ -95,6 +152,37 @@ namespace Quadrunner
             return true;
         }
 
+        /// <summary>
+        /// Takes a recovered player Combatdog wreck, including one still carried by its rescuer. A refusal changes
+        /// nothing, so the carrier can keep or drop the corpse itself. The wreck waits here for materials and power.
+        /// </summary>
+        public bool AcceptWreck(Corpse corpse)
+        {
+            if (corpse == null || corpse.Destroyed)
+                return false;
+            Pawn dog = corpse.InnerPawn;
+            if (dog == null || !dog.Dead || dog.Faction != Faction.OfPlayer || RobodogWork.Of(dog)?.combat != true)
+                return false;
+            if (recovered.Contains(corpse))
+                return true;
+            if (!recovered.CanAcceptAnyOf(corpse, canMergeWithExistingStacks: false))
+                return false;
+            if (corpse.Spawned)
+                corpse.DeSpawnOrDeselect();
+            bool taken = corpse.holdingOwner != null
+                ? corpse.holdingOwner.TryTransferToContainer(corpse, recovered, canMergeWithExistingStacks: false)
+                : recovered.TryAdd(corpse, canMergeWithExistingStacks: false);
+            if (!taken)
+            {
+                // Never strand a wreck that was already lifted off the map: put it back for its carrier or a retry.
+                if (!corpse.Spawned && corpse.holdingOwner == null)
+                    GenPlace.TryPlaceThing(corpse, InteractionCell, Map, ThingPlaceMode.Near);
+                return false;
+            }
+            QR.Log($"{this} took the wreck of {dog}; {recovered.Count} recovered, waiting for rebuilding");
+            return true;
+        }
+
         /// <summary>A new dog from a bill or a debug action.</summary>
         public Pawn AddNewDog(PawnKindDef kind)
         {
@@ -106,9 +194,14 @@ namespace Quadrunner
             return dog;
         }
 
-        /// <summary>An unspawned dog, new or rebuilt: docked if a slot is free, else left beside the stable.</summary>
+        /// <summary>An unspawned dog, new or rebuilt: docked if a slot is free, else left beside the stable, unassigned.</summary>
         public void TakeNewDog(Pawn dog)
         {
+            // A rebuilt dog used to carry this stable's assignment. At capacity it must not dock as an extra or keep a
+            // phantom assignment, so it waits outside like any other new dog.
+            CompRobodog comp = CompRobodog.Of(dog);
+            if (!HasFreeSlot && comp?.stable == this)
+                comp.stable = null;
             if (!TryDock(dog))
             {
                 GenSpawn.Spawn(dog, InteractionCell, Map);
@@ -291,6 +384,8 @@ namespace Quadrunner
         public override void DrawExtraSelectionOverlays()
         {
             base.DrawExtraSelectionOverlays();
+            if (Spawned && recovered.Count > 0)
+                GenDraw.DrawFieldEdges(RebuildDeliveryCells.ToList(), new Color(0.25f, 0.8f, 1f));
             if (waypoints.Count == 0)
                 return;
             GenDraw.DrawFieldEdges(waypoints, Color.yellow);
@@ -331,6 +426,7 @@ namespace Quadrunner
                 foreach (Bill_UpgradeDog bill in BillStack.Bills.OfType<Bill_UpgradeDog>().Where(b => !b.Pending).ToList())
                     BillStack.Delete(bill);
             }
+            TickRebuild();
             if (docked.Count == 0 || !CanCharge)
                 return;
             foreach (Pawn dog in docked.InnerListForReading)
@@ -343,10 +439,219 @@ namespace Quadrunner
             }
         }
 
+        /// <summary>
+        /// No colonist labor: a powered stable pays the existing recipe's ingredients from the physical delivery area,
+        /// then works through its work amount one tick at a time. No power or no ingredients pauses it in place.
+        /// </summary>
+        private void TickRebuild()
+        {
+            if (recovered.Count == 0)
+            {
+                if (rebuildProgress != 0 || rebuildPaid)
+                    ResetRebuild();
+                return;
+            }
+            RecipeDef recipe = RebuildRecipe;
+            if (recipe == null)
+                return;
+            Corpse wreck = recovered[0];
+            Pawn dog = wreck?.InnerPawn;
+            if (wreck == null || wreck.Destroyed || dog == null)
+            {
+                QR.Error($"{this} had an invalid recovered wreck; releasing it");
+                if (wreck != null)
+                    recovered.Remove(wreck);
+                ResetRebuild();
+                return;
+            }
+            if (!rebuildPaid)
+            {
+                if (!CanCharge || !ConsumeRebuildMaterials(recipe))
+                    return;
+                rebuildPaid = true;
+                QR.Log($"{this}: delivered rebuild materials consumed for {dog.LabelShortCap}");
+            }
+            if (!CanCharge)
+                return;
+            int work = RebuildWork;
+            if (work <= 0)
+                return;
+            if (rebuildProgress < work)
+                rebuildProgress++;
+            if (rebuildProgress >= work)
+                FinishRebuild(wreck);
+        }
+
+        private void FinishRebuild(Corpse wreck)
+        {
+            Pawn dog = wreck.InnerPawn;
+            if (dog == null || !ResurrectionUtility.TryResurrect(dog, new ResurrectionParams { dontSpawn = true }))
+            {
+                // Never silently lose the wreck or work forever on a wreck that cannot be rebuilt: put it outside.
+                QR.Error($"{this} couldn't automatically rebuild {dog?.LabelShortCap.ToStringSafe() ?? "a wreck"}");
+                if (!wreck.Destroyed)
+                    recovered.TryDrop(wreck, InteractionCell, Map, ThingPlaceMode.Near, out Thing _);
+                else if (recovered.Contains(wreck))
+                    recovered.Remove(wreck);
+                ResetRebuild();
+                return;
+            }
+            if (recovered.Contains(wreck))
+                recovered.Remove(wreck);
+            ResetRebuild();
+            // The same pawn returns: its name, tier and gun picks are its own saved state. The reconstruction makes it
+            // whole and charged; Tiers re-equips the chosen default so it is ready the moment it docks.
+            foreach (Hediff_Injury injury in dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().ToList())
+                dog.health.RemoveHediff(injury);
+            if (dog.Drafted)
+                dog.drafter.Drafted = false;
+            CompRobodog.Of(dog)?.SetBattery(1f);
+            Tiers.Arm(dog, Tiers.Gun(dog, 0));
+            TakeNewDog(dog);
+            QR.Log($"{this} automatically rebuilt {dog} from its wreck");
+        }
+
+        private void ResetRebuild()
+        {
+            rebuildProgress = 0;
+            rebuildPaid = false;
+        }
+
+        private static bool IsWreckIngredient(IngredientCount ingredient)
+        {
+            foreach (ThingDef def in ingredient.filter.AllowedThingDefs)
+                if (typeof(Corpse).IsAssignableFrom(def.thingClass))
+                    return true;
+            return false;
+        }
+
+        private static IEnumerable<IngredientCount> MaterialIngredients(RecipeDef recipe) =>
+            recipe.ingredients.Where(i => !IsWreckIngredient(i));
+
+        private static bool MatchesIngredient(RecipeDef recipe, IngredientCount ingredient, ThingDef def) =>
+            ingredient.filter.Allows(def)
+            && (ingredient.IsFixedIngredient || recipe.fixedIngredientFilter == null
+                || recipe.fixedIngredientFilter.Allows(def));
+
+        private static string MaterialLabel(IngredientCount ingredient) =>
+            string.Join(" or ", ingredient.filter.AllowedThingDefs.Select(d => d.label));
+
+        private static int Required(IngredientCount ingredient) => Mathf.RoundToInt(ingredient.GetBaseCount());
+
+        private static int Available(RecipeDef recipe, IngredientCount ingredient, List<Thing> stacks) =>
+            stacks.Where(t => MatchesIngredient(recipe, ingredient, t.def)).Sum(t => t.stackCount);
+
+        /// <summary>Item stacks physically on the interaction cell or its eight neighbours, excluding forbidden ones.</summary>
+        private List<Thing> DeliveryStacks()
+        {
+            var stacks = new List<Thing>();
+            foreach (IntVec3 cell in RebuildDeliveryCells)
+                foreach (Thing thing in cell.GetThingList(Map))
+                    if (IsDeliverable(thing))
+                        stacks.Add(thing);
+            return stacks;
+        }
+
+        private static bool IsDeliverable(Thing thing) =>
+            thing.def.category == ThingCategory.Item && thing.stackCount > 0
+            && !thing.IsForbidden(Faction.OfPlayer)
+            // Never steal ingredients a colonist, bill or hauler already reserved.
+            && thing.MapHeld?.reservationManager.IsReserved(thing) != true;
+
+        /// <summary>
+        /// Checks every material ingredient first, so a short delivery consumes nothing; then takes exactly the recipe's
+        /// counts from those stacks. The wreck is already held separately and is not part of this consumption.
+        /// </summary>
+        private bool ConsumeRebuildMaterials(RecipeDef recipe)
+        {
+            // Check all ingredients before consuming any partial delivery.
+            for (int i = 0; i < recipe.ingredients.Count; i++)
+            {
+                IngredientCount ingredient = recipe.ingredients[i];
+                if (IsWreckIngredient(ingredient))
+                    continue;
+                int left = Required(ingredient);
+                if (left <= 0)
+                    continue;
+                foreach (IntVec3 cell in RebuildDeliveryCells)
+                {
+                    if (left <= 0)
+                        break;
+                    foreach (Thing thing in cell.GetThingList(Map))
+                    {
+                        if (left <= 0)
+                            break;
+                        if (IsDeliverable(thing) && MatchesIngredient(recipe, ingredient, thing.def))
+                            left -= thing.stackCount;
+                    }
+                }
+                if (left > 0)
+                    return false;
+            }
+            // Everything is here: take it. Only a successful start allocates the bookkeeping.
+            var taken = new Dictionary<Thing, int>();
+            for (int i = 0; i < recipe.ingredients.Count; i++)
+            {
+                IngredientCount ingredient = recipe.ingredients[i];
+                if (IsWreckIngredient(ingredient))
+                    continue;
+                int left = Required(ingredient);
+                foreach (IntVec3 cell in RebuildDeliveryCells)
+                {
+                    if (left <= 0)
+                        break;
+                    foreach (Thing thing in cell.GetThingList(Map))
+                    {
+                        if (left <= 0)
+                            break;
+                        if (!IsDeliverable(thing) || !MatchesIngredient(recipe, ingredient, thing.def))
+                            continue;
+                        int already = taken.TryGetValue(thing, out int count) ? count : 0;
+                        int use = Mathf.Min(left, thing.stackCount - already);
+                        if (use <= 0)
+                            continue;
+                        taken[thing] = already + use;
+                        left -= use;
+                    }
+                }
+            }
+            foreach (KeyValuePair<Thing, int> pair in taken)
+            {
+                Thing split = pair.Key.SplitOff(pair.Value);
+                split.Destroy(DestroyMode.Vanish);
+            }
+            return true;
+        }
+
+        private string RebuildInspect(RecipeDef recipe)
+        {
+            Pawn dog = recovered.Count > 0 ? recovered[0]?.InnerPawn : null;
+            if (dog == null)
+                return "Rebuilding: no dog in the recovered wreck";
+            string who = $"{dog.LabelShortCap} (Tier {CombatTier.Of(dog)?.tier ?? 0})";
+            string power = CanCharge ? "" : "; paused: no power";
+            if (!rebuildPaid)
+            {
+                List<Thing> stacks = DeliveryStacks();
+                string demand = string.Join(", ", MaterialIngredients(recipe).Select(i =>
+                    $"{MaterialLabel(i)} {Available(recipe, i, stacks)}/{Required(i)}"));
+                return $"Rebuilding {who}: waiting for materials at {RebuildDeliveryDescription}: {demand}{power}";
+            }
+            int work = RebuildWork;
+            int percent = work <= 0 ? 0 : Mathf.Clamp(Mathf.RoundToInt(rebuildProgress * 100f / work), 0, 100);
+            return $"Rebuilding {who}: {percent}% ({rebuildProgress}/{work} work), materials delivered at "
+                + $"{RebuildDeliveryDescription}{power}";
+        }
+
         public ThingOwner GetDirectlyHeldThings() => docked;
 
-        public void GetChildHolders(List<IThingHolder> outChildren) =>
+        public void GetChildHolders(List<IThingHolder> outChildren)
+        {
             ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
+            // Removal walks child holders; the wrecks must be reachable there like any other held content.
+            if (recoveredHolder != null)
+                outChildren.Add(recoveredHolder);
+        }
 
         public override void Destroy(DestroyMode mode = DestroyMode.Vanish)
         {
@@ -362,6 +667,17 @@ namespace Quadrunner
             Map map = Map;
             if (docked.Count > 0)
                 docked.TryDropAll(InteractionCell, map, ThingPlaceMode.Near);
+            if (recovered.Count > 0)
+            {
+                int count = recovered.Count;
+                // Wrecks are never lost to a destroy or an uninstall: their corpses and contents go back onto the map.
+                // Materials already consumed are not refunded when the stable is removed.
+                recovered.TryDropAll(InteractionCell, map, ThingPlaceMode.Near);
+                QR.Log($"{this} released {count - recovered.Count} recovered wreck(s)");
+                if (recovered.Count > 0)
+                    QR.Error($"{this} couldn't release {recovered.Count} recovered wreck(s)");
+            }
+            ResetRebuild();
             if (destroying)
             {
                 foreach (Pawn dog in map.mapPawns.AllPawns.Where(p => CompRobodog.Of(p)?.stable == this))
@@ -376,20 +692,43 @@ namespace Quadrunner
 
         public override string GetInspectString()
         {
+            var lines = new List<string>();
             string s = base.GetInspectString();
-            string dogs = $"Robodogs: {Dogs().Count} / {Capacity} ({docked.Count} docked)";
-            return (s.NullOrEmpty() ? dogs : s + "\n" + dogs) + "\n" + DogNetwork.For(Map)?.Inspect();
+            if (!s.NullOrEmpty())
+                lines.Add(s);
+            lines.Add($"Robodogs: {Dogs().Count} / {Capacity} ({docked.Count} docked)");
+            if (Spawned && recovered.Count > 0)
+            {
+                lines.Add($"Recovered wrecks: {recovered.Count}");
+                RecipeDef recipe = RebuildRecipe;
+                lines.Add(recipe == null ? "Rebuilding: recipe missing; wrecks wait safely" : RebuildInspect(recipe));
+            }
+            string network = DogNetwork.For(Map)?.Inspect();
+            if (!network.NullOrEmpty())
+                lines.Add(network);
+            return string.Join("\n", lines);
         }
 
         public override void ExposeData()
         {
             base.ExposeData();
             Scribe_Deep.Look(ref docked, "docked", this);
+            if (recoveredHolder == null)
+                recoveredHolder = new RecoveredHolder(this);
+            ThingOwner<Corpse> wrecks = recoveredHolder.Contents;
+            Scribe_Deep.Look(ref wrecks, "recoveredWrecks", recoveredHolder);
+            recoveredHolder.Contents = wrecks;
+            Scribe_Values.Look(ref rebuildProgress, "rebuildProgress", 0);
+            Scribe_Values.Look(ref rebuildPaid, "rebuildPaid", false);
             Scribe_Deep.Look(ref networkState, "network");
             Scribe_Collections.Look(ref waypoints, "waypoints", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 waypoints = waypoints ?? new List<IntVec3>();
+                if (recoveredHolder.Contents == null)
+                    recoveredHolder.Contents = new ThingOwner<Corpse>(recoveredHolder);
+                if (recovered.Count == 0)
+                    ResetRebuild();
             }
         }
     }

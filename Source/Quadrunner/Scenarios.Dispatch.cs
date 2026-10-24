@@ -289,14 +289,8 @@ namespace Quadrunner
                     {
                         Map map = Find.CurrentMap;
                         carriedId = Dog().carryTracker.CarriedThing.ThingID;
-                        Faction faction = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Pirate)
-                            ?? Find.FactionManager.RandomEnemyFaction();
-                        Pawn raider = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
-                            faction.def.basicMemberKind ?? PawnKindDefOf.Pirate, faction));
-                        EquipRaidCooldownWeapon(raider);
                         IntVec3 cell = OpenCell(map, Stable().InteractionCell, 60f, 90f);
-                        raiderId = s.Track(GenSpawn.Spawn(raider, cell, map)).ThingID;
-                        LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(cell), map, new[] { raider });
+                        raiderId = SpawnContainedRaid(s, cell).ThingID;
                         Raid.Recheck(map);
                         Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
                     })

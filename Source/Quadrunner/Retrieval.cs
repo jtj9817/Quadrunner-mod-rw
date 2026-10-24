@@ -49,6 +49,76 @@ namespace Quadrunner
             return job;
         }
 
+        /// <summary>A living Combatdog casualty: injured down or out of battery.</summary>
+        public static bool Casualty(Pawn pawn) =>
+            pawn != null && !pawn.Dead && (pawn.Downed || CompRobodog.Of(pawn)?.PoweredDown == true);
+
+        /// <summary>
+        /// The job for one central casualty order: the real living dog, or the real wreck it left. Null when that
+        /// body is gone, forbidden, reserved or out of reach, or when no stable will receive it; the order stays queued.
+        /// </summary>
+        public static Job RecoveryJobFor(Pawn carrier, NetworkTask task)
+        {
+            if (carrier == null || task == null)
+                return null;
+            if (task.casualtyDead)
+                return task.Target(carrier.Map) is Corpse wreck ? WreckJobFor(carrier, wreck) : null;
+            return task.Target(carrier.Map) is Pawn casualty ? CasualtyJobFor(carrier, casualty) : null;
+        }
+
+        public static Job CasualtyJobFor(Pawn carrier, Pawn casualty)
+        {
+            if (carrier == null || casualty == null || casualty == carrier || casualty.Dead || !casualty.Spawned
+                || casualty.Map != carrier.Map || RobodogWork.Of(casualty)?.combat != true || !Casualty(casualty)
+                || casualty.IsForbidden(carrier) || !carrier.CanReserve(casualty)
+                || !carrier.CanReach(casualty, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(casualty)
+                || StableFor(casualty, carrier) == null)
+                return null;
+            Fire fire = FireNear(carrier, casualty);
+            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(carrier, casualty);
+        }
+
+        /// <summary>The stable that should receive <paramref name="wreck"/>: the dog's own if reachable, else the nearest.</summary>
+        public static Building_Stable StableForWreck(Corpse wreck, Pawn carrier)
+        {
+            Building_Stable home = CompRobodog.Of(wreck.InnerPawn)?.stable;
+            if (home != null && home.Spawned && home.Map == wreck.Map
+                && carrier.CanReach(home, PathEndMode.InteractionCell, Danger.Deadly))
+                return home;
+            return wreck.Map.listerBuildings.AllBuildingsColonistOfClass<Building_Stable>()
+                .Where(s => carrier.CanReach(s, PathEndMode.InteractionCell, Danger.Deadly))
+                .OrderBy(s => s.InteractionCell.DistanceToSquared(wreck.Position))
+                .FirstOrDefault();
+        }
+
+        public static Job WreckJobFor(Pawn carrier, Corpse wreck)
+        {
+            Pawn dog = wreck?.InnerPawn;
+            if (carrier == null || wreck == null || wreck.Destroyed || !wreck.Spawned || wreck.Map != carrier.Map
+                || dog == null || dog.Faction != Faction.OfPlayer || RobodogWork.Of(dog)?.combat != true
+                || !carrier.CanReserve(wreck)
+                || !carrier.CanReach(wreck, PathEndMode.ClosestTouch, Danger.Deadly))
+                return null;
+            // Vanilla forbids corpses dropped outside the home area by default; a centrally known casualty is
+            // still ours to recover, so the wreck is not gated on that automatic flag (living dogs still are).
+            Building_Stable stable = StableForWreck(wreck, carrier);
+            if (stable == null)
+                return null;
+            // The wreck burns like anything else: the same fire-first step as an ordinary retrieval.
+            Fire fire = FireNear(carrier, wreck);
+            if (fire != null)
+                return JobMaker.MakeJob(JobDefOf.BeatFire, fire);
+            Job job = JobMaker.MakeJob(QR_DefOf.QR_CarryToStable, wreck, stable);
+            job.count = 1;
+            return job;
+        }
+
+        private static Fire FireNear(Pawn carrier, Thing target) =>
+            GenRadial.RadialCellsAround(target.Position, 1.5f, useCenter: true)
+                .Where(c => c.InBounds(carrier.Map))
+                .Select(c => c.GetFirstThing<Fire>(carrier.Map))
+                .FirstOrDefault(f => f != null && carrier.CanReach(f, PathEndMode.Touch, Danger.Deadly));
+
         /// <summary>
         /// For a working dog given one powered-down dog: a fire on or next to it is beaten out first, else it is
         /// carried home — unless it awaits its field fix or is not ours to take (forbidden, reserved, unreachable,
@@ -61,55 +131,83 @@ namespace Quadrunner
                 || !dog.CanReach(takee, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(takee)
                 || StableFor(takee, dog) == null)
                 return null;
-            Fire fire = GenRadial.RadialCellsAround(takee.Position, 1.5f, useCenter: true)
-                .Where(c => c.InBounds(dog.Map))
-                .Select(c => c.GetFirstThing<Fire>(dog.Map))
-                .FirstOrDefault(f => f != null && dog.CanReach(f, PathEndMode.Touch, Danger.Deadly));
+            Fire fire = FireNear(dog, takee);
             return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(dog, takee);
         }
     }
 
     /// <summary>
-    /// Carries a powered-down dog (A) to a stable (B) and docks it there. A robodog carrier that drops to its charge
-    /// threshold on the way finishes if charging at the stable wins the charge search, else sets the dog down and goes
-    /// to the charge spot.
+    /// Carries a living downed dog or a Combatdog wreck (A) to a stable (B): a living dog is docked, a wreck offered
+    /// to <see cref="Building_Stable.AcceptWreck"/> and, if refused, safely set down beside it. A robodog carrier that
+    /// drops to its charge threshold on the way finishes if charging at the stable wins, else sets the cargo down and
+    /// goes to the charge spot.
     /// </summary>
     public class JobDriver_CarryToStable : JobDriver
     {
         private bool checkedBattery;
 
-        private Pawn Takee => (Pawn)job.targetA.Thing;
+        private Thing Cargo => job.targetA.Thing;
 
         private Building_Stable Stable => (Building_Stable)job.targetB.Thing;
 
         public override bool TryMakePreToilReservations(bool errorOnFailed) =>
-            pawn.Reserve(Takee, job, errorOnFailed: errorOnFailed);
+            Cargo != null && pawn.Reserve(Cargo, job, errorOnFailed: errorOnFailed);
 
         protected override IEnumerable<Toil> MakeNewToils()
         {
             this.FailOnDestroyedOrNull(TargetIndex.A);
             this.FailOnDespawnedOrNull(TargetIndex.B);
+            // A failed trip must never eat the dog or its wreck: set real cargo down where the carrier stands.
+            this.AddFinishAction(_ => DropCargo());
             Toil toStable = Toils_Goto.GotoThing(TargetIndex.B, PathEndMode.InteractionCell);
             toStable.AddPreTickIntervalAction(_ => CheckCarrierBattery());
-            yield return Toils_Jump.JumpIf(toStable, () => pawn.IsCarryingPawn(Takee));
+            yield return Toils_Jump.JumpIf(toStable, () => Cargo != null && pawn.carryTracker.CarriedThing == Cargo);
             yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch)
-                .FailOnDespawnedNullOrForbidden(TargetIndex.A)
-                .FailOn(() => !CompRobodog.Of(Takee).PoweredDown)
+                .FailOnDespawnedOrNull(TargetIndex.A)
+                .FailOn(() => Cargo is Pawn cargo && cargo.IsForbidden(this.pawn))
+                .FailOn(() => !CanCarry(Cargo))
                 .FailOnSomeonePhysicallyInteracting(TargetIndex.A);
             yield return Toils_Haul.StartCarryThing(TargetIndex.A);
             yield return toStable;
             Toil dock = ToilMaker.MakeToil("DockCarried");
             dock.initAction = () =>
             {
-                Pawn takee = Takee;
-                pawn.carryTracker.TryDropCarriedThing(Stable.InteractionCell, ThingPlaceMode.Near, out Thing _);
-                if (Stable.TryDock(takee))
-                    QR.Log($"{pawn} carried {takee} home to {Stable}");
-                else
-                    QR.Log($"{pawn} carried {takee} to {Stable}, which has no free slot now; set it down");
+                Thing cargo = Cargo;
+                if (!pawn.carryTracker.TryDropCarriedThing(Stable.InteractionCell, ThingPlaceMode.Near, out Thing dropped))
+                {
+                    QR.Log($"{pawn} couldn't set {cargo} down at {Stable}");
+                    return;
+                }
+                if (dropped is Pawn takee)
+                {
+                    if (Stable.TryDock(takee))
+                        QR.Log($"{pawn} carried {takee} home to {Stable}");
+                    else
+                        QR.Log($"{pawn} carried {takee} to {Stable}, which has no free slot now; set it down");
+                }
+                else if (dropped is Corpse wreck)
+                {
+                    // Adjacent to the stable. False leaves the real wreck untouched on the ground; the order retries.
+                    if (Stable.AcceptWreck(wreck))
+                        QR.Log($"{pawn} delivered {wreck} to {Stable}");
+                    else
+                        QR.Log($"{pawn} set {wreck} down beside {Stable}; it did not take the wreck");
+                }
             };
             dock.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return dock;
+        }
+
+        private static bool CanCarry(Thing cargo) =>
+            cargo is Pawn pawn ? !pawn.Dead && Retrieval.Casualty(pawn)
+                : cargo is Corpse wreck && !wreck.Destroyed;
+
+        private void DropCargo()
+        {
+            Thing cargo = pawn.carryTracker?.CarriedThing;
+            if (!pawn.Spawned || !(cargo is Pawn || cargo is Corpse))
+                return;
+            pawn.carryTracker.TryDropCarriedThing(pawn.Position, ThingPlaceMode.Near, out Thing _);
         }
 
         private void CheckCarrierBattery()
@@ -122,10 +220,10 @@ namespace Quadrunner
             Job charge = JobGiver_SeekCharge.ChargeJob(pawn, comp, out string why);
             if (charge == null || charge.def == QR_DefOf.QR_Dock)
             {
-                QR.Log($"{pawn} at {comp.Battery:P0} carrying {Takee}: charging at the stable wins ({why}); finishing");
+                QR.Log($"{pawn} at {comp.Battery:P0} carrying {Cargo}: charging at the stable wins ({why}); finishing");
                 return;
             }
-            QR.Log($"{pawn} at {comp.Battery:P0} carrying {Takee}: a charge spot wins ({why}); setting it down");
+            QR.Log($"{pawn} at {comp.Battery:P0} carrying {Cargo}: a charge spot wins ({why}); setting it down");
             pawn.carryTracker.TryDropCarriedThing(pawn.Position, ThingPlaceMode.Near, out Thing _);
             // The think tree's charge search comes next and makes the same choice.
             EndJobWith(JobCondition.Incompletable);

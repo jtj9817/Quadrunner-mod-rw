@@ -140,6 +140,9 @@ namespace Quadrunner
                 .Do("a third raider by another Quadrunner out in the field hits it", () =>
                 {
                     Map map = Find.CurrentMap;
+                    // Dispatch/retargeting proof, not cumulative durability (covered by Combatdog endurance).
+                    foreach (Hediff_Injury injury in Combatdog().health.hediffSet.hediffs.OfType<Hediff_Injury>().ToList())
+                        Combatdog().health.RemoveHediff(injury);
                     Pawn quad = DogOut(s, Stable(), OpenCell(map, field, 0f, 8f));
                     Pawn third = SpawnRaider(s, OpenCell(map, quad.Position, 2f, 5f));
                     thirdId = third.ThingID;

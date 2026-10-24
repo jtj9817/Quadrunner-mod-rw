@@ -7,7 +7,7 @@ using Verse.AI;
 
 namespace Quadrunner
 {
-    public enum NetworkTaskKind { Retrieve, Frame, Blueprint, Haul, Clean, Rescue, Combat }
+    public enum NetworkTaskKind { Retrieve, Frame, Blueprint, Haul, Clean, Rescue, Combat, Recover }
     public enum NetworkTaskPhase { Queued, Assigned, Acknowledged, Working }
 
     /// <summary>A discovered intention, not a saved vanilla job. Jobs are constructed only when assigned.</summary>
@@ -20,6 +20,11 @@ namespace Quadrunner
         public NetworkTaskPhase phase;
         public int jobId = -1, reportedAt, progressAt, retryAt;
         public IntVec3 lastPosition = IntVec3.Invalid;
+        /// <summary>Casualty orders: who was downed or killed, the cell that was last reported, and whether the
+        /// target is now the real wreck. Never reassigned or clobbered by carrier progress.</summary>
+        public string casualtyId;
+        public IntVec3 lastKnown = IntVec3.Invalid;
+        public bool casualtyDead;
         public float routeCost;
         public int toilIndex = -1, toilTicks;
         private Thing target;
@@ -47,6 +52,9 @@ namespace Quadrunner
             Scribe_Values.Look(ref progressAt, "progressAt");
             Scribe_Values.Look(ref retryAt, "retryAt");
             Scribe_Values.Look(ref lastPosition, "lastPosition", IntVec3.Invalid);
+            Scribe_Values.Look(ref casualtyId, "casualty");
+            Scribe_Values.Look(ref lastKnown, "lastKnown", IntVec3.Invalid);
+            Scribe_Values.Look(ref casualtyDead, "casualtyDead");
             Scribe_Values.Look(ref routeCost, "routeCost");
             Scribe_Values.Look(ref toilIndex, "toilIndex", -1);
             Scribe_Values.Look(ref toilTicks, "toilTicks");
@@ -302,6 +310,103 @@ namespace Quadrunner
                 }
         }
 
+        /// <summary>
+        /// A downed or powered-down player Combatdog tells the elected node itself, wherever it lies: a local worker
+        /// scan would only ever find casualties inside its own radius. One order per dog, however often it reports.
+        /// </summary>
+        public bool ReportCasualty(Pawn dog)
+        {
+            if (dog == null || dog.Dead || !dog.Spawned || dog.MapHeld != Map
+                || RobodogWork.Of(dog)?.combat != true)
+                return false;
+            CompRobodog comp = CompRobodog.Of(dog);
+            if (comp == null || !dog.Downed && !comp.PoweredDown)
+                return false;
+            return ReportCasualty(dog, null);
+        }
+
+        /// <summary>
+        /// A killed Combatdog reports the corpse vanilla just made for it. Nothing is created or revived here: the
+        /// order tracks that wreck's identity and stops applying the moment it is destroyed or no longer exists.
+        /// </summary>
+        public bool ReportDeath(Pawn dog)
+        {
+            if (dog == null || !dog.Dead || RobodogWork.Of(dog)?.combat != true)
+                return false;
+            Corpse wreck = dog.Corpse;
+            if (wreck == null || wreck.Destroyed || !wreck.Spawned || wreck.Map != Map)
+                return false;
+            return ReportCasualty(dog, wreck);
+        }
+
+        private bool ReportCasualty(Pawn dog, Corpse wreck)
+        {
+            if (dog.Faction != Faction.OfPlayer)
+                return false;
+            if (State == null || coordinator == null)
+                return false;
+            bool dead = wreck != null;
+            NetworkTask existing = null, staleRetrieve = null;
+            foreach (NetworkTask task in State.normal)
+            {
+                if (task.kind == NetworkTaskKind.Recover && task.casualtyId == dog.ThingID)
+                    existing = existing ?? task;
+                else if (task.kind == NetworkTaskKind.Retrieve && task.targetId == dog.ThingID)
+                    staleRetrieve = task;
+            }
+            // Older saves may hold an ordinary retrieval for this Combatdog; it becomes the central order in place,
+            // keeping its carrier and id. Any duplicate ordinary order for the same dog is dropped.
+            if (existing == null && staleRetrieve != null)
+            {
+                existing = staleRetrieve;
+                existing.kind = NetworkTaskKind.Recover;
+                existing.casualtyId = dog.ThingID;
+            }
+            else if (staleRetrieve != null)
+            {
+                if (staleRetrieve.assigneeId != null) assignments.Remove(staleRetrieve.assigneeId);
+                State.normal.Remove(staleRetrieve);
+            }
+            if (existing == null)
+            {
+                var added = new NetworkTask
+                {
+                    id = State.nextId++, kind = NetworkTaskKind.Recover, casualtyId = dog.ThingID,
+                    casualtyDead = dead, reportedAt = Now,
+                    lastKnown = dead ? wreck.PositionHeld : dog.PositionHeld,
+                };
+                added.SetTarget(dead ? (Thing)wreck : dog);
+                State.normal.Add(added);
+                QR.Log($"network casualty #{added.id}: {dog} {(dead ? "wreck" : "downed")} at {added.lastKnown}");
+                return true;
+            }
+            if (existing.casualtyDead)
+            {
+                if (dead && existing.targetId != wreck.ThingID && existing.assigneeId == null)
+                {
+                    existing.lastKnown = wreck.PositionHeld;
+                    existing.SetTarget(wreck);
+                    return true;
+                }
+                return false;
+            }
+            if (dead)
+            {
+                existing.casualtyDead = true;
+                existing.lastKnown = wreck.PositionHeld;
+                existing.SetTarget(wreck);
+                QR.Log($"network casualty #{existing.id}: {dog} died; tracking its wreck");
+                return true;
+            }
+            // Still down: identity stays the pawn. The last-known cell is only refreshed while nobody owns the trip.
+            if (existing.assigneeId == null)
+            {
+                existing.lastKnown = dog.PositionHeld;
+                existing.SetTarget(dog);
+            }
+            return false;
+        }
+
         public void Ping(Pawn attacker, Pawn victim)
         {
             if (attacker?.MapHeld != Map || !attacker.HostileTo(Faction.OfPlayer)) return;
@@ -333,13 +438,15 @@ namespace Quadrunner
                 bool hasCombat = false;
                 foreach (NetworkTask task in State.war)
                     if (task.kind == NetworkTaskKind.Combat) { hasCombat = true; break; }
+                // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
+                bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover && t.assigneeId == null);
                 // Docked workers must step out before vanilla scanners/pathfinders can inspect them. Idle workers
                 // survey anyway; medical/combat models leave only for their dedicated work.
                 foreach (Pawn dog in dogs)
                 {
                     RobodogWork work = RobodogWork.Of(dog);
-                    bool deploy = IsWorker(dog) && !War || work.rescue && hasPatient
-                        || work.combat && (War || hasCombat);
+                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasPatient || hasRecovery))
+                        || (work.combat && (War || hasCombat));
                     if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
                 }
                 if (force || Now >= nextScan)
@@ -351,6 +458,11 @@ namespace Quadrunner
                             DogWork.ReportLocal(dog, this);
                             if (RobodogWork.Of(dog).combat) Combat.Spot(dog, this);
                         }
+                    // A casualty reports itself: this is independent of every worker's scan radius and stays in the
+                    // central state across war, reload and coordinator transfer.
+                    foreach (Pawn dog in dogs)
+                        if (RobodogWork.Of(dog)?.combat == true)
+                            ReportCasualty(dog);
                     foreach (Pawn patient in Rescue.Patients(Map))
                         if (!patient.Position.Fogged(Map)) Report(NetworkTaskKind.Rescue, patient);
                     // A revealed active raid is a colony alert, not undiscovered hauling. Combatdogs must receive
@@ -392,9 +504,12 @@ namespace Quadrunner
                     if (bleeding != 0) return bleeding;
                 }
             }
-            int kind = a.kind.CompareTo(b.kind);
+            int kind = Rank(a.kind).CompareTo(Rank(b.kind));
             return kind != 0 ? kind : a.id.CompareTo(b.id);
         }
+
+        /// <summary>Casualty recovery outranks every ordinary kind once the war is over; war work keeps its own order.</summary>
+        private static int Rank(NetworkTaskKind kind) => kind == NetworkTaskKind.Recover ? -1 : (int)kind;
 
         private static void Reset(NetworkTask task)
         {
@@ -412,10 +527,11 @@ namespace Quadrunner
                 Reset(task);
             }
             foreach (Pawn dog in dogs)
-                if (Active(dog) && IsWorker(dog) && dog.CurJobDef != QR_DefOf.QR_BeingRidden
-                    && (dog.CurJobDef == QR_DefOf.QR_Survey || dog.CurJobDef == JobDefOf.HaulToCell
-                        || dog.CurJobDef == JobDefOf.HaulToContainer || dog.CurJobDef == JobDefOf.Clean
-                        || dog.CurJobDef == QR_DefOf.QR_CarryToStable)) StopSafely(dog);
+                if (Active(dog) && (dog.CurJobDef == QR_DefOf.QR_CarryToStable
+                    || IsWorker(dog) && dog.CurJobDef != QR_DefOf.QR_BeingRidden
+                        && (dog.CurJobDef == QR_DefOf.QR_Survey || dog.CurJobDef == JobDefOf.HaulToCell
+                            || dog.CurJobDef == JobDefOf.HaulToContainer || dog.CurJobDef == JobDefOf.Clean)))
+                    StopSafely(dog);
         }
 
         private static void StopSafely(Pawn dog)
@@ -427,6 +543,8 @@ namespace Quadrunner
 
         private bool Finished(NetworkTask task)
         {
+            if (task.kind == NetworkTaskKind.Recover)
+                return CasualtyFinished(task);
             Thing target = task.Target(Map);
             if (target == null || !target.Spawned || target.Map != Map) return true;
             switch (task.kind)
@@ -445,6 +563,52 @@ namespace Quadrunner
                 case NetworkTaskKind.Clean: return !Map.areaManager.Home[target.Position];
                 default: return false;
             }
+        }
+
+        /// <summary>
+        /// A living casualty is done when it is no longer downed or when it is docked; a dead one only when its real
+        /// wreck is gone. A pawn that died since the report is tracked by the wreck it actually left (if any): no
+        /// order ever revives a dog or conjures a replacement wreck.
+        /// </summary>
+        private bool CasualtyFinished(NetworkTask task)
+        {
+            if (task.casualtyDead)
+            {
+                Thing target = task.Target(Map);
+                // A cached reference survives after delivery; only a spawned corpse is still recoverable.
+                return !(target is Corpse wreck) || !wreck.Spawned || wreck.Map != Map
+                    || wreck.InnerPawn == null || wreck.InnerPawn.ThingID != task.casualtyId;
+            }
+            Pawn pawn = FindPawn(task.casualtyId);
+            if (pawn == null || pawn.Dead)
+                return !ConvertCasualtyToWreck(task);
+            if (pawn.ParentHolder is Building_Stable)
+                return true;
+            // Carried or otherwise held: an active assignment keeps working; an unowned one stays queued.
+            return pawn.Spawned && !pawn.Downed && CompRobodog.Of(pawn)?.PoweredDown != true;
+        }
+
+        private Pawn FindPawn(string id)
+        {
+            foreach (Pawn pawn in Map.mapPawns.AllPawns)
+                if (pawn.ThingID == id)
+                    return pawn;
+            return null;
+        }
+
+        /// <summary>The real corpse left by the reported pawn, if vanilla still has it. Never fabricates one.</summary>
+        private bool ConvertCasualtyToWreck(NetworkTask task)
+        {
+            foreach (Corpse wreck in Map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>())
+                if (wreck.InnerPawn != null && wreck.InnerPawn.ThingID == task.casualtyId)
+                {
+                    task.casualtyDead = true;
+                    task.lastKnown = wreck.PositionHeld;
+                    task.SetTarget(wreck);
+                    QR.Log($"network casualty #{task.id}: {task.casualtyId} is a wreck at {wreck.PositionHeld}");
+                    return true;
+                }
+            return false;
         }
 
         private void Reconcile(List<NetworkTask> queue)
@@ -493,12 +657,17 @@ namespace Quadrunner
         private bool Capable(Pawn dog, NetworkTask task)
         {
             RobodogWork work = RobodogWork.Of(dog);
+            // Healthy workers and Medirunners both carry Combatdog casualties; Combatdogs do not.
+            if (task.kind == NetworkTaskKind.Recover)
+                return (IsWorker(dog) || work.rescue)
+                    && !dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().Any();
             return task.kind == NetworkTaskKind.Rescue ? work.rescue
                 : task.kind == NetworkTaskKind.Combat ? work.combat : IsWorker(dog);
         }
 
         private static Job JobFor(Pawn dog, NetworkTask task, Map map)
         {
+            if (task.kind == NetworkTaskKind.Recover) return Retrieval.RecoveryJobFor(dog, task);
             if (task.kind == NetworkTaskKind.Combat) return Combat.JobFor(dog, task.Target(map) as Pawn);
             if (task.kind == NetworkTaskKind.Rescue) return Rescue.JobFor(dog, task.Target(map) as Pawn);
             return DogWork.JobFor(dog, task);
@@ -595,7 +764,10 @@ namespace Quadrunner
         {
             if (IsWorker(dog) && War)
             {
-                // War standby: hold its ground, never vanilla wandering. Docked/maintenance paths are elsewhere.
+                // Recall workers before standing by; only an unavailable dock means holding position.
+                Job dock = JobGiver_Dock.DockJob(dog);
+                if (dock != null)
+                    return dock;
                 if (dog.CurJobDef == JobDefOf.Wait && !dog.CurJob.playerForced)
                     return dog.CurJob;
                 Job wait = JobMaker.MakeJob(JobDefOf.Wait);

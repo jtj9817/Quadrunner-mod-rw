@@ -27,6 +27,7 @@ namespace Quadrunner
             string stableId = null, riderId = null, rideDogId = null, downDogId = null, walkDogId = null, crafterId = null;
             string patientId = null, cargoId = null, dockCargoId = null, travelerId = null, worldCargoId = null, backup = null;
             string vanillaShotId = null;
+            string wreckCargoId = null;
             string[] removedIds = null;
             float woundSeverity = 0f;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
@@ -150,6 +151,11 @@ namespace Quadrunner
                     wreckDog.Kill(null);
                     Corpse wreck = wreckDog.Corpse ?? throw new InvalidOperationException("no wreck to remove");
                     s.Track(wreck);
+                    Thing wreckCargo = ThingMaker.MakeThing(ThingDefOf.WoodLog);
+                    wreckCargo.stackCount = 17;
+                    wreckCargoId = wreckCargo.ThingID;
+                    if (!wreckDog.inventory.innerContainer.TryAdd(wreckCargo) || !Stable().AcceptWreck(wreck))
+                        throw new InvalidOperationException("could not stage recovered wreck with vanilla cargo");
                     CellRect field = ClearRect(map, Stable().Position, 13, 1, 12f, 35f);
                     Building_Stable packed = SpawnStable(s, powered: false, near: field.CenterCell, maxDist: 0f);
                     IntVec3 packedAt = packed.Position;
@@ -187,7 +193,7 @@ namespace Quadrunner
                     if (AutoTest.Dir != null)
                         File.WriteAllLines(Path.Combine(AutoTest.Dir, "removal-expected.txt"),
                             map.mapPawns.FreeColonistsSpawned.Select(p => p.ThingID)
-                                .Concat(new[] { cargoId, dockCargoId, travelerId, worldCargoId,
+                                .Concat(new[] { cargoId, dockCargoId, travelerId, worldCargoId, wreckCargoId,
                                     impact.GetUniqueLoadID(), vanillaImpact.GetUniqueLoadID() }));
                 })
                 .Expect("rider and carried patient survive, cargo is kept, mod objects and jobs are gone", () =>
@@ -197,6 +203,7 @@ namespace Quadrunner
                         && Scenario.ById(patientId) is Pawn patient && patient.Spawned && patient.Downed
                         && Scenario.ById(cargoId) is Thing cargo && cargo.Spawned && cargo.stackCount == 20
                         && Scenario.ById(dockCargoId) is Thing dockCargo && dockCargo.Spawned && dockCargo.stackCount == 7
+                        && Scenario.ById(wreckCargoId) is Thing wreckCargo && wreckCargo.Spawned && wreckCargo.stackCount == 17
                         && Scenario.ById(vanillaShotId) is Projectile
                         && remaining.OfType<Pawn>().Any(p => p.ThingID == travelerId
                             && p.GetCaravan() != null && p.inventory.innerContainer.Any(t =>

@@ -82,6 +82,10 @@ namespace Quadrunner
                         continue;
                     if (CompRobodog.Of(thing)?.PoweredDown == true && thing != observer)
                     {
+                        // Combatdog casualties are owned by the central reports (death, downing, empty battery);
+                        // a local scan must not queue a second, ordinary retrieval for the same dog.
+                        if (RobodogWork.Of(thing)?.combat == true)
+                            continue;
                         // Recently powered down with its field fix in stock: the colonists bring it.
                         if (!Retrieval.AwaitsFieldFix((Pawn)thing))
                             network.Report(NetworkTaskKind.Retrieve, thing);
@@ -200,6 +204,7 @@ namespace Quadrunner
             switch (task.kind)
             {
                 case NetworkTaskKind.Retrieve:
+                case NetworkTaskKind.Recover:
                     return PathEndMode.ClosestTouch;
                 case NetworkTaskKind.Rescue:
                     return PathEndMode.OnCell;

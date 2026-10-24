@@ -13,7 +13,10 @@ namespace Quadrunner
     /// </summary>
     public class JobGiver_Dock : ThinkNode_JobGiver
     {
-        protected override Job TryGiveJob(Pawn pawn)
+        protected override Job TryGiveJob(Pawn pawn) => DockJob(pawn);
+
+        /// <summary>Reachable docking, retaining an existing return trip rather than restarting its path.</summary>
+        public static Job DockJob(Pawn pawn)
         {
             CompRobodog comp = CompRobodog.Of(pawn);
             if (comp == null)
@@ -22,6 +25,8 @@ namespace Quadrunner
             if (stable == null || !stable.Spawned || stable.Map != pawn.Map
                 || !pawn.CanReach(stable, PathEndMode.InteractionCell, Danger.Deadly))
                 return null;
+            if (pawn.CurJobDef == QR_DefOf.QR_Dock && pawn.CurJob.targetA.Thing == stable)
+                return pawn.CurJob;
             return JobMaker.MakeJob(QR_DefOf.QR_Dock, stable);
         }
 

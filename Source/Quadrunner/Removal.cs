@@ -137,6 +137,16 @@ namespace Quadrunner
                         throw new InvalidOperationException($"Could not release {item.LabelCap} near {dog.LabelShort}.");
                     continue;
                 }
+                // A recovered wreck's dead dog is held in its corpse inside a stable, with no map of its own: its
+                // vanilla cargo still comes out beside whatever spawned container holds it.
+                Thing spawnedParent = ThingOwnerUtility.GetFirstSpawnedParentThing(dog);
+                if (spawnedParent?.Map is Map parentMap)
+                {
+                    if (!contents.TryDrop(item, spawnedParent.PositionHeld, parentMap, ThingPlaceMode.Near, out _))
+                        throw new InvalidOperationException(
+                            $"Could not release {item.LabelCap} near {spawnedParent.LabelShortCap}.");
+                    continue;
+                }
                 Caravan caravan = dog.GetCaravan();
                 if (caravan != null && item is Pawn patient)
                 {
