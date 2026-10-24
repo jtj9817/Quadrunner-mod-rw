@@ -23,6 +23,7 @@ namespace Quadrunner
     {
         private static readonly Texture2D PatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/Patrol");
         private static readonly Texture2D ClearPatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/ClearPatrol");
+        private static readonly Texture2D RescueIcon = ContentFinder<Texture2D>.Get("Quadrunner/Buildings/DockMedirunner");
         private static readonly Material[,] DockIcons = MakeDockIcons();
         private static readonly Material EmptyDockLamp = MaterialPool.MatFrom("Quadrunner/Buildings/DockLamp",
             ShaderDatabase.Cutout, new Color(0.22f, 0.29f, 0.31f));
@@ -198,6 +199,30 @@ namespace Quadrunner
         {
             foreach (Gizmo g in base.GetGizmos())
                 yield return g;
+            if (Spawned && Faction == Faction.OfPlayer)
+            {
+                var dispatch = new Command_Action
+                {
+                    defaultLabel = "Dispatch Rescuedogs",
+                    defaultDesc = "Immediately refresh the shared dispatch network to send available Medirunners to "
+                        + "revealed downed colonists, guests, prisoners and colony animals. Normal rescue priorities, "
+                        + "bed requirements and battery limits still apply. Automatic rescue remains active.",
+                    icon = RescueIcon,
+                    action = () => TryDispatch(force: true),
+                };
+                bool available = false;
+                foreach (Pawn dog in Map.mapPawns.AllPawns)
+                    if (RobodogWork.Of(dog)?.rescue == true && DogNetwork.IsAvailable(dog))
+                    {
+                        available = true;
+                        break;
+                    }
+                if (!available)
+                    dispatch.Disable("No Medirunner is available. Busy, charging and powered-down dogs cannot be dispatched.");
+                else if (!Rescue.Patients(Map).Any(p => !p.Position.Fogged(Map)))
+                    dispatch.Disable("No revealed downed pawn needs rescue.");
+                yield return dispatch;
+            }
             yield return new Command_Action
             {
                 defaultLabel = "Add patrol waypoints",
@@ -274,7 +299,7 @@ namespace Quadrunner
                     SimpleColor.Yellow);
         }
 
-        /// <summary>The debug dispatch action refreshes the shared network, not a stable-local job search.</summary>
+        /// <summary>Manual and debug dispatch actions refresh the shared network, not a stable-local job search.</summary>
         public void TryDispatch(bool force = false) => DogNetwork.For(Map)?.Tick(force);
 
         protected override void Tick()

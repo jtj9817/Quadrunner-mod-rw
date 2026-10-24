@@ -69,6 +69,7 @@ namespace Quadrunner
             ("Wreck rebuilt", WreckRebuilt),
             ("Mass-casualty raid", MassCasualtyRaid),
             ("Rescue order", RescueOrder),
+            ("Manual rescue dispatch", ManualRescueDispatch),
             ("Ride until 0%", RideUntilEmpty),
             ("Ride and dismount", RideAndDismount),
             ("Rider pose", RiderPose),

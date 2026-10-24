@@ -53,6 +53,76 @@ namespace Quadrunner
         private static bool Rescuing(Pawn medic) => medic.Spawned
             && (medic.CurJobDef == JobDefOf.Rescue || medic.CurJobDef == JobDefOf.TakeWoundedPrisonerToBed);
 
+        private static void ManualRescueDispatch()
+        {
+            var s = new Scenario("Manual rescue dispatch", 12000);
+            string stableId = null;
+            var medicIds = new List<string>();
+            var patientIds = new List<string>();
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Medic(int i) => (Pawn)Scenario.ById(medicIds[i]);
+            Pawn Patient(int i) => (Pawn)Scenario.ById(patientIds[i]);
+            Command_Action Dispatch() => Stable().GetGizmos().OfType<Command_Action>()
+                .Single(c => c.defaultLabel == "Dispatch Rescuedogs");
+            s.Do("pause with an unpowered stable and no medics", () =>
+                {
+                    DraftColonists(s);
+                    int width = UnityEngine.Screen.width, height = UnityEngine.Screen.height;
+                    UnityEngine.Screen.SetResolution(1280, 720, false);
+                    s.OnFinish(() => UnityEngine.Screen.SetResolution(width, height, false));
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    stableId = SpawnStable(s, powered: false).ThingID;
+                    if (!Dispatch().Disabled)
+                        throw new InvalidOperationException("Dispatch enabled without a Medirunner");
+                    medicIds.Add(s.Track(Stable().AddNewDog(QR_DefOf.QR_Medirunner)).ThingID);
+                    CompRobodog.Of(Medic(0)).SetBattery(0.04f);
+                    if (!Dispatch().Disabled)
+                        throw new InvalidOperationException("Dispatch enabled with only a charging Medirunner");
+                    CompRobodog.Of(Medic(0)).SetBattery(1f);
+                    if (!Dispatch().Disabled)
+                        throw new InvalidOperationException("Dispatch enabled without patients");
+                    medicIds.Add(s.Track(Stable().AddNewDog(QR_DefOf.QR_Medirunner)).ThingID);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        SpawnMedicalBed(s, Stable().InteractionCell, 3f, 12f);
+                        Pawn patient = SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer,
+                            OpenCell(Find.CurrentMap, Stable().InteractionCell, 20f, 28f));
+                        patientIds.Add(patient.ThingID);
+                        DownBleeding(s, patient, 2f + i);
+                    }
+                    Find.Selector.ClearSelection();
+                    Find.Selector.Select(Stable(), playSound: false);
+                    Find.MainTabsRoot.SetCurrentTab(MainButtonDefOf.Inspect, playSound: false);
+                    Find.CameraDriver.SetRootPosAndSize(Stable().DrawPos, 12f);
+                });
+            CaptureArtwork(s, "manual-rescue-ready", () => { });
+            s.Do("dispatch immediately without advancing simulation", () =>
+                {
+                    Command_Action command = Dispatch();
+                    if (command.Disabled)
+                        throw new InvalidOperationException(command.disabledReason);
+                    command.ProcessInput(new UnityEngine.Event());
+                    if (!Rescuing(Medic(0)) || !Rescuing(Medic(1))
+                        || Medic(0).CurJob.targetA.Thing == Medic(1).CurJob.targetA.Thing)
+                        throw new InvalidOperationException("Manual dispatch did not immediately assign distinct patients");
+                    int first = Medic(0).CurJob.loadID, second = Medic(1).CurJob.loadID;
+                    command.action();
+                    if (Medic(0).CurJob.loadID != first || Medic(1).CurJob.loadID != second)
+                        throw new InvalidOperationException("Repeated dispatch interrupted an active rescue");
+                });
+            CaptureArtwork(s, "manual-rescue-dispatched", () => { });
+            s.Do("resume the rescue trips", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Ultrafast)
+                .Expect("a Medirunner carries a patient", () =>
+                    Medic(0).carryTracker.CarriedThing == Patient(0) || Medic(0).carryTracker.CarriedThing == Patient(1)
+                    || Medic(1).carryTracker.CarriedThing == Patient(0) || Medic(1).carryTracker.CarriedThing == Patient(1))
+                .SaveAndReload()
+                .Expect("both manually dispatched patients reach beds", () => Patient(0).InBed() && Patient(1).InBed())
+                .Expect("both Medirunners return to the unpowered stable", () =>
+                    Stable().Docked.Contains(Medic(0)) && Stable().Docked.Contains(Medic(1)))
+                .OnFinish(() => Find.Selector.ClearSelection())
+                .Start();
+        }
+
         /// <summary>
         /// The plan's scenario: three colonists down, bleeding at different rates, by a live raider (walled in, so it
         /// can't hurt anyone, yet the raid is on and the enemy near); one Medirunner takes them to bed fastest-bleeding
