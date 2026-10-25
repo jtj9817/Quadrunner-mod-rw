@@ -11,6 +11,7 @@ The run's full log stays in `.devlog/runs/<timestamp>/` (local, git-ignored); co
 
 | Run (UTC) | Target | Build | Scenarios | Result | Finding | Next |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-25 20:40 | F1 package | a070581.20261025T203949Z | pkg-run: Manual rescue dispatch, Medirunner firefighting | 2/2 PASS, 0 new errors | Cold launch from `dist/Quadrunner`; the loaded build and modRoot match the package. | delivered |
 | 2026-10-25 20:39 | F1 | 3b98c39-dirty.20261025T203749Z | Wartime return and dock, Wartime alternate stable, Mass-casualty raid, Rescue order, Manual rescue dispatch, Medirunner firefighting, Prepare removal | 7/7 PASS, 0 new errors | In sequence after the bonfire fixture fix; rescue/wartime/removal unchanged. | tick F1 sequence and regression boxes |
 | 2026-10-25 20:37 | F1 | 3b98c39-dirty.20261025T203708Z | Medirunner firefighting | 1/1 PASS, 0 new errors | Third bonfire now ≥10 cells from the second and lit 300 ticks after the second fire dies. | rerun the affected sequence |
 | 2026-10-25 20:36 | F1 | 3b98c39-dirty.20261025T202053Z | Run all | 87/88 PASS, 0 new errors | Every existing scenario passes with the shared `Network.cs` change. Firefighting step 18: the third bonfire was never reported. It was lit beside the just-extinguished second fire while the 41-shot burst was still landing. | separate the bonfires; wait out the burst |
