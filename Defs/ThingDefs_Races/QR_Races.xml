@@ -135,11 +135,18 @@
   <ThingDef ParentName="QR_RobodogBase">
     <defName>QR_Medirunner</defName>
     <label>Medirunner</label>
-    <description>A Hearthline rescue chassis developed for settlements whose nearest ambulance was several light-years away. Its transport assembly brings casualties back to a bed, even under fire. Hearthline was careful to distinguish "medical support" from "medical treatment" after the first round of litigation.\n\nA dedicated rescue robot, dispatched map-wide by the central network during raids as well as peacetime. It carries downed colonists first, then guests, prisoners and colony animals, prioritizing the fastest-bleeding within each group. It does not tend injuries, haul supplies, clean or carry riders.</description>
+    <description>A Hearthline rescue chassis developed for settlements whose nearest ambulance was several light-years away. Its transport assembly brings casualties back to a bed, even under fire. Hearthline was careful to distinguish "medical support" from "medical treatment" after the first round of litigation.\n\nA dedicated rescue robot, dispatched map-wide by the central network during raids as well as peacetime. It carries downed colonists first, then guests, prisoners and colony animals, prioritizing the fastest-bleeding within each group. Its integrated foam sprayer puts out fires anywhere in the Home area once no one is waiting for rescue; each burst costs battery. It does not tend injuries, haul supplies, clean or carry riders.</description>
+    <race>
+      <!-- Like Combatdogs: ToolUser gives it an equipment tracker for its built-in foam sprayer (plan 0008). -->
+      <intelligence>ToolUser</intelligence>
+    </race>
     <modExtensions>
-      <!-- Medic only (user, 2026-10-20): rescues, map-wide and under fire, nothing else; no raid speed or drain change. -->
+      <!-- Medic only (user, 2026-10-20): rescues, map-wide and under fire, and (plan 0008) foams Home-area fires; no raid speed or drain change. -->
       <li Class="Quadrunner.RobodogWork">
         <rescue>true</rescue>
+        <!-- Firefighting (plan 0008): the integrated sprayer, and the battery each burst costs. -->
+        <builtInGun>QR_Gun_FoamSprayer</builtInGun>
+        <foamDrainPerBurst>0.02</foamDrainPerBurst>
         <raidSpeedFactor>1</raidSpeedFactor>
         <raidDrainFactor>1</raidDrainFactor>
       </li>

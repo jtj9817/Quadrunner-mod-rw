@@ -31,10 +31,16 @@ namespace Quadrunner
     /// </summary>
     public static class Tiers
     {
-        /// <summary>The gun picked for <paramref name="slot"/>, or the slot's default; null for an empty slot.</summary>
+        /// <summary>
+        /// The gun picked for <paramref name="slot"/>, or the slot's default; null for an empty slot. A dog without
+        /// a Combatdog tier holds its race's <see cref="RobodogWork.builtInGun"/> in slot 1 (the Medirunner's sprayer).
+        /// </summary>
         public static ThingDef Gun(Pawn dog, int slot)
         {
-            List<ThingDef> choices = CombatTier.Of(dog)?.Slot(slot);
+            CombatTier tier = CombatTier.Of(dog);
+            if (tier == null)
+                return slot == 0 ? RobodogWork.Of(dog)?.builtInGun : null;
+            List<ThingDef> choices = tier.Slot(slot);
             if (choices.NullOrEmpty())
                 return null;
             ThingDef picked = CompRobodog.Of(dog)?.PickedGun(slot);

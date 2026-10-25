@@ -80,6 +80,7 @@ namespace Quadrunner
             ("Mass-casualty raid", MassCasualtyRaid),
             ("Rescue order", RescueOrder),
             ("Manual rescue dispatch", ManualRescueDispatch),
+            ("Medirunner firefighting", MedirunnerFirefighting),
             ("Ride until 0%", RideUntilEmpty),
             ("Ride and dismount", RideAndDismount),
             ("Rider pose", RiderPose),

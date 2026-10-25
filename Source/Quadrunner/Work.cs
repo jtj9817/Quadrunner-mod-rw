@@ -14,6 +14,10 @@ namespace Quadrunner
         public bool rescue;
         /// <summary>A Combatdog: it only fights and captures hostiles (<see cref="Combat"/>).</summary>
         public bool combat;
+        /// <summary>A built-in gun held without a Combatdog tier (Medirunner: the foam sprayer, plan 0008).</summary>
+        public ThingDef builtInGun;
+        /// <summary>Battery (0–1) each foam burst costs (<see cref="Verb_FoamSpray"/>); foam itself is unlimited.</summary>
+        public float foamDrainPerBurst;
         public List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
         public List<JobDef> jobs = new List<JobDef>();
         public float raidSpeedFactor = 3f;
@@ -209,6 +213,7 @@ namespace Quadrunner
                 case NetworkTaskKind.Rescue:
                     return PathEndMode.OnCell;
                 case NetworkTaskKind.Combat:
+                case NetworkTaskKind.Fire:
                     return PathEndMode.Touch;
                 default:
                     return task.giver?.Worker is WorkGiver_Scanner scanner ? scanner.PathEndMode : PathEndMode.Touch;

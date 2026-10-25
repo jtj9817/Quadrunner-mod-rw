@@ -7,7 +7,7 @@ using Verse.AI;
 
 namespace Quadrunner
 {
-    public enum NetworkTaskKind { Retrieve, Frame, Blueprint, Haul, Clean, Rescue, Combat, Recover }
+    public enum NetworkTaskKind { Retrieve, Frame, Blueprint, Haul, Clean, Rescue, Combat, Recover, Fire }
     public enum NetworkTaskPhase { Queued, Assigned, Acknowledged, Working }
 
     /// <summary>A discovered intention, not a saved vanilla job. Jobs are constructed only when assigned.</summary>
@@ -281,7 +281,8 @@ namespace Quadrunner
         {
             if (target == null || target.Destroyed || target.MapHeld != Map || target.PositionHeld.Fogged(Map)) return false;
             if (State == null || coordinator == null) return false;
-            List<NetworkTask> queue = kind == NetworkTaskKind.Combat || kind == NetworkTaskKind.Rescue ? State.war : State.normal;
+            List<NetworkTask> queue = kind == NetworkTaskKind.Combat || kind == NetworkTaskKind.Rescue || kind == NetworkTaskKind.Fire
+                ? State.war : State.normal;
             foreach (NetworkTask task in queue)
                 if (task.kind == kind && task.targetId == target.ThingID) return false;
             var added = new NetworkTask { id = State.nextId++, kind = kind, giver = giver, reportedAt = Now };
@@ -435,9 +436,12 @@ namespace Quadrunner
                 Reconcile(State.war);
                 RebuildAssignments();
                 bool hasPatient = Rescue.AnyPatient(Map);
-                bool hasCombat = false;
+                bool hasCombat = false, hasFire = false;
                 foreach (NetworkTask task in State.war)
-                    if (task.kind == NetworkTaskKind.Combat) { hasCombat = true; break; }
+                {
+                    if (task.kind == NetworkTaskKind.Combat) hasCombat = true;
+                    else if (task.kind == NetworkTaskKind.Fire) hasFire = true;
+                }
                 // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
                 bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover && t.assigneeId == null);
                 // Docked workers must step out before vanilla scanners/pathfinders can inspect them. Idle workers
@@ -445,7 +449,7 @@ namespace Quadrunner
                 foreach (Pawn dog in dogs)
                 {
                     RobodogWork work = RobodogWork.Of(dog);
-                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasPatient || hasRecovery))
+                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasPatient || hasRecovery || hasFire))
                         || (work.combat && (War || hasCombat));
                     if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
                 }
@@ -465,6 +469,9 @@ namespace Quadrunner
                             ReportCasualty(dog);
                     foreach (Pawn patient in Rescue.Patients(Map))
                         if (!patient.Position.Fogged(Map)) Report(NetworkTaskKind.Rescue, patient);
+                    // Home-area fires are a colony alarm too: reported map-wide, like the downed (Report skips fog).
+                    foreach (Fire fire in Firefighting.Fires(Map))
+                        Report(NetworkTaskKind.Fire, fire);
                     // A revealed active raid is a colony alert, not undiscovered hauling. Combatdogs must receive
                     // its targets even when every worker has already withdrawn beyond local scan range.
                     if (War)
@@ -561,6 +568,7 @@ namespace Quadrunner
                 case NetworkTaskKind.Combat:
                     return !(target is Pawn hostile) || hostile.Dead || hostile.IsPrisonerOfColony || !hostile.HostileTo(Faction.OfPlayer);
                 case NetworkTaskKind.Clean: return !Map.areaManager.Home[target.Position];
+                case NetworkTaskKind.Fire: return !Map.areaManager.Home[target.Position];
                 default: return false;
             }
         }
@@ -661,7 +669,7 @@ namespace Quadrunner
             if (task.kind == NetworkTaskKind.Recover)
                 return (IsWorker(dog) || work.rescue && !hasPatient)
                     && !dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().Any();
-            return task.kind == NetworkTaskKind.Rescue ? work.rescue
+            return task.kind == NetworkTaskKind.Rescue || task.kind == NetworkTaskKind.Fire ? work.rescue
                 : task.kind == NetworkTaskKind.Combat ? work.combat : IsWorker(dog);
         }
 
@@ -670,6 +678,7 @@ namespace Quadrunner
             if (task.kind == NetworkTaskKind.Recover) return Retrieval.RecoveryJobFor(dog, task);
             if (task.kind == NetworkTaskKind.Combat) return Combat.JobFor(dog, task.Target(map) as Pawn);
             if (task.kind == NetworkTaskKind.Rescue) return Rescue.JobFor(dog, task.Target(map) as Pawn);
+            if (task.kind == NetworkTaskKind.Fire) return Firefighting.JobFor(dog, task.Target(map) as Fire);
             return DogWork.JobFor(dog, task);
         }
 
@@ -732,12 +741,13 @@ namespace Quadrunner
             if (!Active(dog) || CompRobodog.Of(dog).WantsCharge || dog.Drafted) return null;
             if (assignments.TryGetValue(dog.ThingID, out NetworkTask task))
             {
-                if (task.kind == NetworkTaskKind.Combat)
+                // Ranged orders (fighting, foaming a fire) walk into range, then fire: the next leg is built here.
+                if (task.kind == NetworkTaskKind.Combat || task.kind == NetworkTaskKind.Fire)
                 {
                     if (dog.CurJob?.loadID == task.jobId
                         && (dog.CurJobDef == JobDefOf.Capture || dog.CurJobDef == QR_DefOf.QR_CarryToRoom))
                         return dog.CurJob;
-                    Job next = Combat.JobFor(dog, task.Target(Map) as Pawn);
+                    Job next = JobFor(dog, task, Map);
                     if (next != null)
                     {
                         if (dog.CurJob?.loadID == task.jobId && next.def == dog.CurJobDef

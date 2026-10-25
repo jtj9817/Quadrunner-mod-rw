@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in Medirunner foam sprayer (plan 0008); nozzle aims right on the horizontal centerline. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M24 52H58V76H24Z" fill="#e8eef0"/>
+    <path d="M24 60H58V68H24Z" fill="#c8383b"/>
+    <path d="M58 57H90V71H58Z" fill="#8da6b0"/>
+    <path d="M90 54 106 50V78L90 74Z" fill="#536e7b"/>
+    <path d="M34 76V84H50V76" fill="#425c6b"/>
+    <path d="M30 52V46H46V52" fill="#afc3c7"/>
+    <path d="M64 64H86" stroke="#68dbdc" stroke-width="3"/>
+  </g>
+</svg>

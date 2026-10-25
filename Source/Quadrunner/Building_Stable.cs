@@ -148,6 +148,9 @@ namespace Quadrunner
         {
             if (!docked.Contains(dog) || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
                 return false;
+            // Integrated equipment (the Medirunner's foam sprayer) is fitted on the way out, older saves included.
+            if (RobodogWork.Of(dog)?.builtInGun != null)
+                Tiers.Arm(dog, Tiers.Gun(dog, 0));
             QR.Log($"{dog} undocked from {this}");
             return true;
         }

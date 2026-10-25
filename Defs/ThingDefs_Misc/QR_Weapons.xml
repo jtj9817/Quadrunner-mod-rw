@@ -191,4 +191,43 @@
     </projectile>
   </ThingDef>
 
+  <!-- Medirunner foam sprayer (plan 0008): vanilla Gun_TurretFoam's spray on the dorsal mount. Foam is unlimited; each
+       burst drains the dog's battery instead (RobodogWork.foamDrainPerBurst, Quadrunner.Verb_FoamSpray). -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_FoamSprayer</defName>
+    <label>built-in foam sprayer</label>
+    <description>Hearthline's insurers asked why the rescue model kept carrying people out of burning rooms and leaving the room burning. The answer was a compact firefoam pump drawing on the chassis battery, sold as standard equipment and priced as a premium feature.
+
+A Medirunner's integrated foam turret. When a fire burns anywhere in the Home area, the network sends an available Medirunner to spray it out, after any rescues and during raids too. Foam is unlimited; every burst costs battery.</description>
+    <graphicData>
+      <texPath>Quadrunner/Weapons/FoamSprayer</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>400</MarketValue>
+      <Mass>5</Mass>
+      <AccuracyTouch>1</AccuracyTouch>
+      <AccuracyShort>1</AccuracyShort>
+      <AccuracyMedium>1</AccuracyMedium>
+      <AccuracyLong>1</AccuracyLong>
+      <RangedWeapon_Cooldown>0.5</RangedWeapon_Cooldown>
+      <Flammability>0</Flammability>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Quadrunner.Verb_FoamSpray</verbClass>
+        <defaultProjectile>Proj_Foam</defaultProjectile>
+        <warmupTime>0.3</warmupTime>
+        <range>14.9</range>
+        <ticksBetweenBurstShots>2</ticksBetweenBurstShots>
+        <burstShotCount>41</burstShotCount>
+        <sprayWidth>5.5</sprayWidth>
+        <sprayArching>1.5</sprayArching>
+        <sprayThicknessCells>4</sprayThicknessCells>
+        <sprayNumExtraCells>40</sprayNumExtraCells>
+        <sprayEffecterDef>FoamSpray_Directional</sprayEffecterDef>
+      </li>
+    </verbs>
+  </ThingDef>
+
 </Defs>

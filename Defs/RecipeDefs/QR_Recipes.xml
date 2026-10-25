@@ -42,7 +42,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_AssembleMedirunner</defName>
     <label>assemble Medirunner</label>
-    <description>A Hearthline rescue chassis: an ambulance, not a doctor.\n\nAssemble a Medirunner to carry the downed to beds, including during raids. It does no utility work or medical treatment. The finished dog docks straight into this stable.</description>
+    <description>A Hearthline rescue chassis: an ambulance, not a doctor.\n\nAssemble a Medirunner to carry the downed to beds, including during raids, and to foam out fires in the Home area. It does no utility work or medical treatment. The finished dog docks straight into this stable.</description>
     <jobString>Assembling Medirunner.</jobString>
     <workAmount>3500</workAmount>
     <ingredients>
