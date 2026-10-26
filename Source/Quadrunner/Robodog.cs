@@ -238,6 +238,17 @@ namespace Quadrunner
             Scribe_Values.Look(ref waypointsReached, "waypointsReached");
             Scribe_Defs.Look(ref gun1, "gun1");
             Scribe_Defs.Look(ref gun2, "gun2");
+            // Pre-sprayer Medirunners were Animal-intelligence pawns, saved without ToolUser trackers. The load
+            // traversal reaches held/world pawns too; these vanilla components persist, making this a one-time migration.
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && parent.def == QR_DefOf.QR_Medirunner.race
+                && (Dog.equipment == null || Dog.apparel == null))
+            {
+                Dog.equipment ??= new Pawn_EquipmentTracker(Dog);
+                Dog.apparel ??= new Pawn_ApparelTracker(Dog);
+                if (!Dog.Dead)
+                    Tiers.Arm(Dog, Tiers.Gun(Dog, 0));
+                QR.Log($"migrated pre-sprayer Medirunner {Dog}: restored ToolUser equipment/apparel");
+            }
         }
 
         public override string CompInspectStringExtra() =>

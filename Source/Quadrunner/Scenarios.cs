@@ -80,6 +80,7 @@ namespace Quadrunner
             ("Mass-casualty raid", MassCasualtyRaid),
             ("Rescue order", RescueOrder),
             ("Manual rescue dispatch", ManualRescueDispatch),
+            ("Medirunner legacy migration", MedirunnerLegacyMigration),
             ("Medirunner firefighting", MedirunnerFirefighting),
             ("Ride until 0%", RideUntilEmpty),
             ("Ride and dismount", RideAndDismount),
@@ -113,7 +114,7 @@ namespace Quadrunner
         {
             string[] parts = (filter ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToArray();
             Scenario.RunAll(All.Where(s => (testSaveLoad || (s.setUp != SaveAndReload && s.setUp != SurveyLegacySave
-                && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
+                && s.setUp != MedirunnerLegacyMigration && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
                 parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))), testSaveLoad, done);
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -43,6 +44,142 @@ namespace Quadrunner
 
         private static bool Foaming(Pawn medic) => medic.Spawned && medic.CurJobDef == JobDefOf.AttackStatic
             && medic.CurJob.targetA.Thing is Fire && medic.equipment?.PrimaryEq?.PrimaryVerb is Verb_FoamSpray;
+
+        private static void MedirunnerLegacyMigration()
+        {
+            var s = new Scenario("Medirunner legacy migration", 20000);
+            string stableId = null, carrierId = null, patientId = null, modernId = null, modernGunId = null;
+            string[] legacyIds = new string[4], gunIds = new string[4];
+            float[] charges = { 0.61f, 0.72f, 0f, 0.83f };
+            int caravanId = -1, heldJobId = -1;
+            CellRect fire = default;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Legacy(int i) => Scenario.ById(legacyIds[i]) as Pawn
+                ?? Find.WorldObjects.Caravans.FirstOrDefault(c => c.ID == caravanId)?.PawnsListForReading
+                    .FirstOrDefault(p => p.ThingID == legacyIds[i]);
+            s.OnFinish(() =>
+            {
+                Caravan caravan = Find.WorldObjects.Caravans.FirstOrDefault(c => c.ID == caravanId);
+                if (caravan != null)
+                {
+                    foreach (Pawn pawn in caravan.PawnsListForReading.ToList())
+                    {
+                        caravan.RemovePawn(pawn);
+                        if (Find.WorldPawns.Contains(pawn)) Find.WorldPawns.RemoveAndDiscardPawnViaGC(pawn);
+                        else if (!pawn.Destroyed) pawn.Destroy();
+                    }
+                    caravan.Destroy();
+                }
+                // Destroying a fixture pawn can retain it in WorldPawns with its carried patient.
+                foreach (Pawn pawn in PawnsFinder.AllMapsWorldAndTemporary_AliveOrDead.Where(p =>
+                             legacyIds.Contains(p.ThingID) || p.ThingID == carrierId || p.ThingID == modernId
+                             || p.ThingID == patientId).ToList())
+                {
+                    pawn.carryTracker?.CarriedThing?.Destroy();
+                    if (Find.WorldPawns.Contains(pawn)) Find.WorldPawns.RemoveAndDiscardPawnViaGC(pawn);
+                }
+            });
+            s.Do("save pre-sprayer medics docked, in the field, carried and in a caravan", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    Building_Stable stable = SpawnStable(s, powered: false);
+                    stableId = stable.ThingID;
+                    for (int i = 0; i < legacyIds.Length; i++)
+                    {
+                        Pawn dog = s.Track(stable.AddNewDog(QR_DefOf.QR_Medirunner));
+                        legacyIds[i] = dog.ThingID;
+                        dog.Name = new NameSingle($"Legacy medic {i}");
+                        CompRobodog.Of(dog).SetBattery(charges[i]);
+                    }
+                    stable.TryUndock(Legacy(1));
+                    SurveyHold(Legacy(1), 20000);
+                    heldJobId = Legacy(1).CurJob.loadID;
+                    Hediff wound = HediffMaker.MakeHediff(HediffDefOf.Cut, Legacy(1), Legacy(1).RaceProps.body.corePart);
+                    wound.Severity = 2f;
+                    Legacy(1).health.AddHediff(wound);
+                    Pawn patient = SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer, Legacy(1).Position);
+                    patientId = patient.ThingID;
+                    DownBleeding(s, patient, 2f);
+                    if (Legacy(1).carryTracker.TryStartCarry(patient, 1, reserve: false) != 1)
+                        throw new InvalidOperationException("could not stage the medic's carried patient");
+                    Pawn carrier = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                    carrierId = carrier.ThingID;
+                    stable.TryUndock(carrier);
+                    SurveyHold(carrier, 20000);
+                    stable.TryUndock(Legacy(2));
+                    if (carrier.carryTracker.TryStartCarry(Legacy(2), 1, reserve: false) != 1)
+                        throw new InvalidOperationException("could not stage the carried medic");
+                    stable.TryUndock(Legacy(3));
+                    Pawn traveler = SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer, stable.InteractionCell);
+                    caravanId = CaravanMaker.MakeCaravan(new[] { traveler, Legacy(3) }, Faction.OfPlayer, map.Tile, true).ID;
+                    for (int i = 0; i < legacyIds.Length; i++)
+                    {
+                        Pawn dog = Legacy(i);
+                        dog.equipment.DestroyAllEquipment();
+                        dog.equipment = null;
+                        dog.apparel = null;
+                    }
+                    Pawn modern = s.Track(stable.AddNewDog(QR_DefOf.QR_Medirunner));
+                    modernId = modern.ThingID;
+                    Tiers.Arm(modern, Tiers.Gun(modern, 0));
+                    modernGunId = modern.equipment.Primary.ThingID;
+                    CompRobodog.Of(modern).SetBattery(0.01f);
+                })
+                .SaveAndReload(always: true)
+                .Do("all saved medics gain the sprayer without replacing their identity or state", () =>
+                {
+                    for (int i = 0; i < legacyIds.Length; i++)
+                    {
+                        Pawn dog = Legacy(i);
+                        if (dog == null || dog.Name.ToStringFull != $"Legacy medic {i}"
+                            || CompRobodog.Of(dog).stable?.ThingID != stableId
+                            || Math.Abs(CompRobodog.Of(dog).Battery - charges[i]) > 0.0001f)
+                            throw new InvalidOperationException($"legacy medic {i} lost identity, affiliation or battery");
+                        if (dog.equipment == null || dog.apparel == null
+                            || dog.equipment.Primary?.def != RobodogWork.Of(dog).builtInGun
+                            || dog.equipment.AllEquipmentListForReading.Count != 1)
+                            throw new InvalidOperationException($"legacy medic {i} has no ToolUser trackers and single sprayer");
+                        gunIds[i] = dog.equipment.Primary.ThingID;
+                    }
+                    if (!Stable().Docked.Contains(Legacy(0)) || Legacy(1).CurJob?.loadID != heldJobId
+                        || Math.Abs(InjurySeverity(Legacy(1)) - 2f) > 0.001f
+                        || Legacy(1).carryTracker.CarriedThing?.ThingID != patientId
+                        || ((Pawn)Scenario.ById(carrierId)).carryTracker.CarriedThing != Legacy(2)
+                        || !CompRobodog.Of(Legacy(2)).PoweredDown)
+                        throw new InvalidOperationException("migration changed docking, a field order, injury or carried pawn");
+                    if (((Pawn)Scenario.ById(modernId)).equipment.Primary.ThingID != modernGunId
+                        || ((Pawn)Scenario.ById(carrierId)).equipment != null)
+                        throw new InvalidOperationException("migration changed a modern medic or a utility dog");
+                })
+                .SaveAndReload(always: true)
+                .Do("a second load keeps the same saved sprayers instead of migrating again", () =>
+                {
+                    for (int i = 0; i < legacyIds.Length; i++)
+                        if (Legacy(i).equipment?.Primary?.ThingID != gunIds[i]
+                            || Legacy(i).equipment.AllEquipmentListForReading.Count != 1)
+                            throw new InvalidOperationException($"legacy medic {i}'s sprayer was replaced or duplicated");
+                    if (((Pawn)Scenario.ById(modernId)).equipment.Primary.ThingID != modernGunId)
+                        throw new InvalidOperationException("the modern medic's sprayer was replaced");
+                })
+                .Do("light a Home fire for the migrated docked medic", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    map.weatherDecider.DisableRainFor(GenDate.TicksPerDay);
+                    map.weatherManager.curWeather = map.weatherManager.lastWeather = WeatherDefOf.Clear;
+                    fire = SpawnBonfire(s, Stable().InteractionCell, 8f, 14f, home: true);
+                    s.OnFinish(() =>
+                    {
+                        foreach (Fire f in Find.CurrentMap.listerThings.ThingsOfDef(ThingDefOf.Fire).OfType<Fire>()
+                                     .Where(f => fire.ExpandedBy(3).Contains(f.Position)).ToList())
+                            f.Destroy();
+                    });
+                })
+                .Expect("the migrated medic undocks and sprays the Home fire", () => Foaming(Legacy(0)))
+                .Expect("the Home fire is extinguished", () => !FireIn(fire))
+                .Expect("the same migrated medic docks again", () => Stable().Docked.Contains(Legacy(0)))
+                .Start();
+        }
 
         private static void MedirunnerFirefighting()
         {
