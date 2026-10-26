@@ -11,6 +11,7 @@ The run's full log stays in `.devlog/runs/<timestamp>/` (local, git-ignored); co
 
 | Run (UTC) | Target | Build | Scenarios | Result | Finding | Next |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-26 00:14 | Medic churn fix package | acdf1bf.20261026T001404Z | pkg-run: deferred rescue priority, Mass-casualty raid, Manual rescue dispatch, Medirunner firefighting | 4/4 PASS, 0 new errors | Cold launch from `dist/Quadrunner`; the loaded build and modRoot match the package. | delivered |
 | 2026-10-26 00:13 | Medic churn fix | f0dea29-dirty.20261026T001253Z | Charging maze, Ride until 0% | 2/2 PASS, 0 new errors | Both Run all failures pass alone (battery 100 %; worker finds the stopped dog); both have failed in earlier shared runs. | commit, package |
 | 2026-10-25 23:57 | Medic churn fix | f0dea29-dirty.20261025T235645Z | Run all, 88 scenarios | **86/88 PASS, 0 new errors**, 892 s | Every network, rescue, recovery, firefighting, survey and combat case passes. Charging maze (88 % at the end) and Ride until 0% (worker scan) fail late in the sequence. | rerun both alone |
 | 2026-10-25 23:55 | Medic churn fix | f0dea29-dirty.20261025T235545Z, …235612Z | Combat recovery: transport (×2) | 1/1 PASS each, 0 new errors | The batch's "near gold report was refused" setup failure doesn't reproduce: leftover sequence state. | Run all (shared dispatch + TryUndock) |
