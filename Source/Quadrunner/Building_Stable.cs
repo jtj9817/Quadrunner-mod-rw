@@ -148,6 +148,8 @@ namespace Quadrunner
         {
             if (!docked.Contains(dog) || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
                 return false;
+            // Held in the dock, vanilla gives the dog JobGiver_Carried; left current, it would not read as idle.
+            dog.jobs?.StopAll();
             // Integrated equipment (the Medirunner's foam sprayer) is fitted on the way out, older saves included.
             if (RobodogWork.Of(dog)?.builtInGun != null)
                 Tiers.Arm(dog, Tiers.Gun(dog, 0));

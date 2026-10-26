@@ -50,6 +50,7 @@ namespace Quadrunner
             string stableId = null, medicId = null, patientId = null;
             CellRect home = default, outside = default, second = default, third = default;
             float lowest = 1f, drain = 0f;
+            int queuedAt = 0;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Medic() => (Pawn)Scenario.ById(medicId);
             Pawn Patient() => (Pawn)Scenario.ById(patientId);
@@ -84,7 +85,24 @@ namespace Quadrunner
                     List<NetworkTask> fires = Net().WarQueue.Where(t => t.kind == NetworkTaskKind.Fire).ToList();
                     if (fires.Any(t => t.Target(map) is Thing f && !map.areaManager.Home[f.Position]))
                         throw new InvalidOperationException("a fire outside the Home area was queued");
+                    queuedAt = Find.TickManager.TicksGame;
                     return fires.Any(t => t.Target(map) is Thing f && home.ExpandedBy(3).Contains(f.Position));
+                })
+                .Expect("the Medirunner takes it without a retry backoff or undock/dock churn", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    NetworkTask task = Net().WarQueue.FirstOrDefault(t => t.kind == NetworkTaskKind.Fire
+                        && t.Target(map) is Thing f && home.ExpandedBy(3).Contains(f.Position));
+                    if (task == null)
+                        throw new InvalidOperationException("the Home fire left the queue unassigned");
+                    if (task.assigneeId == medicId)
+                        return true;
+                    if (task.retryAt > Find.TickManager.TicksGame)
+                        throw new InvalidOperationException($"the Home fire got a retry backoff to {task.retryAt}");
+                    int waited = Find.TickManager.TicksGame - queuedAt;
+                    if (waited > 2 * QR_DefOf.QR_Medirunner.race.GetModExtension<RobodogWork>().dispatchInterval)
+                        throw new InvalidOperationException($"no medic took the Home fire after {waited} ticks");
+                    return false;
                 })
                 .Expect("the Medirunner undocks and foams it with its built-in sprayer", () => Watch() && Foaming(Medic()))
                 .Do("put out the fire outside Home (never queued)", () =>

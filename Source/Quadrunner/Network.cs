@@ -436,23 +436,6 @@ namespace Quadrunner
                 Reconcile(State.war);
                 RebuildAssignments();
                 bool hasPatient = Rescue.AnyPatient(Map);
-                bool hasCombat = false, hasFire = false;
-                foreach (NetworkTask task in State.war)
-                {
-                    if (task.kind == NetworkTaskKind.Combat) hasCombat = true;
-                    else if (task.kind == NetworkTaskKind.Fire) hasFire = true;
-                }
-                // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
-                bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover && t.assigneeId == null);
-                // Docked workers must step out before vanilla scanners/pathfinders can inspect them. Idle workers
-                // survey anyway; medical/combat models leave only for their dedicated work.
-                foreach (Pawn dog in dogs)
-                {
-                    RobodogWork work = RobodogWork.Of(dog);
-                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasPatient || hasRecovery || hasFire))
-                        || (work.combat && (War || hasCombat));
-                    if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
-                }
                 if (force || Now >= nextScan)
                 {
                     nextScan = Now + Tuning.scanInterval;
@@ -478,6 +461,27 @@ namespace Quadrunner
                         foreach (IAttackTarget threat in Map.attackTargetsCache.TargetsHostileToFaction(Faction.OfPlayer))
                             if (threat.Thing is Pawn enemy && GenHostility.IsActiveThreatToPlayer(threat))
                                 Report(NetworkTaskKind.Combat, enemy);
+                }
+                // After this tick's reports, so a fire or patient found now meets a medic already out. Medics deploy
+                // only for work assignable this tick: one undocked during a retry backoff has no order, docks again,
+                // and its despawn forces another tick that undocks it again, until the backoff ends.
+                bool hasCombat = false, hasRescueWork = false;
+                foreach (NetworkTask task in State.war)
+                {
+                    if (task.kind == NetworkTaskKind.Combat) hasCombat = true;
+                    else if (task.assigneeId == null && Now >= task.retryAt) hasRescueWork = true;
+                }
+                // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
+                bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover
+                    && t.assigneeId == null && Now >= t.retryAt);
+                // Docked workers must step out before vanilla scanners/pathfinders can inspect them. Idle workers
+                // survey anyway; medical/combat models leave only for their dedicated work.
+                foreach (Pawn dog in dogs)
+                {
+                    RobodogWork work = RobodogWork.Of(dog);
+                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasRescueWork || hasRecovery))
+                        || (work.combat && (War || hasCombat));
+                    if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
                 }
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
@@ -691,11 +695,11 @@ namespace Quadrunner
                 Pawn nearest = null;
                 Job selected = null;
                 float cost = float.MaxValue;
-                bool deferred = false;
+                bool deferred = false, docked = false;
                 foreach (Pawn dog in dogs)
                 {
-                    if (!dog.Spawned || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID)
-                        || !Capable(dog, task, hasPatient)) continue;
+                    if (!IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || !Capable(dog, task, hasPatient)) continue;
+                    if (!dog.Spawned) { docked = true; continue; }
                     if (!PathInputsReady(dog)) { deferred = true; continue; }
                     Job candidate = JobFor(dog, task, Map);
                     if (candidate == null) continue;
@@ -721,7 +725,8 @@ namespace Quadrunner
                 }
                 if (nearest == null)
                 {
-                    task.retryAt = Now + Tuning.scanInterval;
+                    // A capable dog still docked is not a failed attempt: it undocks on the next tick.
+                    if (!docked) task.retryAt = Now + Tuning.scanInterval;
                     continue;
                 }
                 task.assigneeId = nearest.ThingID; task.jobId = selected.loadID;
