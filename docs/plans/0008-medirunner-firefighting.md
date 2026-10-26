@@ -42,6 +42,8 @@ Evidence: [test-run log](../test-runs.md), 2026-10-26 05:09–05:15. The new **M
 
 Independent removal at 05:16 loaded the cleaned export with no Quadrunner assembly, ticked 600, saved/reloaded and ticked another 600, retaining the expected vanilla contents with zero new errors. Log: `.devlog/runs/removal-20261026-051626/Player.log`.
 
+Packaged proof at 05:18: actual `dist/Quadrunner` build `8771e7f.20261026T051738Z` passed **Manual rescue dispatch**, **Medirunner legacy migration**, **Medirunner firefighting** and **Prepare removal**, 4/4 with zero new errors. The harness checked the loaded BUILD and resolved mod root. Private game/Xvfb stopped and the dev symlink restored.
+
 ## Open questions
 
 None.
