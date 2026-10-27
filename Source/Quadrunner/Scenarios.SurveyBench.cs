@@ -709,7 +709,7 @@ namespace Quadrunner
         private sealed class SurveyBenchRunner
         {
             private static string allocationSource;
-            private static readonly Func<long> GcAllocated = FindGcAllocated();
+            internal static readonly Func<long> GcAllocated = FindGcAllocated();
             private static readonly Stopwatch Watch = new Stopwatch();
 
             private readonly Scenario scenario;

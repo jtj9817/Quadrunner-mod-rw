@@ -33,6 +33,7 @@ namespace Quadrunner
             ("Network: discovery beyond the boundary", NetDiscovery),
             ("Network: scan eligibility", NetScanEligibility),
             ("Network: dedup and queue persistence", NetDedupPersistence),
+            ("Network: duplicate report allocations", NetDedupAllocations),
             ("Network: nearest dog wins", NetNearestDog),
             ("Network: coordinator failover", NetCoordinatorFailover),
             ("Network: last node clears the backlog", NetLastNodeClears),

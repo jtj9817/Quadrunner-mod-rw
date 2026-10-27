@@ -161,6 +161,85 @@ namespace Quadrunner
                 .Start();
         }
 
+        /// <summary>Repeated discovery must not allocate a fresh target identity for every queued task.</summary>
+        private static void NetDedupAllocations()
+        {
+            const int queueSize = 256, repetitions = 256;
+            var s = new Scenario("Network: duplicate report allocations", 6000);
+            string targetId = null;
+            long smallBytes = 0, largeBytes = 0;
+            Func<long> allocated = SurveyBenchRunner.GcAllocated
+                ?? throw new InvalidOperationException("no allocation counter passed a real 64 KiB allocation probe");
+            s.Do("stage a coordinator and real haul targets, then measure duplicate discovery", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    SpawnStable(s, powered: false);
+                    IntVec3 corner = FindClearArea(map, map.Center, 100f,
+                        c => new CellRect(c.x, c.z, 16, 16));
+                    var targets = new List<Thing>(queueSize);
+                    for (int i = 0; i < queueSize; i++)
+                        targets.Add(NetStack(s, ThingDefOf.Gold, 1,
+                            corner + new IntVec3(i % 16, 0, i / 16)));
+                    Thing target = targets[queueSize - 1];
+                    targetId = target.ThingID;
+                    DogNetwork network = Net();
+                    WorkGiverDef giver = NetHaulGiver;
+                    if (network.NormalQueue.Count != 0 || !network.Report(NetworkTaskKind.Haul, target, giver))
+                        throw new InvalidOperationException("the isolated queue did not accept its first target");
+                    NetworkTask original = network.NormalQueue[0];
+
+                    void Duplicate()
+                    {
+                        if (network.Report(NetworkTaskKind.Haul, target, giver))
+                            throw new InvalidOperationException("a duplicate discovery created another task");
+                    }
+
+                    long Measure()
+                    {
+                        for (int i = 0; i < 32; i++) Duplicate();
+                        long before = allocated();
+                        for (int i = 0; i < repetitions; i++) Duplicate();
+                        return allocated() - before;
+                    }
+
+                    smallBytes = Measure();
+                    for (int i = 0; i < queueSize - 1; i++)
+                        if (!network.Report(NetworkTaskKind.Haul, targets[i], giver))
+                            throw new InvalidOperationException("a distinct haul target was rejected");
+                    network.State.normal.Remove(original);
+                    network.State.normal.Add(original);
+                    int nextId = network.State.nextId;
+                    largeBytes = Measure();
+                    if (network.NormalQueue.Count != queueSize || network.State.nextId != nextId
+                        || !ReferenceEquals(network.NormalQueue[queueSize - 1], original)
+                        || NetQueueCount(targetId) != 1)
+                        throw new InvalidOperationException("duplicate discovery changed the queue or its task identities");
+                    QR.Log($"dedup allocation probe: {repetitions} reports, queue 1={smallBytes} B, " +
+                        $"queue {queueSize}={largeBytes} B, counter={allocated.Method.Name}");
+                    // The validated counter can include concurrent engine allocations. Allow noise, not
+                    // allocation proportional to the number of already-queued targets inspected.
+                    if (largeBytes > smallBytes * 4 + 256 * 1024)
+                        throw new InvalidOperationException(
+                            $"duplicate report allocations grow with the queue: {smallBytes} B -> {largeBytes} B");
+                })
+                .SaveAndReload()
+                .Do("the same queued target still deduplicates after reload", () =>
+                {
+                    DogNetwork network = Net();
+                    NetworkTask original = NetTask(targetId);
+                    int nextId = network.State.nextId;
+                    if (original == null || network.NormalQueue.Count != queueSize
+                        || network.Report(NetworkTaskKind.Haul, Scenario.ById(targetId), NetHaulGiver)
+                        || network.State.nextId != nextId || !ReferenceEquals(NetTask(targetId), original)
+                        || NetQueueCount(targetId) != 1)
+                        throw new InvalidOperationException("reloaded duplicate discovery changed the saved queue");
+                })
+                .Summary(() => $"{repetitions} duplicate reports: queue 1 {smallBytes} B, " +
+                    $"queue {queueSize} {largeBytes} B")
+                .Start();
+        }
+
         /// <summary>
         /// N1/N2 dedup and persistence: two far stacks — one open, one walled into a pocket no job can reach. Repeated
         /// rescans and a manual duplicate report never queue the pocket stack twice; the open one is hauled; a reload

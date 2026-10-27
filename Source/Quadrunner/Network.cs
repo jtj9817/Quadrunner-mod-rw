@@ -37,7 +37,7 @@ namespace Quadrunner
             return target != null && !target.Destroyed ? target : null;
         }
 
-        internal void SetTarget(Thing thing) { target = thing; targetId = thing.ThingID; }
+        internal void SetTarget(Thing thing, string thingId) { target = thing; targetId = thingId; }
 
         public void ExposeData()
         {
@@ -283,10 +283,12 @@ namespace Quadrunner
             if (State == null || coordinator == null) return false;
             List<NetworkTask> queue = kind == NetworkTaskKind.Combat || kind == NetworkTaskKind.Rescue || kind == NetworkTaskKind.Fire
                 ? State.war : State.normal;
+            // ThingID constructs a string; do not rebuild it for every queued task or again on insertion.
+            string targetId = target.ThingID;
             foreach (NetworkTask task in queue)
-                if (task.kind == kind && task.targetId == target.ThingID) return false;
+                if (task.kind == kind && task.targetId == targetId) return false;
             var added = new NetworkTask { id = State.nextId++, kind = kind, giver = giver, reportedAt = Now };
-            added.SetTarget(target);
+            added.SetTarget(target, targetId);
             queue.Add(added);
             QR.Log($"network discovered #{added.id} {kind}: {target}");
             return true;
@@ -376,7 +378,8 @@ namespace Quadrunner
                     casualtyDead = dead, reportedAt = Now,
                     lastKnown = dead ? wreck.PositionHeld : dog.PositionHeld,
                 };
-                added.SetTarget(dead ? (Thing)wreck : dog);
+                Thing target = dead ? (Thing)wreck : dog;
+                added.SetTarget(target, target.ThingID);
                 State.normal.Add(added);
                 QR.Log($"network casualty #{added.id}: {dog} {(dead ? "wreck" : "downed")} at {added.lastKnown}");
                 return true;
@@ -386,7 +389,7 @@ namespace Quadrunner
                 if (dead && existing.targetId != wreck.ThingID && existing.assigneeId == null)
                 {
                     existing.lastKnown = wreck.PositionHeld;
-                    existing.SetTarget(wreck);
+                    existing.SetTarget(wreck, wreck.ThingID);
                     return true;
                 }
                 return false;
@@ -395,7 +398,7 @@ namespace Quadrunner
             {
                 existing.casualtyDead = true;
                 existing.lastKnown = wreck.PositionHeld;
-                existing.SetTarget(wreck);
+                existing.SetTarget(wreck, wreck.ThingID);
                 QR.Log($"network casualty #{existing.id}: {dog} died; tracking its wreck");
                 return true;
             }
@@ -403,7 +406,7 @@ namespace Quadrunner
             if (existing.assigneeId == null)
             {
                 existing.lastKnown = dog.PositionHeld;
-                existing.SetTarget(dog);
+                existing.SetTarget(dog, dog.ThingID);
             }
             return false;
         }
@@ -616,7 +619,7 @@ namespace Quadrunner
                 {
                     task.casualtyDead = true;
                     task.lastKnown = wreck.PositionHeld;
-                    task.SetTarget(wreck);
+                    task.SetTarget(wreck, wreck.ThingID);
                     QR.Log($"network casualty #{task.id}: {task.casualtyId} is a wreck at {wreck.PositionHeld}");
                     return true;
                 }
