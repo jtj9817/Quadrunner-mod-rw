@@ -78,7 +78,23 @@ namespace Quadrunner
     {
         public override Job JobOnThing(Pawn pawn, Thing thing, bool forced = false)
         {
-            Job job = base.JobOnThing(pawn, thing, forced);
+            Building_Stable source = thing as Building_Stable;
+            Job job;
+            if (source == null)
+                job = base.JobOnThing(pawn, thing, forced);
+            else
+            {
+                // Use vanilla's haul-source ingredient search only for this stable's own bill search.
+                source.searchingBillIngredients = true;
+                try
+                {
+                    job = base.JobOnThing(pawn, thing, forced);
+                }
+                finally
+                {
+                    source.searchingBillIngredients = false;
+                }
+            }
             if (job?.bill?.recipe.HasModExtension<AssembleProps>() == true && thing is Building_Stable stable
                 && !stable.HasFreeSlot)
             {

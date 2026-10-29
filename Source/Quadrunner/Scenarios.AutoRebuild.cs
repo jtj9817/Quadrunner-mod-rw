@@ -204,6 +204,8 @@ namespace Quadrunner
                         throw new InvalidOperationException("the Tier 2 wreck was refused");
                     // Refill the vacated slot: at completion the stable is full and must not dock an extra dog.
                     s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                    // An active manual bill cannot use a full stable; automatic rebuilding must still proceed.
+                    stable.BillStack.AddBill(QR_DefOf.QR_RebuildCombatdog.MakeNewBill());
                     SpawnStack(s, ThingDefOf.Steel, 50, stable.InteractionCell);
                     SpawnStack(s, ThingDefOf.Plasteel, 25, stable.InteractionCell);
                 })

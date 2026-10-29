@@ -146,7 +146,7 @@
   <RecipeDef ParentName="QR_AssembleDogBase">
     <defName>QR_RebuildCombatdog</defName>
     <label>rebuild Combatdog</label>
-    <description>Hearthline's service instructions assume that the customer has recovered the pieces.\n\nRebuild a destroyed Combatdog of any tier from its wreck. It retains its tier and identity, then docks straight into this stable.</description>
+    <description>Hearthline's service instructions assume that the customer has recovered the pieces.\n\nRebuild a destroyed Combatdog of any tier from its wreck, including wrecks recovered into this stable. It retains its tier and identity, then docks straight into this stable.\n\nAn active bill takes priority over unstarted automatic rebuilding when a dock is free. A rebuild already paid for automatically finishes first; suspend or remove the bill to resume automatic rebuilding.</description>
     <jobString>Rebuilding Combatdog.</jobString>
     <workerClass>Quadrunner.RecipeWorker_RebuildDog</workerClass>
     <workAmount>2000</workAmount>

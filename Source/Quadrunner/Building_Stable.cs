@@ -19,7 +19,7 @@ namespace Quadrunner
     /// queues. Stable affiliation controls docking capacity, not which dog may receive a network assignment.
     /// </summary>
     [StaticConstructorOnStartup]
-    public class Building_Stable : Building_WorkTable, IThingHolder
+    public class Building_Stable : Building_WorkTable, IThingHolder, IHaulSource
     {
         private static readonly Texture2D PatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/Patrol");
         private static readonly Texture2D ClearPatrolIcon = ContentFinder<Texture2D>.Get("Quadrunner/UI/ClearPatrol");
@@ -38,6 +38,9 @@ namespace Quadrunner
         private RecoveredHolder recoveredHolder;
         private int rebuildProgress;
         private bool rebuildPaid;
+        // Only the stable's own bill search may see recovered wrecks as ingredients.
+        internal bool searchingBillIngredients;
+        private readonly StorageSettings haulSourceSettings;
         public NetworkState networkState;
         private List<IntVec3> waypoints = new List<IntVec3>();
         // Set by a click while placing waypoints, so the targeter starts again once vanilla stops it after the click.
@@ -67,6 +70,7 @@ namespace Quadrunner
         {
             docked = new ThingOwner<Pawn>(this);
             recoveredHolder = new RecoveredHolder(this);
+            haulSourceSettings = new StorageSettings(this);
         }
 
         private ThingOwner<Corpse> recovered => recoveredHolder.Contents;
@@ -98,6 +102,16 @@ namespace Quadrunner
             }
         }
 
+        bool IHaulSource.HaulSourceEnabled => searchingBillIngredients && !rebuildPaid && recovered.Count > 0;
+        bool IStoreSettingsParent.StorageTabVisible => false;
+        StorageSettings IStoreSettingsParent.GetStoreSettings() => haulSourceSettings;
+        StorageSettings IStoreSettingsParent.GetParentStoreSettings() => null;
+        void IStoreSettingsParent.Notify_SettingsChanged()
+        {
+            if (Spawned)
+                Map.listerHaulables.Notify_HaulSourceChanged(this);
+        }
+
         /// <summary>The physical 3x3 delivery area: the interaction cell and its eight neighbours.</summary>
         public CellRect RebuildDeliveryCells => CellRect.CenteredOn(InteractionCell, 1).ClipInsideMap(Map);
 
@@ -105,10 +119,34 @@ namespace Quadrunner
             $"the 3x3 area around ({InteractionCell.x}, {InteractionCell.z})";
 
         /// <summary>Every living dog of this stable on its map: docked, out, or carried.</summary>
-        public List<Pawn> Dogs() =>
-            MapHeld?.mapPawns.AllPawns.Where(p => CompRobodog.Of(p)?.stable == this).ToList() ?? Docked.ToList();
+        public List<Pawn> Dogs()
+        {
+            Map map = MapHeld;
+            if (map == null)
+                return Docked.ToList();
+            List<Pawn> dogs = map.mapPawns.AllPawns.Where(p => CompRobodog.Of(p)?.stable == this).ToList();
+            // The temporary haul-source view hides docked pawns from MapPawns during a bill's target-count check.
+            if (searchingBillIngredients)
+                foreach (Pawn dog in docked.InnerListForReading)
+                    if (CompRobodog.Of(dog)?.stable == this)
+                        dogs.Add(dog);
+            return dogs;
+        }
 
-        public bool HasFreeSlot => Dogs().Count < Capacity;
+        public bool HasFreeSlot
+        {
+            get
+            {
+                int remaining = Capacity;
+                Map map = MapHeld;
+                if (map == null)
+                    return docked.Count < remaining;
+                foreach (Pawn pawn in map.mapPawns.AllPawns)
+                    if (CompRobodog.Of(pawn)?.stable == this && --remaining <= 0)
+                        return false;
+                return remaining > 0;
+            }
+        }
 
         /// <summary>Docked dogs charge and get repaired only while the stable has power.</summary>
         public bool CanCharge => this.TryGetComp<CompPowerTrader>()?.PowerOn ?? true;
@@ -169,7 +207,10 @@ namespace Quadrunner
             if (dog == null || !dog.Dead || dog.Faction != Faction.OfPlayer || RobodogWork.Of(dog)?.combat != true)
                 return false;
             if (recovered.Contains(corpse))
+            {
+                corpse.TrySetForbidden(false);
                 return true;
+            }
             if (!recovered.CanAcceptAnyOf(corpse, canMergeWithExistingStacks: false))
                 return false;
             if (corpse.Spawned)
@@ -184,6 +225,8 @@ namespace Quadrunner
                     GenPlace.TryPlaceThing(corpse, InteractionCell, Map, ThingPlaceMode.Near);
                 return false;
             }
+            // Death outside Home automatically forbids a corpse; a recovered wreck is available for service.
+            corpse.TrySetForbidden(false);
             QR.Log($"{this} took the wreck of {dog}; {recovered.Count} recovered, waiting for rebuilding");
             return true;
         }
@@ -471,6 +514,9 @@ namespace Quadrunner
             }
             if (!rebuildPaid)
             {
+                // An active manual bill gets first choice; a reserved wreck cannot be rebuilt by both paths.
+                if (Map.reservationManager.IsReserved(wreck) || ManualRebuildPending(recipe))
+                    return;
                 if (!CanCharge || !ConsumeRebuildMaterials(recipe))
                     return;
                 rebuildPaid = true;
@@ -485,6 +531,21 @@ namespace Quadrunner
                 rebuildProgress++;
             if (rebuildProgress >= work)
                 FinishRebuild(wreck);
+        }
+
+        private bool ManualRebuildPending(RecipeDef recipe)
+        {
+            foreach (Bill bill in BillStack.Bills)
+            {
+                if (bill.recipe != recipe || bill.suspended
+                    || bill is Bill_Production production && production.repeatMode == BillRepeatModeDefOf.RepeatCount
+                    && production.repeatCount <= 0)
+                    continue;
+                // A full roster scan is expensive. Until its next periodic check, conservatively give the bill priority.
+                if (!this.IsHashIntervalTick(250) || bill.ShouldDoNow() && HasFreeSlot)
+                    return true;
+            }
+            return false;
         }
 
         private void FinishRebuild(Corpse wreck)
@@ -637,6 +698,8 @@ namespace Quadrunner
             string power = CanCharge ? "" : "; paused: no power";
             if (!rebuildPaid)
             {
+                if (ManualRebuildPending(recipe))
+                    return $"Rebuilding {who}: waiting for an active colonist rebuild bill{power}";
                 List<Thing> stacks = DeliveryStacks();
                 string demand = string.Join(", ", MaterialIngredients(recipe).Select(i =>
                     $"{MaterialLabel(i)} {Available(recipe, i, stacks)}/{Required(i)}"));
@@ -648,10 +711,13 @@ namespace Quadrunner
                 + $"{RebuildDeliveryDescription}{power}";
         }
 
-        public ThingOwner GetDirectlyHeldThings() => docked;
+        public ThingOwner GetDirectlyHeldThings() => searchingBillIngredients ? recovered : docked;
 
         public void GetChildHolders(List<IThingHolder> outChildren)
         {
+            // Vanilla recursively searches a haul source: expose only wrecks, not docked dogs or their cargo.
+            if (searchingBillIngredients)
+                return;
             ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
             // Removal walks child holders; the wrecks must be reachable there like any other held content.
             if (recoveredHolder != null)
@@ -732,6 +798,9 @@ namespace Quadrunner
                 waypoints = waypoints ?? new List<IntVec3>();
                 if (recoveredHolder.Contents == null)
                     recoveredHolder.Contents = new ThingOwner<Corpse>(recoveredHolder);
+                // Older saves may already hold wrecks that retained vanilla's outside-Home forbid flag.
+                foreach (Corpse wreck in recovered.InnerListForReading)
+                    wreck.TrySetForbidden(false);
                 if (recovered.Count == 0)
                     ResetRebuild();
             }
