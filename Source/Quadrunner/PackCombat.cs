@@ -36,7 +36,7 @@ namespace Quadrunner
 
         /// <summary>The standing hostile this dog's local pack currently shares, if it still qualifies.</summary>
         public Pawn Target(Pawn dog) =>
-            dog != null && CanFight(dog) && targets.TryGetValue(dog, out Pawn target) && StandingEnemy(target) ? target : null;
+            dog != null && targets.TryGetValue(dog, out Pawn target) && CanFight(dog) && StandingEnemy(target) ? target : null;
 
         /// <summary>Whether the scheduler has given this dog a pack target this refresh.</summary>
         public bool Has(Pawn dog) => dog != null && targets.ContainsKey(dog);
@@ -105,7 +105,7 @@ namespace Quadrunner
                     continue;
                 float range = CombatTier.Of(leader)?.packRange ?? 0f;
                 float rangeSquared = range * range;
-                Pawn target = TargetFor(leader, rangeSquared);
+                Pawn target = TargetFor(leader);
                 if (target == null)
                     continue;
                 candidates.Clear();
@@ -155,59 +155,28 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// The leader keeps its current enemy while it stays valid, else takes the nearest reachable enemy that no
-        /// pack beyond its own coordination range is already fighting. Nearby leaders therefore share a focus target,
-        /// while distant packs pick their own local enemies instead of converging across the map.
+        /// Keep a valid focus target until it falls; otherwise take the closest reachable standing enemy.
+        /// Another pack's target is not reserved: independent distant groups may naturally choose the same nearest
+        /// enemy, but must never be pushed toward a farther enemy just because a different group fired first.
         /// </summary>
-        private Pawn TargetFor(Pawn leader, float rangeSquared)
+        private Pawn TargetFor(Pawn leader)
         {
             if (previousTargets.TryGetValue(leader, out Pawn previous) && enemySet.Contains(previous)
                 && leader.CanReach(previous, PathEndMode.Touch, Danger.Deadly))
                 return previous;
-            return NearestReachable(leader, rangeSquared);
-        }
-
-        private Pawn NearestReachable(Pawn leader, float rangeSquared)
-        {
-            Pawn best = null, fallback = null;
+            Pawn best = null;
             int bestDistance = int.MaxValue, bestId = int.MaxValue;
-            int fallbackDistance = int.MaxValue, fallbackId = int.MaxValue;
             foreach (Pawn enemy in enemies)
             {
-                if (!leader.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
-                    continue;
                 int distance = (enemy.Position - leader.Position).LengthHorizontalSquared;
-                if (ClaimedBeyond(leader, enemy, rangeSquared))
-                {
-                    if (distance > fallbackDistance || distance == fallbackDistance && enemy.thingIDNumber >= fallbackId)
-                        continue;
-                    fallback = enemy;
-                    fallbackDistance = distance;
-                    fallbackId = enemy.thingIDNumber;
-                    continue;
-                }
-                if (distance > bestDistance || distance == bestDistance && enemy.thingIDNumber >= bestId)
+                if (distance > bestDistance || distance == bestDistance && enemy.thingIDNumber >= bestId
+                    || !leader.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
                     continue;
                 best = enemy;
                 bestDistance = distance;
                 bestId = enemy.thingIDNumber;
             }
-            return best ?? fallback;
-        }
-
-        /// <summary>True when only dogs farther than the leader's pack range are already fighting this enemy.</summary>
-        private bool ClaimedBeyond(Pawn leader, Pawn enemy, float rangeSquared)
-        {
-            bool targeted = false;
-            foreach (KeyValuePair<Pawn, Pawn> pair in targets)
-            {
-                if (pair.Value != enemy)
-                    continue;
-                targeted = true;
-                if ((pair.Key.Position - leader.Position).LengthHorizontalSquared <= rangeSquared)
-                    return false;
-            }
-            return targeted;
+            return best;
         }
 
         /// <summary>

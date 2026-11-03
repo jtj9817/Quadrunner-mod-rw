@@ -23,9 +23,23 @@ namespace Quadrunner
             && (dog.CurJobDef == JobDefOf.AttackStatic || dog.CurJobDef == JobDefOf.AttackMelee)
             && dog.CurJob.targetA.Thing == target;
 
-        private static bool PairedProjectiles(Pawn dog, ThingDef gun) => Find.CurrentMap.listerThings
-            .ThingsInGroup(ThingRequestGroup.Projectile).OfType<Projectile>()
-            .Count(p => p.Launcher == dog && p.EquipmentDef == gun) >= 2;
+        private static bool PairedProjectiles(Pawn dog, ThingDef gun)
+        {
+            // Only count the opening flight window, shorter than the gap between burst shots. Two ordinary
+            // sequential rounds in the air must not masquerade as simultaneous paired fire.
+            VerbProperties verb = gun.Verbs[0];
+            float window = Math.Min(8, verb.ticksBetweenBurstShots - 2) * verb.defaultProjectile.projectile.SpeedTilesPerTick;
+            return Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Projectile).OfType<Projectile>()
+                .Count(p => p.Launcher == dog && p.EquipmentDef == gun
+                    && (p.ExactPosition - dog.DrawPos).MagnitudeHorizontalSquared() <= window * window) >= 2;
+        }
+
+        private static Pawn ArmedPackEnemy(Scenario s, IntVec3 at)
+        {
+            Pawn enemy = SpawnRaider(s, at);
+            enemy.equipment.AddEquipment(s.Track((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_AssaultRifle"))));
+            return enemy;
+        }
 
         private static void PackCleanup(Scenario s, CellRect pad)
         {
@@ -94,6 +108,25 @@ namespace Quadrunner
                     && (!Standing(enemies[3]) || PackAttacks(D(2), E(3)) || PackAttacks(D(3), E(3))))
                 .Expect("both enemy packs are defeated", () => enemies.All(id => !Standing(id)))
                 .Expect("downed survivors are captured through the existing single-carrier path", () => enemies.All(DealtWith))
+                .Do("two distant packs see the same closest enemy and a farther decoy", () =>
+                {
+                    foreach (string id in enemies)
+                        if (Scenario.ById(id) is Pawn enemy && !enemy.Destroyed) enemy.Destroy();
+                    for (int i = 0; i < dogs.Length; i++)
+                    {
+                        Pawn dog = D(i);
+                        Teleport(dog, new IntVec3(pad.minX + 5 + i / 2 * 40, 0, pad.minZ + 10 + i % 2 * 4));
+                        dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    }
+                    enemies[0] = SpawnRaider(s, new IntVec3(pad.minX + 25, 0, pad.minZ + 10)).ThingID;
+                    enemies[1] = SpawnRaider(s, new IntVec3(pad.minX + 69, 0, pad.minZ + 10)).ThingID;
+                    Raid.Recheck(Find.CurrentMap);
+                    Net().Tick(force: true);
+                })
+                .Expect("both independent packs choose their closest enemy, even when another pack targets it", () =>
+                    dogs.All(id => PackAttacks(Scenario.ById(id) as Pawn, E(0))))
+                .Expect("the shared closest enemy and the decoy fall", () => !Standing(enemies[0]) && !Standing(enemies[1]))
+                .Expect("survivors of the second fight are captured too", () => enemies.All(DealtWith))
                 .Do("a new enemy while one leader is drafted and the other reaches retreat battery", () =>
                 {
                     foreach (string id in enemies)
@@ -101,7 +134,7 @@ namespace Quadrunner
                     foreach (Pawn dog in dogs.Select(id => Scenario.ById(id) as Pawn))
                     {
                         if (!dog.Spawned) Stable().TryUndock(dog);
-                        dog.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
                     }
                     D(0).drafter.Drafted = true;
                     D(0).drafter.FireAtWill = false;
@@ -115,7 +148,7 @@ namespace Quadrunner
                 .Expect("the drafted leader keeps its order and the low-battery leader leaves the fight", () =>
                     D(0).Drafted && D(0).CurJobDef == JobDefOf.Wait_MaintainPosture
                     && !PackAttacks(D(2), E(0)) && (D(2).CurJobDef == QR_DefOf.QR_Dock || !D(2).Spawned))
-                .Summary(() => $"observed firing from {string.Join(",", fired)}; T3 {D(0)?.GetStatValue(StatDefOf.MoveSpeed):F2} c/s; local targets defeated; drafted order and retreat preserved")
+                .Summary(() => $"observed firing from {string.Join(",", fired)}; current T3 speed {D(0)?.GetStatValue(StatDefOf.MoveSpeed):F2} c/s; war {Net().War}")
                 .Start();
         }
 
@@ -127,16 +160,40 @@ namespace Quadrunner
             var rifled = new HashSet<string>();
             var shotgunned = new HashSet<string>();
             bool smokeShell = false, smoke = false;
+            int closeWaveAt = 0;
+            var firstShotDelays = new List<int>();
+            var allEnemyIds = new HashSet<string>();
             CellRect pad = default;
             IntVec3 start = IntVec3.Invalid;
             Pawn D(int i) => Scenario.ById(dogs[i]) as Pawn;
             Pawn E(int i) => Scenario.ById(enemies[i]) as Pawn;
+            Pawn EnemyAt(IntVec3 at)
+            {
+                Pawn enemy = ArmedPackEnemy(s, at);
+                allEnemyIds.Add(enemy.ThingID);
+                return enemy;
+            }
+            s.OnFinish(() =>
+            {
+                // A fixture's explicitly destroyed vanilla rifle must not leave a retained pawn's cooldown
+                // pointing at its unsaved verb. Keep vanilla world-pawn/history ownership intact.
+                foreach (Pawn enemy in PawnsFinder.AllMapsWorldAndTemporary_AliveOrDead
+                             .Where(p => allEnemyIds.Contains(p.ThingID)).ToList())
+                {
+                    enemy.stances?.CancelBusyStanceHard();
+                }
+            });
             bool Watch()
             {
                 foreach (Pawn dog in dogs.Select(id => Scenario.ById(id) as Pawn))
                 {
                     if (PairedProjectiles(dog, QR_DefOf.QR_Gun_DualChargeRifle)) rifled.Add(dog.ThingID);
-                    if (PairedProjectiles(dog, QR_DefOf.QR_Gun_DualChainShotgun)) shotgunned.Add(dog.ThingID);
+                    if (PairedProjectiles(dog, QR_DefOf.QR_Gun_DualChainShotgun) && shotgunned.Add(dog.ThingID))
+                    {
+                        Verb verb = dog.equipment.PrimaryEq.PrimaryVerb;
+                        int delay = verb.LastShotTick - closeWaveAt;
+                        firstShotDelays.Add(delay);
+                    }
                 }
                 smokeShell |= Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Projectile).OfType<Projectile>()
                     .Any(p => p.Launcher is Pawn dog && dogs.Contains(dog.ThingID) && p.EquipmentDef == QR_DefOf.QR_Gun_SmokeLauncher);
@@ -155,7 +212,8 @@ namespace Quadrunner
                     for (int i = 0; i < 2; i++)
                         dogs[i] = PackDog(s, stable, QR_DefOf.QR_CombatdogFour, start + new IntVec3(0, 0, i * 4)).ThingID;
                     for (int i = 0; i < 3; i++)
-                        enemies[i] = SpawnRaider(s, start + new IntVec3(26 + i, 0, i * 3)).ThingID;
+                        // The second T4 is closer to enemy 1: coordination must override its independent nearest choice.
+                        enemies[i] = EnemyAt(start + new IntVec3(26, 0, i * 6)).ThingID;
                     float baseSpeed = QR_DefOf.QR_Combatdog.race.GetStatValueAbstract(StatDefOf.MoveSpeed);
                     if (Math.Abs(D(0).GetStatValue(StatDefOf.MoveSpeed) - baseSpeed * 1.75f * 2f) > 0.01f)
                         throw new InvalidOperationException("T4 speed has an incorrect chassis multiplier or a leftover minigun penalty");
@@ -171,7 +229,11 @@ namespace Quadrunner
                 .Do("replace the defeated/distant wave with three enemies 17–19 cells out", () =>
                 {
                     foreach (string id in enemies)
-                        if (Scenario.ById(id) is Pawn enemy && !enemy.Destroyed) enemy.Destroy();
+                        if (Scenario.ById(id) is Pawn enemy && !enemy.Destroyed)
+                        {
+                            enemy.stances.CancelBusyStanceHard();
+                            enemy.Destroy();
+                        }
                     for (int i = 0; i < 2; i++)
                     {
                         Teleport(D(i), start + new IntVec3(0, 0, i * 4));
@@ -179,7 +241,8 @@ namespace Quadrunner
                         D(i).stances.CancelBusyStanceHard();
                     }
                     for (int i = 0; i < 3; i++)
-                        enemies[i] = SpawnRaider(s, start + new IntVec3(17 + i, 0, i * 3)).ThingID;
+                        enemies[i] = EnemyAt(start + new IntVec3(17 + i, 0, i * 3)).ThingID;
+                    closeWaveAt = Find.TickManager.TicksGame;
                     Raid.Recheck(Find.CurrentMap);
                     Net().Tick(force: true);
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
@@ -201,7 +264,7 @@ namespace Quadrunner
                 })
                 .Expect("no guns drop and no stance refers to a removed weapon", () => LooseGuns() == 0
                     && dogs.All(id => Scenario.ById(id) is Pawn dog && dog.Downed && !StaleStance(dog)))
-                .Summary(() => $"paired rifles {rifled.Count}/2; paired extended shotguns {shotgunned.Count}/2; smoke shell {smokeShell}, cloud {smoke}; enemies {string.Join("; ", enemies.Select(Fate))}; loose guns {LooseGuns()}")
+                .Summary(() => $"paired rifles {rifled.Count}/2; paired extended shotguns {shotgunned.Count}/2; first paired shotgun delays {string.Join("/", firstShotDelays)} ticks; smoke shell {smokeShell}, cloud {smoke}; enemies {string.Join("; ", enemies.Select(Fate))}; loose guns {LooseGuns()}")
                 .Start();
         }
     }

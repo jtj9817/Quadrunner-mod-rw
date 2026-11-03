@@ -136,8 +136,6 @@ namespace Quadrunner
         public IReadOnlyList<NetworkTask> NormalQueue => State.normal;
         public IReadOnlyList<NetworkTask> WarQueue => State.war;
         public IReadOnlyList<Pawn> Dogs => dogs;
-        /// <summary>Read-only observation: the standing hostile this dog's local T3/T4 pack shares, if any.</summary>
-        public Pawn PackTarget(Pawn dog) => packs.Target(dog);
         private static RobodogWork Tuning => QR_DefOf.QR_Quadrunner.race.GetModExtension<RobodogWork>();
         private static int Now => Find.TickManager.TicksGame;
 
@@ -474,8 +472,10 @@ namespace Quadrunner
                 bool hasCombat = false, hasRescueWork = false;
                 foreach (NetworkTask task in State.war)
                 {
-                    if (task.kind == NetworkTaskKind.Combat) hasCombat = true;
-                    else if (task.assigneeId == null && Now >= task.retryAt) hasRescueWork = true;
+                    if (task.kind == NetworkTaskKind.Combat && task.assigneeId == null && Now >= task.retryAt)
+                        hasCombat = true;
+                    else if (task.kind != NetworkTaskKind.Combat && task.assigneeId == null && Now >= task.retryAt)
+                        hasRescueWork = true;
                 }
                 // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
                 bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover
@@ -783,6 +783,12 @@ namespace Quadrunner
                 Job shared = Combat.JobFor(dog, packTarget);
                 if (shared != null)
                 {
+                    if (dog.CurJob?.targetA.Thing == packTarget && shared.def == dog.CurJobDef
+                        && dog.jobs.curDriver != null && dog.jobs.curDriver.IsContinuation(shared))
+                    {
+                        JobMaker.ReturnToPool(shared);
+                        return dog.CurJob;
+                    }
                     packs.Ordered(dog, shared);
                     return shared;
                 }

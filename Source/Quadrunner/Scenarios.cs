@@ -122,7 +122,8 @@ namespace Quadrunner
         {
             string[] parts = (filter ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToArray();
             Scenario.RunAll(All.Where(s => (testSaveLoad || (s.setUp != SaveAndReload && s.setUp != SurveyLegacySave
-                && s.setUp != MedirunnerLegacyMigration && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
+                && s.setUp != MedirunnerLegacyMigration && s.setUp != CombatTierLegacyMigration
+                && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
                 parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))), testSaveLoad, done);
         }
 

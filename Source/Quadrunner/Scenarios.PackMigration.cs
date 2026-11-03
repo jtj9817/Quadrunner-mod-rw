@@ -172,6 +172,7 @@ namespace Quadrunner
                         if (shot.Launcher == Dog(1) || shot.Launcher == Dog(5)) fired.Add(((Pawn)shot.Launcher).ThingID);
                     return fired.Count == 2;
                 })
+                .SaveAndReload(always: true)
                 .Do("finish the migrated pack's fight", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Ultrafast)
                 .Expect("all three enemies are defeated by the migrated pack", () => enemies.All(id => !Standing(id)))
                 .Summary(() => $"migration cohort 8 dogs; observed firing {fired.Count}/2; enemies {string.Join("; ", enemies.Select(Fate))}")
