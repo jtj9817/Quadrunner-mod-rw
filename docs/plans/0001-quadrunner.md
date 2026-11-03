@@ -5,6 +5,8 @@ Target game: RimWorld **1.6.4871**, Core only (no DLC), Harmony the only depende
 
 **Dispatch superseded:** [Plan 0003](0003-network-dispatch.md) replaces this plan's stable-local work searches, service radius, idle return, target-queue ownership and finish-before-standby raid behavior. The decisions and checked T3/T7 boxes below retain their historical verification context; they are not the current dispatch specification.
 
+**Combat tiers superseded:** [Plan 0009](0009-combat-packs.md) replaces Tier 3/4 movement, adds local mixed-tier focus fire and replaces Tier 4's selectable minigun/rifle/LMG with a fixed paired arsenal plus smoke. Historical tier decisions and completed T8 evidence below remain unchanged.
+
 ## Goal
 
 Stable-dispatched robot dogs for vanilla RimWorld 1.6: **Quadrunners** haul, clean, supply construction and carry riders; **Medirunners** rescue the downed; **Combatdogs** (tiers 1–4) answer pings and raids. Dogs charge at conduits or their stable, power down instead of dying when empty, and are carried home. Every behavior is proven by an automated scenario the agent runs itself, with zero new errors and a clean save/load partway through.

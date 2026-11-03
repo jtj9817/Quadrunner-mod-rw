@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in DualChargeRifle module: two complete charge rifles on one mount, barrels aiming right. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M16 51H25V71H16Z" fill="#425c6b"/>
+    <path d="M22 46 31 39H66L75 45V55H30L22 51Z" fill="#8da6b0"/>
+    <path d="M38 55V61H55V56" fill="#425c6b"/>
+    <path d="M75 46H105V53H75Z" fill="#536e7b"/>
+    <path d="M101 44H110V55H101Z" fill="#afc3c7"/>
+    <path d="M31 46H60" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 51H48" stroke="#3b5360" stroke-width="3"/>
+    <path d="M22 70 31 63H66L75 69V79H30L22 75Z" fill="#8da6b0"/>
+    <path d="M38 79V85H55V80" fill="#425c6b"/>
+    <path d="M75 70H105V77H75Z" fill="#536e7b"/>
+    <path d="M101 68H110V79H101Z" fill="#afc3c7"/>
+    <path d="M31 70H60" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 75H48" stroke="#3b5360" stroke-width="3"/>
+  </g>
+</svg>

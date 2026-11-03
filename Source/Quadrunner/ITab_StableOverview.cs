@@ -95,7 +95,9 @@ namespace Quadrunner
         {
             float weaponsX = cells.x + ColumnWidths.Take(ColumnWidths.Length - 1).Sum();
             Rect weapons = new Rect(weaponsX, cells.y, cells.xMax - weaponsX, cells.height).ContractedBy(2f);
-            if (tier.SlotCount > 0 && Widgets.ButtonText(weapons, description))
+            if (tier.FixedLoadout)
+                Widgets.Label(weapons, description.Truncate(weapons.width));
+            else if (tier.SlotCount > 0 && Widgets.ButtonText(weapons, description))
             {
                 var options = new List<FloatMenuOption>();
                 for (int slot = 0; slot < tier.SlotCount; slot++)
@@ -112,6 +114,8 @@ namespace Quadrunner
                 string tip = description + "\n\n" + Tiers.Gun(dog, 0).description;
                 if (tier.SlotCount > 1)
                     tip += "\n\n" + Tiers.Gun(dog, 1).description;
+                if (tier.smokeGun != null)
+                    tip += "\n\n" + tier.smokeGun.description;
                 TooltipHandler.TipRegion(weapons, tip);
             }
             if (tier.upgrade == null)

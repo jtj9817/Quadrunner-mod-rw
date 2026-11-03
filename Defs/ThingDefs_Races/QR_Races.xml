@@ -160,7 +160,8 @@
   </ThingDef>
 
   <!-- Combatdogs: four tiers, each its own model (design). Every one is built at Tier 1 and upgraded from the stable's
-       Overview tab; CombatTier names the next tier, its upgrade bill and what can fill each weapon slot. -->
+       Overview tab; CombatTier names the next tier, its upgrade bill and what can fill each weapon slot. Tiers 3 and 4
+       also lead nearby mixed-tier packs; Tier 4 is fixed to its paired arsenal, smoke included (user, 2026-11-03). -->
   <ThingDef ParentName="QR_RobodogBase" Name="QR_CombatdogBase" Abstract="True">
     <label>Combatdog</label>
     <!-- Claws, cut and scratch (design); about a warg's claws. -->
@@ -263,9 +264,10 @@
 
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_CombatdogThree</defName>
-    <description>Designed for settlements expecting their security problems to survive the first burst. Hearthline's heavier armor protects the chassis while a secondary incendiary mount handles close approaches. The operator's manual recommends establishing the perimeter somewhere you do not particularly like.\n\nA Tier 3 guard robot with heavy armor and two weapon slots: an assault rifle or LMG, plus a flamethrower that it switches to at close range. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
+    <description>Designed for settlements expecting their security problems to survive the first burst. Hearthline's heavier armor protects the chassis while a secondary incendiary mount handles close approaches. The operator's manual recommends establishing the perimeter somewhere you do not particularly like.\n\nA Tier 3 guard robot with heavy armor, half again the chassis's walking speed, and two weapon slots: an assault rifle or LMG, plus a flamethrower that it switches to at close range. It leads a nearby mixed-tier Combatdog pack within 15 cells, focusing the closest enemy. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>2400</MarketValue>
+      <MoveSpeed>7.2</MoveSpeed>
       <ArmorRating_Sharp>0.7</ArmorRating_Sharp>
       <ArmorRating_Blunt>0.4</ArmorRating_Blunt>
     </statBases>
@@ -277,6 +279,7 @@
         <tier>3</tier>
         <next>QR_CombatdogFour</next>
         <upgrade>QR_UpgradeCombatdogFour</upgrade>
+        <packRange>15</packRange>
         <slot1>
           <li>QR_Gun_AssaultRifle</li>
           <li>QR_Gun_LMG</li>
@@ -290,9 +293,10 @@
 
   <ThingDef ParentName="QR_CombatdogBase">
     <defName>QR_CombatdogFour</defName>
-    <description>Hearthline's heaviest settlement-security chassis carries enough armor and firepower to make its canine ancestry seem like a branding decision. The minigun configuration trades some mobility for sustained fire. Unlike earlier models, its brochure makes no attempt to call it a deterrent.\n\nA Tier 4 guard robot with extreme armor and one gun slot: minigun, assault rifle or LMG. The minigun slows it slightly; this tier has no secondary flamethrower. It deploys for raids, attacks on robodogs or player orders, runs at double speed while deployed, and carries downed enemies to prisoner beds. It does no utility work.</description>
+    <description>Hearthline's heaviest settlement-security chassis carries enough armor and firepower to make its canine ancestry seem like a branding decision. Its fixed twin-mount arsenal pairs charge rifles for reach, pairs extended-range chain shotguns for close work, and launches smoke without asking. Unlike earlier models, its brochure makes no attempt to call it a deterrent.\n\nA Tier 4 guard robot with extreme armor and a fixed arsenal: two charge rifles firing together at range, two longer-ranged, more accurate chain shotguns firing together up close, and an automatic smoke launcher that fires during combat without interrupting the guns. It moves at 1.75 times the chassis's walking speed, leads a nearby mixed-tier Combatdog pack within 15 cells to focus the closest enemy, and runs at double speed while deployed. It deploys for raids, attacks on robodogs or player orders, and carries downed enemies to prisoner beds. It does no utility work.</description>
     <statBases>
       <MarketValue>3600</MarketValue>
+      <MoveSpeed>8.4</MoveSpeed>
       <ArmorRating_Sharp>1.0</ArmorRating_Sharp>
       <ArmorRating_Blunt>0.6</ArmorRating_Blunt>
     </statBases>
@@ -300,13 +304,20 @@
       <baseHealthScale>2.5</baseHealthScale>
     </race>
     <modExtensions>
+      <!-- No selectable loadout: paired charge rifles, paired chain shotguns and automatic smoke (user, 2026-11-03).
+           Old T4 gun picks are migrated by the parent implementation; the legacy minigun def stays only so old saves and
+           battle-history IDs load. -->
       <li Class="Quadrunner.CombatTier">
         <tier>4</tier>
+        <packRange>15</packRange>
+        <smokeGun>QR_Gun_SmokeLauncher</smokeGun>
+        <smokeInterval>900</smokeInterval>
         <slot1>
-          <li>QR_Gun_Minigun</li>
-          <li>QR_Gun_AssaultRifle</li>
-          <li>QR_Gun_LMG</li>
+          <li>QR_Gun_DualChargeRifle</li>
         </slot1>
+        <slot2>
+          <li>QR_Gun_DualChainShotgun</li>
+        </slot2>
       </li>
     </modExtensions>
   </ThingDef>

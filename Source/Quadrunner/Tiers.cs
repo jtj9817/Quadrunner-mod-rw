@@ -16,6 +16,11 @@ namespace Quadrunner
         public RecipeDef upgrade;
         public List<ThingDef> slot1 = new List<ThingDef>();
         public List<ThingDef> slot2 = new List<ThingDef>();
+        public float packRange;
+        public ThingDef smokeGun;
+        public int smokeInterval = 900;
+
+        public bool FixedLoadout => smokeGun != null;
 
         public static CombatTier Of(Thing thing) => thing?.def.GetModExtension<CombatTier>();
 
@@ -25,9 +30,9 @@ namespace Quadrunner
     }
 
     /// <summary>
-    /// Combatdog weapons: built-in guns (never dropped: they are destroyed if anything drops them, and the dog is armed
-    /// again before its next attack), one held at a time. Tier 3 holds its second slot's flamethrower while the target is
-    /// within its range and its first slot's gun otherwise (user, 2026-10-20).
+    /// Built-in damaging mounts switch by range: the secondary within its range, otherwise the primary.
+    /// T2/T3 retain selectable guns; T4 has fixed paired mounts and a separately equipped smoke launcher.
+    /// All built-in weapons are destroyed on drop, never loot.
     /// </summary>
     public static class Tiers
     {
@@ -44,12 +49,14 @@ namespace Quadrunner
             if (choices.NullOrEmpty())
                 return null;
             ThingDef picked = CompRobodog.Of(dog)?.PickedGun(slot);
-            return picked != null && choices.Contains(picked) ? picked : choices[0];
+            return !tier.FixedLoadout && picked != null && choices.Contains(picked) ? picked : choices[0];
         }
 
         /// <summary>From the Overview tab: <paramref name="gun"/> fills <paramref name="slot"/> from now on.</summary>
         public static void PickGun(Pawn dog, int slot, ThingDef gun)
         {
+            if (CombatTier.Of(dog)?.FixedLoadout == true)
+                return;
             CompRobodog.Of(dog).PickGun(slot, gun);
             QR.Log($"{dog}: slot {slot + 1} set to {gun.defName}");
             Arm(dog, Gun(dog, 0));
@@ -73,10 +80,64 @@ namespace Quadrunner
             ThingWithComps held = dog.equipment.Primary;
             if (held?.def == gun)
                 return;
+            EnsureSmoke(dog);
             if (held != null)
                 dog.equipment.DestroyEquipment(held);
             if (gun != null)
                 dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(gun));
+        }
+
+        /// <summary>The supplemental launcher is real, saved equipment, but never the primary attack verb.</summary>
+        private static void EnsureSmoke(Pawn dog)
+        {
+            ThingDef smoke = CombatTier.Of(dog)?.smokeGun;
+            if (smoke == null)
+                return;
+            foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading)
+                if (weapon.def == smoke)
+                    return;
+            dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(smoke));
+        }
+
+        /// <summary>In-place load migration, including docked, carried and world pawns; no pawn is replaced.</summary>
+        public static void MigrateLoadout(Pawn dog)
+        {
+            CombatTier tier = CombatTier.Of(dog);
+            if (tier?.FixedLoadout != true || dog.Dead)
+                return;
+            CompRobodog.Of(dog).PickGun(0, null);
+            CompRobodog.Of(dog).PickGun(1, null);
+            ThingDef held = dog.equipment?.Primary?.def;
+            // Modern saves retain their exact equipment and in-flight verb/stance state.
+            if (held != Gun(dog, 0) && held != Gun(dog, 1))
+                Arm(dog, Gun(dog, 0));
+            else
+                EnsureSmoke(dog);
+        }
+
+        /// <summary>Independent smoke fire never takes the damaging gun's warmup, cooldown or job.</summary>
+        public static void TickArsenal(Pawn dog, ref int nextSmokeAt)
+        {
+            CombatTier tier = CombatTier.Of(dog);
+            if (tier?.smokeGun == null || !dog.Spawned || dog.Dead || dog.Downed
+                || CompRobodog.Of(dog).WantsCharge
+                || dog.CurJobDef != JobDefOf.AttackStatic
+                || !(dog.CurJob.targetA.Thing is Pawn target) || target.Dead || target.Downed
+                || !target.HostileTo(dog))
+                return;
+            // Range switching also applies to a player's drafted ranged order, not only network-created jobs.
+            Arm(dog, GunFor(dog, target));
+            if (Find.TickManager.TicksGame < nextSmokeAt)
+                return;
+            foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading)
+            {
+                if (weapon.def != tier.smokeGun)
+                    continue;
+                Verb verb = weapon.TryGetComp<CompEquippable>().AllVerbs[0];
+                if (verb.Available() && verb.TryStartCastOn(target, nonInterruptingSelfCast: true))
+                    nextSmokeAt = Find.TickManager.TicksGame + tier.smokeInterval;
+                return;
+            }
         }
 
         /// <summary>For the Overview tab and summaries: what fills each slot, or "claws".</summary>
@@ -85,7 +146,21 @@ namespace Quadrunner
             CombatTier tier = CombatTier.Of(dog);
             if (tier == null || tier.SlotCount == 0)
                 return "claws";
-            return string.Join(" + ", Enumerable.Range(0, tier.SlotCount).Select(i => Gun(dog, i).label.Replace("built-in ", "")));
+            string guns = string.Join(" + ", Enumerable.Range(0, tier.SlotCount).Select(i => Gun(dog, i).label.Replace("built-in ", "")));
+            return tier.smokeGun == null ? guns : guns + " + smoke launcher";
+        }
+    }
+
+    /// <summary>Each barrel gets a full vanilla accuracy/cover roll and launches a real projectile on the same tick.</summary>
+    public class Verb_PairedShoot : Verb_Shoot
+    {
+        protected override bool TryCastShot()
+        {
+            if (currentTarget.Thing is Pawn target && (target.Dead || target.Downed))
+                return false;
+            bool left = base.TryCastShot();
+            bool right = left && base.TryCastShot();
+            return left || right;
         }
     }
 

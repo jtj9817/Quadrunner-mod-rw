@@ -382,7 +382,6 @@ namespace Quadrunner
                     Pawn dog = s.Track(stable.AddNewDog(QR_DefOf.QR_CombatdogFour));
                     secondDogId = dog.ThingID;
                     secondName = dog.Name.ToStringShort;
-                    CompRobodog.Of(dog).PickGun(0, QR_DefOf.QR_Gun_LMG);
                     stable.TryUndock(dog);
                     dog.Kill(null);
                     if (!stable.AcceptWreck(dog.Corpse))
@@ -402,13 +401,13 @@ namespace Quadrunner
                         throw new InvalidOperationException("couldn't place the minified stable");
                     miniId = s.Track(mini).ThingID;
                 })
-                .Expect("the packed stable keeps no wreck, and the released corpse retains tier and gun pick", () =>
+                .Expect("the packed stable keeps no wreck, and the released corpse retains its Tier 4 arsenal", () =>
                     Scenario.ById(miniId) is MinifiedThing mini
                     && ((Building_Stable)mini.InnerThing).RecoveredWrecks.Count == 0
                     && AutoRebuildCorpseOf(secondDogId) is Corpse c && c.Spawned
                     && c.InnerPawn.Name.ToStringShort == secondName
                     && c.InnerPawn.kindDef == QR_DefOf.QR_CombatdogFour
-                    && CompRobodog.Of(c.InnerPawn).PickedGun(0) == QR_DefOf.QR_Gun_LMG)
+                    && Tiers.Gun(c.InnerPawn, 0) == QR_DefOf.QR_Gun_DualChargeRifle)
                 .Do("track the second released corpse", () => s.Track(AutoRebuildCorpseOf(secondDogId)))
                 .SaveAndReload()
                 .Expect("both released wrecks survive the reload; the packed stable is still empty", () =>

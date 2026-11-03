@@ -113,11 +113,11 @@ namespace Quadrunner
                 });
             }
             foreach (ThingDef gun in new[] { QR_DefOf.QR_Gun_AssaultRifle, QR_DefOf.QR_Gun_LMG,
-                QR_DefOf.QR_Gun_Flamethrower, QR_DefOf.QR_Gun_Minigun })
+                QR_DefOf.QR_Gun_Flamethrower, QR_DefOf.QR_Gun_DualChargeRifle, QR_DefOf.QR_Gun_DualChainShotgun })
             {
                 CaptureArtwork(s, "art-mounted-" + gun.defName, () =>
                 {
-                    Pawn dog = Dog(4);
+                    Pawn dog = Dog(gun == QR_DefOf.QR_Gun_DualChargeRifle || gun == QR_DefOf.QR_Gun_DualChainShotgun ? 5 : 4);
                     Tiers.Arm(dog, gun);
                     dog.Rotation = Rot4.East;
                     dog.drafter.Drafted = true;
@@ -144,7 +144,8 @@ namespace Quadrunner
             foreach (ThingDef def in new[] { QR_DefOf.QR_Stable, QR_DefOf.QR_Quadrunner.race, QR_DefOf.QR_Medirunner.race,
                 QR_DefOf.QR_Combatdog.race, QR_DefOf.QR_CombatdogTwo.race, QR_DefOf.QR_CombatdogThree.race,
                 QR_DefOf.QR_CombatdogFour.race, QR_DefOf.QR_RobodogBattery, QR_DefOf.QR_RobodogRepairKit,
-                QR_DefOf.QR_Gun_AssaultRifle, QR_DefOf.QR_Gun_LMG, QR_DefOf.QR_Gun_Flamethrower, QR_DefOf.QR_Gun_Minigun,
+                QR_DefOf.QR_Gun_AssaultRifle, QR_DefOf.QR_Gun_LMG, QR_DefOf.QR_Gun_Flamethrower,
+                QR_DefOf.QR_Gun_DualChargeRifle, QR_DefOf.QR_Gun_DualChainShotgun, QR_DefOf.QR_Gun_SmokeLauncher,
                 DefDatabase<ThingDef>.GetNamed("QR_Bullet_Flame") })
                 CaptureArtwork(s, "art-lore-" + def.defName, () =>
                 {
@@ -172,7 +173,7 @@ namespace Quadrunner
                 CaptureArtwork(s, $"art-lore-dog-{i}-hover", OpenOverview, delaySeconds: 2f);
             CaptureArtwork(s, "art-lore-fitted-weapons-hover", OpenOverview, delaySeconds: 2f);
             CaptureArtwork(s, "art-lore-weapon-choice-hover", OpenOverview, delaySeconds: 2f);
-            CaptureArtwork(s, "art-lore-minigun-choice-hover", OpenOverview, delaySeconds: 2f);
+            CaptureArtwork(s, "art-lore-t4-arsenal-hover", OpenOverview, delaySeconds: 2f);
             CaptureArtwork(s, "art-lore-upgrade-hover", OpenOverview, delaySeconds: 2f);
             s.Do("close weapon choices", CloseWeaponMenu);
             Dialog_ModSettings settings = null;

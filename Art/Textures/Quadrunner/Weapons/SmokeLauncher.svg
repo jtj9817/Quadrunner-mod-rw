@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in SmokeLauncher module: one wide-bore launcher with its own smoke shell canister, barrel aiming right. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M21 55 31 47H69L78 54V72H30L21 66Z" fill="#8da6b0"/>
+    <path d="M40 70V82H61V71" fill="#425c6b"/>
+    <path d="M44 34H62V47H44Z" fill="#6c7f8a"/>
+    <path d="M44 40H62V45H44Z" fill="#afc3c7"/>
+    <path d="M58 47V52H64V47" fill="#536e7b"/>
+    <path d="M70 50H98V76H70Z" fill="#536e7b"/>
+    <path d="M96 44 112 48V78L96 82Z" fill="#afc3c7"/>
+    <path d="M31 55H62" stroke="#68dbdc" stroke-width="3"/>
+    <path d="M31 62H48" stroke="#3b5360" stroke-width="3"/>
+    <path d="M78 56H92 M78 63H92 M78 70H92" stroke="#b3c9cc" stroke-width="3"/>
+  </g>
+</svg>

@@ -106,13 +106,14 @@ namespace Quadrunner
         private readonly List<NetworkTask> ordered = new List<NetworkTask>();
         private readonly List<string> goneReports = new List<string>();
         private readonly Comparison<NetworkTask> taskComparison;
+        private readonly PackCombat packs;
         private List<(int id, int firstTick)> pathAreas;
         private NetworkState state;
         private Thing coordinator;
         private int nextTick, nextScan;
         private bool ticking;
 
-        private DogNetwork(Map map) { Map = map; Survey = new Survey(this); taskComparison = CompareTasks; }
+        private DogNetwork(Map map) { Map = map; Survey = new Survey(this); taskComparison = CompareTasks; packs = new PackCombat(this); }
         public Map Map { get; }
         public Survey Survey { get; }
         public Thing Coordinator { get { _ = State; return coordinator; } }
@@ -135,6 +136,8 @@ namespace Quadrunner
         public IReadOnlyList<NetworkTask> NormalQueue => State.normal;
         public IReadOnlyList<NetworkTask> WarQueue => State.war;
         public IReadOnlyList<Pawn> Dogs => dogs;
+        /// <summary>Read-only observation: the standing hostile this dog's local T3/T4 pack shares, if any.</summary>
+        public Pawn PackTarget(Pawn dog) => packs.Target(dog);
         private static RobodogWork Tuning => QR_DefOf.QR_Quadrunner.race.GetModExtension<RobodogWork>();
         private static int Now => Find.TickManager.TicksGame;
 
@@ -486,6 +489,10 @@ namespace Quadrunner
                         || (work.combat && (War || hasCombat));
                     if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
                 }
+                // Packs re-form after new reports and undock decisions, before one-assignee assignment: members are
+                // then unavailable to ordinary tasks, while a keeper left out for a just-downed target can still take
+                // its normal capture order.
+                packs.Refresh();
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
                 if (AssignAll(ordered, hasPatient) && !War)
@@ -496,7 +503,7 @@ namespace Quadrunner
                 }
                 foreach (Pawn dog in dogs)
                 {
-                    if (!Active(dog) || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID)) continue;
+                    if (!Active(dog) || !IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || packs.Has(dog)) continue;
                     Job idle = IdleJob(dog);
                     if (idle != null && idle != dog.CurJob) dog.jobs.StartJob(idle, JobCondition.InterruptForced);
                 }
@@ -519,7 +526,16 @@ namespace Quadrunner
                 }
             }
             int kind = Rank(a.kind).CompareTo(Rank(b.kind));
-            return kind != 0 ? kind : a.id.CompareTo(b.id);
+            if (kind != 0) return kind;
+            // A downed enemy is one ordinary capture trip, not a focus-fire target: dispatch it before standing fights
+            // so a pack's keeper can take the capture while the rest of the pack moves on.
+            if (a.kind == NetworkTaskKind.Combat && b.kind == NetworkTaskKind.Combat)
+            {
+                bool x = a.Target(Map) is Pawn left && left.Downed;
+                bool y = b.Target(Map) is Pawn right && right.Downed;
+                if (x != y) return x ? -1 : 1;
+            }
+            return a.id.CompareTo(b.id);
         }
 
         /// <summary>Casualty recovery outranks every ordinary kind once the war is over; war work keeps its own order.</summary>
@@ -689,6 +705,19 @@ namespace Quadrunner
             return DogWork.JobFor(dog, task);
         }
 
+        /// <summary>
+        /// A pack refresh takes over a dog's attack. Free its saved combat order (never a noncombat order) so the
+        /// one-assignee queue can reuse it this same refresh without a stale assignee blocking the dog; a downed
+        /// combat target then becomes an ordinary capture order again.
+        /// </summary>
+        internal void ReleaseForPack(Pawn dog)
+        {
+            if (dog == null || !assignments.TryGetValue(dog.ThingID, out NetworkTask task)) return;
+            if (task.kind != NetworkTaskKind.Combat) return;
+            Reset(task);
+            assignments.Remove(dog.ThingID);
+        }
+
         private bool AssignAll(List<NetworkTask> tasks, bool hasPatient)
         {
             foreach (NetworkTask task in tasks)
@@ -701,7 +730,7 @@ namespace Quadrunner
                 bool deferred = false, docked = false;
                 foreach (Pawn dog in dogs)
                 {
-                    if (!IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || !Capable(dog, task, hasPatient)) continue;
+                    if (!IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || packs.Has(dog) || !Capable(dog, task, hasPatient)) continue;
                     if (!dog.Spawned) { docked = true; continue; }
                     if (!PathInputsReady(dog)) { deferred = true; continue; }
                     Job candidate = JobFor(dog, task, Map);
@@ -747,6 +776,17 @@ namespace Quadrunner
         public Job TakeOrder(Pawn dog)
         {
             if (!Active(dog) || CompRobodog.Of(dog).WantsCharge || dog.Drafted) return null;
+            // A pack target is a standing enemy only: downed targets fall through to the ordinary capture order.
+            Pawn packTarget = packs.Target(dog);
+            if (packTarget != null && dog.CurJob?.playerForced != true && PathInputsReady(dog))
+            {
+                Job shared = Combat.JobFor(dog, packTarget);
+                if (shared != null)
+                {
+                    packs.Ordered(dog, shared);
+                    return shared;
+                }
+            }
             if (assignments.TryGetValue(dog.ThingID, out NetworkTask task))
             {
                 // Ranged orders (fighting, foaming a fire) walk into range, then fire: the next leg is built here.

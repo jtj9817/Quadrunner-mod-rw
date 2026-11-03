@@ -4,6 +4,7 @@
 > <https://claude.ai/artifact/HaFBXDTNRNVzWa79Hnd9K5>. Author: Josh Toledo. The two diagrams are redrawn here as
 > Mermaid. If the online doc changes, refresh this file and note the new rev. Decisions taken during
 > development are recorded in [`plans/0001-quadrunner.md`](plans/0001-quadrunner.md); dispatch and queue behavior is superseded by [`plans/0003-network-dispatch.md`](plans/0003-network-dispatch.md).
+> Combatdog Tier 3/4 movement, local pack coordination and Tier 4 weapons are superseded by [`plans/0009-combat-packs.md`](plans/0009-combat-packs.md); the original tier table below is historical.
 
 ## Overview and locked-in decisions
 

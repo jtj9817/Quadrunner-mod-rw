@@ -231,7 +231,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogFour</defName>
     <label>upgrade Combatdog to Tier 4</label>
-    <description>The Hearthline conversion whose brochure stopped calling it a deterrent.\n\nUpgrade a docked Combatdog to Tier 4: extreme armor and a single gun slot supporting a minigun, assault rifle or LMG. The secondary flamethrower is removed. It keeps its name.</description>
+    <description>The Hearthline conversion whose brochure stopped calling it a deterrent.\n\nUpgrade a docked Combatdog to Tier 4: extreme armor, a fixed paired arsenal of two charge rifles and two longer-ranged chain shotguns that fire together, and an automatic smoke launcher. Its previous selectable gun and close-range secondary are replaced. It keeps its name.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>5000</workAmount>
     <ingredients>

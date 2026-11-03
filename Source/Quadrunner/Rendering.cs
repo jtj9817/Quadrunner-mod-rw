@@ -43,8 +43,31 @@ namespace Quadrunner
                 if (verb?.AimAngleOverride is float aim) angle = aim;
             }
             Vector3 position = parms.matrix.Position() + pose.offset + OffsetFor(node, parms, out _);
-            // Core still handles the gun's material, facing, recoil and mesh. The XML tree owns mount offsets/layers.
-            PawnRenderUtility.DrawEquipmentAiming(gun, position, angle);
+            if (CombatTier.Of(dog)?.FixedLoadout == true)
+            {
+                // Both paired mounts stay fitted while range chooses which one fires. The compact aft launcher
+                // fires independently, so smoke never replaces a damaging mount or its recoil.
+                Vector3 lateral = new Vector3(0.24f, 0f, 0f).RotatedBy(angle);
+                DrawMount(Tiers.Gun(dog, 0), gun, position - lateral, angle);
+                DrawMount(Tiers.Gun(dog, 1), gun, position + lateral, angle);
+                DrawMount(CombatTier.Of(dog).smokeGun, null,
+                    position + new Vector3(0f, 0.015f, -0.3f).RotatedBy(angle), angle);
+            }
+            else
+                PawnRenderUtility.DrawEquipmentAiming(gun, position, angle);
+        }
+
+        private static void DrawMount(ThingDef def, ThingWithComps active, Vector3 at, float angle)
+        {
+            if (active?.def == def)
+            {
+                PawnRenderUtility.DrawEquipmentAiming(active, at, angle);
+                return;
+            }
+            Graphic graphic = def.graphic;
+            Graphics.DrawMesh(MeshPool.plane10,
+                Matrix4x4.TRS(at, Quaternion.AngleAxis(angle - 90f, Vector3.up),
+                    new Vector3(graphic.drawSize.x, 0f, graphic.drawSize.y)), graphic.MatSingle, 0);
         }
     }
 

@@ -94,7 +94,9 @@ namespace Quadrunner
             ("Low-battery retreat", LowBatteryRetreat),
             ("Drafted priority target", DraftedPriorityTarget),
             ("Tier upgrade", TierUpgrade),
-            ("Tier 3 and 4 weapons", Tier3And4Weapons),
+            ("Tier 3 pack combat", Tier3PackCombat),
+            ("Tier 4 pack arsenal", Tier4PackArsenal),
+            ("Combat tier legacy migration", CombatTierLegacyMigration),
             ("Combatdog endurance", CombatdogEndurance),
             ("Artwork showcase", ArtworkShowcase),
             ("Stable dock indicators", StableDockIndicators),
@@ -105,7 +107,9 @@ namespace Quadrunner
                 new DemoRound(QR_DefOf.QR_Gun_LMG, 1, 11f, 14f))),
             ("Tier 3 weapon demo", () => WeaponDemo(3, new DemoRound(QR_DefOf.QR_Gun_AssaultRifle, 1, 11f, 14f),
                 new DemoRound(QR_DefOf.QR_Gun_Flamethrower, 1, 4f, 6f))),
-            ("Tier 4 weapon demo", () => WeaponDemo(4, new DemoRound(QR_DefOf.QR_Gun_Minigun, 3, 12f, 16f))),
+            ("Tier 4 weapon demo", () => WeaponDemo(4,
+                new DemoRound(QR_DefOf.QR_Gun_DualChargeRifle, 3, 24f, 26f),
+                new DemoRound(QR_DefOf.QR_Gun_DualChainShotgun, 3, 15f, 18f))),
             ("Prepare removal", RemovalSave),
         };
 

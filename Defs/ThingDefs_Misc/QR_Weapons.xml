@@ -2,8 +2,8 @@
 <Defs>
 
   <!-- Combatdog built-in guns: part of the dog, like vanilla mechanoid guns (destroyed when dropped, never traded, never
-       on a raider), picked per slot from the stable's Overview tab (user, 2026-10-20). Stats copy the vanilla gun named
-       in each label. -->
+       on a raider), picked per slot from the stable's Overview tab (user, 2026-10-20). Tier 4 instead has a fixed paired
+       arsenal and a supplemental automatic smoke launcher (user, 2026-11-03). Stats copy the vanilla gun named here. -->
   <ThingDef Name="QR_BuiltInGunBase" ParentName="BaseGun" Abstract="True">
     <destroyOnDrop>true</destroyOnDrop>
     <tradeability>None</tradeability>
@@ -35,7 +35,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_AssaultRifle</defName>
     <label>built-in assault rifle</label>
-    <description>Hearthline's standard "settlement assurance" rifle mount. A familiar mechanism in a weatherproof housing, advertised as a reassuring presence along any property boundary. Reassurance is delivered in three-round bursts.\n\nA Combatdog's built-in assault rifle: balanced accuracy, good range and controlled bursts. Available in the primary gun slot of Tiers 2, 3 and 4; select it in the stable's Overview.</description>
+    <description>Hearthline's standard "settlement assurance" rifle mount. A familiar mechanism in a weatherproof housing, advertised as a reassuring presence along any property boundary. Reassurance is delivered in three-round bursts.\n\nA Combatdog's built-in assault rifle: balanced accuracy, good range and controlled bursts. Available in the primary gun slot of Tiers 2 and 3; select it in the stable's Overview.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/AssaultRifle</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -68,7 +68,7 @@
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_LMG</defName>
     <label>built-in LMG</label>
-    <description>A belt-fed Hearthline security mount for customers who considered the standard rifle's pauses an unnecessary courtesy. The brochure recommends it for "distributed access-denial requirements," beside a photograph of a very empty road.\n\nA Combatdog's built-in light machine gun. Its longer bursts trade accuracy and range for more shots, making it useful against groups. Available in the primary gun slot of Tiers 2, 3 and 4; select it in the stable's Overview.</description>
+    <description>A belt-fed Hearthline security mount for customers who considered the standard rifle's pauses an unnecessary courtesy. The brochure recommends it for "distributed access-denial requirements," beside a photograph of a very empty road.\n\nA Combatdog's built-in light machine gun. Its longer bursts trade accuracy and range for more shots, making it useful against groups. Available in the primary gun slot of Tiers 2 and 3; select it in the stable's Overview.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/LMG</texPath>
       <graphicClass>Graphic_Single</graphicClass>
@@ -98,11 +98,123 @@
     </verbs>
   </ThingDef>
 
-  <!-- Tier 4: the vanilla minigun's stats, its move-speed penalty included (design). -->
+  <!-- Tier 4's fixed primary: two vanilla charge rifles on one mount, fired together by Quadrunner.Verb_PairedShoot. -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_DualChargeRifle</defName>
+    <label>built-in paired charge rifles</label>
+    <description>Two charge rifles on one reinforced Hearthline mount, wired to release their unstable pulses on the same trigger pull. The brochure describes the arrangement as "redundant enforcement"; the maintenance manual calls it two rifles.\n\nA Tier 4 Combatdog's fixed long-range weapon: the vanilla charge rifle's accuracy, burst, cycle and range, with two projectiles per shot. The dog switches to its paired chain shotguns within 20.9 cells.</description>
+    <graphicData>
+      <texPath>Quadrunner/Weapons/DualChargeRifle</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <!-- Two stock charge rifles: vanilla accuracy, cycle, burst, range and projectile; mass and value are for the pair. -->
+      <MarketValue>1000</MarketValue>
+      <Mass>9.2</Mass>
+      <AccuracyTouch>0.55</AccuracyTouch>
+      <AccuracyShort>0.64</AccuracyShort>
+      <AccuracyMedium>0.55</AccuracyMedium>
+      <AccuracyLong>0.45</AccuracyLong>
+      <RangedWeapon_Cooldown>2.00</RangedWeapon_Cooldown>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Quadrunner.Verb_PairedShoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_ChargeRifle</defaultProjectile>
+        <warmupTime>1.0</warmupTime>
+        <range>27.9</range>
+        <burstShotCount>3</burstShotCount>
+        <ticksBetweenBurstShots>12</ticksBetweenBurstShots>
+        <soundCast>Shot_ChargeRifle</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <!-- Tier 4's fixed secondary: two vanilla chain shotguns, extended to 20.9 cells and more accurate (plan 0009). -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_DualChainShotgun</defName>
+    <label>built-in paired chain shotguns</label>
+    <description>Hearthline lengthened the barrels, tightened the choke and bolted two of them to the same cradle. The result keeps the chain shotgun's three-shell answer but reaches farther, and delivers it twice.\n\nA Tier 4 Combatdog's fixed close-range weapon: the vanilla chain shotgun's burst and cycle, extended to 20.9 cells with improved accuracy, and two projectiles per shot. The dog switches to it within 20.9 cells.</description>
+    <graphicData>
+      <texPath>Quadrunner/Weapons/DualChainShotgun</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <!-- Two chain shotguns: the vanilla burst, cycle and projectile, with the plan's longer range and accuracy; mass
+           and value are for the pair. -->
+      <MarketValue>1000</MarketValue>
+      <Mass>9.0</Mass>
+      <AccuracyTouch>0.80</AccuracyTouch>
+      <AccuracyShort>0.85</AccuracyShort>
+      <AccuracyMedium>0.75</AccuracyMedium>
+      <AccuracyLong>0.60</AccuracyLong>
+      <RangedWeapon_Cooldown>1.35</RangedWeapon_Cooldown>
+    </statBases>
+    <verbs>
+      <li>
+        <verbClass>Quadrunner.Verb_PairedShoot</verbClass>
+        <hasStandardCommand>true</hasStandardCommand>
+        <defaultProjectile>Bullet_Shotgun</defaultProjectile>
+        <warmupTime>1.2</warmupTime>
+        <range>20.9</range>
+        <burstShotCount>3</burstShotCount>
+        <ticksBetweenBurstShots>10</ticksBetweenBurstShots>
+        <soundCast>Shot_Shotgun</soundCast>
+        <soundCastTail>GunTail_Heavy</soundCastTail>
+        <muzzleFlashScale>9</muzzleFlashScale>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <!-- Tier 4's supplemental mount: the vanilla smoke launcher, fired automatically by the parent implementation. It is
+       equipmentType None so it cannot replace the damaging gun, and its verb is non-primary and non-interrupting. -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_SmokeLauncher</defName>
+    <label>built-in smoke launcher</label>
+    <description>A wide-bore smoke shell launcher fitted beside the paired guns, with its own loading mechanism and no interest in the dog's trigger discipline. Hearthline added it after customers complained that a deterrent was too easy to see coming.\n\nA Tier 4 Combatdog's automatic smoke launcher: launches vanilla smoke shells during combat without interrupting the charge rifles or chain shotguns. The launch interval is set on the tier, not by the weapon's cycle.</description>
+    <equipmentType>None</equipmentType>
+    <graphicData>
+      <texPath>Quadrunner/Weapons/SmokeLauncher</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>500</MarketValue>
+      <Mass>3.4</Mass>
+      <RangedWeapon_Cooldown>4.5</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>false</hasStandardCommand>
+        <isPrimary>false</isPrimary>
+        <nonInterruptingSelfCast>true</nonInterruptingSelfCast>
+        <defaultProjectile>Bullet_SmokeLauncher</defaultProjectile>
+        <warmupTime>0</warmupTime>
+        <range>23.9</range>
+        <forcedMissRadius>1.9</forcedMissRadius>
+        <burstShotCount>1</burstShotCount>
+        <soundCast>Shot_IncendiaryLauncher</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>14</muzzleFlashScale>
+        <targetParams>
+          <canTargetLocations>true</canTargetLocations>
+        </targetParams>
+      </li>
+    </verbs>
+  </ThingDef>
+
+  <!-- Legacy only: Tier 4's former selectable minigun, superseded by the fixed paired arsenal (user, 2026-11-03). The def
+       and its art stay so old saves and battle-history IDs resolve; no slot lists it and nothing can select it. -->
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_Minigun</defName>
     <label>built-in minigun</label>
-    <description>Hearthline's premium answer to a question its sales department preferred not to record. The rotating barrel assembly required a reinforced mount, revised balance software and a much less friendly product photograph.\n\nA Tier 4 Combatdog's built-in minigun. Slow to spin up and inaccurate, but fires very long bursts at high speed. Its weight slightly reduces the dog's movement speed. Shares the tier's single gun slot with the assault rifle and LMG.</description>
+    <description>Hearthline's premium answer to a question its sales department preferred not to record. The rotating barrel assembly required a reinforced mount, revised balance software and a much less friendly product photograph.\n\nA retired Tier 4 Combatdog mount: slow to spin up and inaccurate, but fires very long bursts at high speed, and its weight slightly reduces the dog's movement speed. New Tier 4 dogs carry the fixed paired arsenal instead; this weapon remains only for existing colonies and records.</description>
     <graphicData>
       <texPath>Quadrunner/Weapons/Minigun</texPath>
       <graphicClass>Graphic_Single</graphicClass>

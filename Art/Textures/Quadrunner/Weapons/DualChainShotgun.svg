@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in DualChainShotgun module: two complete chain shotguns on one mount, barrels aiming right. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M16 53H25V73H16Z" fill="#425c6b"/>
+    <path d="M22 48 31 41H66L75 47V57H30L22 53Z" fill="#8da6b0"/>
+    <path d="M34 57V64H46V58" fill="#425c6b"/>
+    <path d="M50 57V68H62V57Z" fill="#425c6b"/>
+    <path d="M75 47H100V57H75Z" fill="#536e7b"/>
+    <path d="M96 45H106V59H96Z" fill="#afc3c7"/>
+    <path d="M82 57H96V64H82Z" fill="#425c6b"/>
+    <path d="M33 53H46V58H33Z" fill="#d0a25a"/>
+    <path d="M22 72 31 65H66L75 71V81H30L22 77Z" fill="#8da6b0"/>
+    <path d="M34 81V88H46V82" fill="#425c6b"/>
+    <path d="M50 81V92H62V81Z" fill="#425c6b"/>
+    <path d="M75 71H100V81H75Z" fill="#536e7b"/>
+    <path d="M96 69H106V83H96Z" fill="#afc3c7"/>
+    <path d="M82 81H96V88H82Z" fill="#425c6b"/>
+    <path d="M33 77H46V82H33Z" fill="#d0a25a"/>
+  </g>
+</svg>

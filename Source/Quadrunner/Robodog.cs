@@ -40,6 +40,7 @@ namespace Quadrunner
         public int waypointsReached;
         // Combatdogs: the built-in gun picked for each weapon slot (null: the slot's default), see Tiers.
         private ThingDef gun1, gun2;
+        private int nextSmokeAt;
         // What the dog carries and since when, for the flip onto its back (RobodogPose). Not saved: a dog loaded or
         // spawned with a pawn on its back has had it there all along.
         private Thing carried;
@@ -181,6 +182,7 @@ namespace Quadrunner
             if (moved > 0f && moved < 1.5f && battery > 0f)
                 SetBattery(battery - Props.drainPerCell * moved * DrainFactor);
             lastCell = cell;
+            Tiers.TickArsenal(Dog, ref nextSmokeAt);
         }
 
         /// <summary>Hit by a hostile pawn: alert the current network node, including a dog acting without a stable.</summary>
@@ -238,6 +240,9 @@ namespace Quadrunner
             Scribe_Values.Look(ref waypointsReached, "waypointsReached");
             Scribe_Defs.Look(ref gun1, "gun1");
             Scribe_Defs.Look(ref gun2, "gun2");
+            Scribe_Values.Look(ref nextSmokeAt, "nextSmokeAt");
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+                Tiers.MigrateLoadout(Dog);
             // Pre-sprayer Medirunners were Animal-intelligence pawns, saved without ToolUser trackers. The load
             // traversal reaches held/world pawns too; these vanilla components persist, making this a one-time migration.
             if (Scribe.mode == LoadSaveMode.PostLoadInit && parent.def == QR_DefOf.QR_Medirunner.race
