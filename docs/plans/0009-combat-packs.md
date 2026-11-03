@@ -38,11 +38,13 @@ Evidence for C1/C2: scoped real-game run 2026-11-03 10:16, `f780354-dirty.202611
 
 - [x] Legacy T3/T4 dogs gain the changes in place, preserving saved identity/state, including docked and off-map examples.
 - [x] Migrated dogs fight together after reload, then save/load again without duplicate or stale equipment.
-- [ ] Scoped development and actual-package scenarios pass with zero new errors; records identify the exercised coverage and package build.
+- [x] Scoped development and actual-package scenarios pass with zero new errors; records identify the exercised coverage and package build.
 
 Migration evidence: 2026-11-03 10:19, `f780354-dirty.20261103T101829Z`, **Combat tier legacy migration 1/1 PASS**, zero new errors. Eight legacy dogs retain identity/state across docked, deployed, carried and caravan holders; a second load keeps exact primary/smoke weapon IDs, then migrated T3/T4 dogs fight a three-raider pack together. The harness cold-started after an in-game restart crash before ready.
 
 Final development evidence: 2026-11-03 10:29 **3/3 PASS**, zero new errors, on `c46562c-dirty.20261103T102828Z`; includes distant packs independently choosing a shared nearest enemy, capture completion without idle dispatch churn, and armed T4 combat with simultaneous-shot observations. Final scenario refinement 10:31 on `c46562c-dirty.20261103T103058Z` passed **T4 pack arsenal → Combat tier legacy migration 2/2**, zero new errors, with an additional save/load during the migrated pack's active fight and no stale-verb/discarded-pawn warnings.
+
+Package evidence: 2026-11-03 10:33, actual `dist/Quadrunner` build `4248756.20261103T103230Z`, **Tier 3 pack combat → Tier 4 pack arsenal → Combat tier legacy migration 3/3 PASS**, zero new errors. Loaded build and package mod root verified; packaged armed-combat/smoke render inspected. Private instance/Xvfb stopped and development symlink restored. Only focused combat/migration cases were run; no unrelated full-suite, unit-test suite or independent removal rerun.
 
 ## Open questions
 
