@@ -7,50 +7,59 @@ using Verse.AI;
 namespace Quadrunner
 {
     /// <summary>
-    /// Transient local focus-fire packs for Tier 3/4 Combatdogs. An eligible leader keeps the nearest Combatdogs of any
-    /// tier within its XML pack range on the closest reachable standing hostile. Everything here is derived on each
-    /// scheduler refresh from live pawns and the war queue: packs are never saved and reloads rebuild them.
+    /// Transient local focus-fire packs for Tier 3/4 Combatdogs. An eligible leader recruits Combatdogs of any tier
+    /// within its XML pack range; new focus is the reachable standing hostile nearest to any member. Selections
+    /// derive from live pawns and the existing war queue, at dispatch refreshes and between native combat jobs.
     /// </summary>
     internal sealed class PackCombat
     {
         private static readonly Comparison<Pawn> LeaderOrder = (a, b) => a.thingIDNumber.CompareTo(b.thingIDNumber);
-        private readonly Comparison<Pawn> candidateOrder;
 
         private readonly DogNetwork network;
         private readonly Dictionary<Pawn, Pawn> targets = new Dictionary<Pawn, Pawn>();
         private readonly Dictionary<Pawn, Pawn> previousTargets = new Dictionary<Pawn, Pawn>();
-        private readonly Dictionary<Pawn, int> startedJobs = new Dictionary<Pawn, int>();
         private readonly HashSet<Pawn> enemySet = new HashSet<Pawn>();
         private readonly List<Pawn> leaders = new List<Pawn>();
         private readonly List<Pawn> enemies = new List<Pawn>();
         private readonly List<Pawn> candidates = new List<Pawn>();
         private readonly List<Pawn> reserved = new List<Pawn>();
-        private readonly List<Pawn> released = new List<Pawn>();
-        private Pawn sortedAround;
+        private int refreshedAt = -1;
+        private bool refreshing;
 
-        public PackCombat(DogNetwork network)
+        public PackCombat(DogNetwork network) => this.network = network;
+
+        /// <summary>
+        /// Acquire the next queued target at the native job boundary, before idle/guard can send the dog home.
+        /// Selection-only refreshes never start/end jobs from inside another job's think-tree evaluation.
+        /// </summary>
+        public Pawn Target(Pawn dog)
         {
-            this.network = network;
-            candidateOrder = CompareCandidates;
+            if (!CanFight(dog))
+                return null;
+            bool hadTarget = targets.TryGetValue(dog, out Pawn target);
+            if (hadTarget && StandingEnemy(target) && dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
+                return target;
+            if (!refreshing && (hadTarget || refreshedAt != Find.TickManager.TicksGame))
+                Refresh(issueOrders: false);
+            return targets.TryGetValue(dog, out target) && StandingEnemy(target) ? target : null;
         }
-
-        /// <summary>The standing hostile this dog's local pack currently shares, if it still qualifies.</summary>
-        public Pawn Target(Pawn dog) =>
-            dog != null && targets.TryGetValue(dog, out Pawn target) && CanFight(dog) && StandingEnemy(target) ? target : null;
 
         /// <summary>Whether the scheduler has given this dog a pack target this refresh.</summary>
         public bool Has(Pawn dog) => dog != null && targets.ContainsKey(dog);
 
-        /// <summary>Remembers a job the dog took for its pack target, so the next refresh keeps an equivalent attack.</summary>
-        public void Ordered(Pawn dog, Job job)
+        /// <summary>Recomputes packs after reconciliation, or selection-only when an attack ends between ticks.</summary>
+        public void Refresh(bool issueOrders = true)
         {
-            if (dog != null && job != null)
-                startedJobs[dog] = job.loadID;
+            if (refreshing)
+                return;
+            refreshing = true;
+            try { Rebuild(issueOrders); }
+            finally { refreshing = false; }
         }
 
-        /// <summary>Recomputes packs, targets and attack jobs after the network's queues have been reconciled.</summary>
-        public void Refresh()
+        private void Rebuild(bool issueOrders)
         {
+            refreshedAt = Find.TickManager.TicksGame;
             previousTargets.Clear();
             foreach (KeyValuePair<Pawn, Pawn> pair in targets)
                 previousTargets[pair.Key] = pair.Value;
@@ -59,8 +68,7 @@ namespace Quadrunner
 
             if (network == null || !network.War)
             {
-                ReleasePrevious();
-                startedJobs.Clear();
+                if (issueOrders) ReleasePrevious();
                 return;
             }
 
@@ -72,8 +80,7 @@ namespace Quadrunner
                     enemies.Add(enemy);
             if (enemies.Count == 0)
             {
-                ReleasePrevious();
-                startedJobs.Clear();
+                if (issueOrders) ReleasePrevious();
                 return;
             }
 
@@ -83,10 +90,9 @@ namespace Quadrunner
                     leaders.Add(dog);
             leaders.Sort(LeaderOrder);
 
-            // Without a leader there is no pack to keep dogs from the ordinary queue, so captures need no keeper.
-            // With packs, a downed enemy stops being a focus-fire target: each due, unassigned capture order keeps
-            // one nearby Combatdog free so the one-assignee queue can take it while the rest of the pack retargets.
-            if (leaders.Count > 0)
+            // Only the scheduled assignment pass reserves carriers. Keep leaders fighting while standing threats
+            // remain; a native job-boundary refresh must hand out the next fight, not an unassigned capture wait.
+            if (issueOrders && leaders.Count > 0)
             {
                 int tick = Find.TickManager.TicksGame;
                 foreach (NetworkTask task in network.WarQueue)
@@ -105,10 +111,8 @@ namespace Quadrunner
                     continue;
                 float range = CombatTier.Of(leader)?.packRange ?? 0f;
                 float rangeSquared = range * range;
-                Pawn target = TargetFor(leader);
-                if (target == null)
-                    continue;
                 candidates.Clear();
+                candidates.Add(leader);
                 foreach (Pawn dog in network.Dogs)
                 {
                     if (dog == leader || targets.ContainsKey(dog) || reserved.Contains(dog))
@@ -117,21 +121,23 @@ namespace Quadrunner
                         continue;
                     candidates.Add(dog);
                 }
-                sortedAround = leader;
-                candidates.Sort(candidateOrder);
-                targets[leader] = target;
-                network.ReleaseForPack(leader);
-                StartFighting(leader, target);
+                Pawn target = TargetFor(leader);
+                if (target == null)
+                    continue;
                 foreach (Pawn dog in candidates)
                 {
-                    if (targets.ContainsKey(dog) || !dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
+                    if (!dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
                         continue;
                     targets[dog] = target;
+                    if (!issueOrders)
+                        continue;
                     network.ReleaseForPack(dog);
                     StartFighting(dog, target);
                 }
             }
 
+            if (!issueOrders)
+                return;
             // Pack refresh owns these attacks. Stop fire aimed at a target that died, went down or became unreachable,
             // and free any stale combat order from a dog that left its old pack.
             foreach (Pawn dog in reserved)
@@ -146,18 +152,12 @@ namespace Quadrunner
                 network.ReleaseForPack(pair.Key);
                 StopFighting(pair.Key, pair.Value);
             }
-            released.Clear();
-            foreach (Pawn dog in startedJobs.Keys)
-                if (!targets.ContainsKey(dog))
-                    released.Add(dog);
-            foreach (Pawn dog in released)
-                startedJobs.Remove(dog);
         }
 
         /// <summary>
-        /// Keep a valid focus target until it falls; otherwise take the closest reachable standing enemy.
-        /// Another pack's target is not reserved: independent distant groups may naturally choose the same nearest
-        /// enemy, but must never be pushed toward a farther enemy just because a different group fired first.
+        /// Keep a valid focus until it falls; otherwise rank queued enemies by the nearest reachable pack member,
+        /// irrespective of tier. Squared tile distance needs no paths/allocations for ranking; reachability rejects
+        /// sealed targets. Distant packs remain independent and may naturally choose the same nearest enemy.
         /// </summary>
         private Pawn TargetFor(Pawn leader)
         {
@@ -168,9 +168,16 @@ namespace Quadrunner
             int bestDistance = int.MaxValue, bestId = int.MaxValue;
             foreach (Pawn enemy in enemies)
             {
-                int distance = (enemy.Position - leader.Position).LengthHorizontalSquared;
-                if (distance > bestDistance || distance == bestDistance && enemy.thingIDNumber >= bestId
-                    || !leader.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
+                if (!leader.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
+                    continue;
+                int distance = int.MaxValue;
+                foreach (Pawn member in candidates)
+                {
+                    int local = (enemy.Position - member.Position).LengthHorizontalSquared;
+                    if (local < distance && member.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
+                        distance = local;
+                }
+                if (distance > bestDistance || distance == bestDistance && enemy.thingIDNumber >= bestId)
                     continue;
                 best = enemy;
                 bestDistance = distance;
@@ -180,34 +187,24 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// The one free Combatdog held for a downed target: a follower if possible, nearest reachable first, then
-        /// lowest ID. The network's normal capture assignment decides whether it can actually make the carry.
+        /// One non-leading Combatdog held for a downed target, nearest reachable first, then lowest ID.
+        /// Leaders keep the offensive active; once no standing enemies remain all tiers can capture normally.
         /// </summary>
         private Pawn CaptureKeeper(Pawn downed)
         {
             Pawn best = null;
-            bool bestLeads = false;
             int bestDistance = int.MaxValue, bestId = int.MaxValue;
             foreach (Pawn dog in network.Dogs)
             {
-                if (reserved.Contains(dog) || !CanFight(dog)
+                if (reserved.Contains(dog) || !CanFight(dog) || (CombatTier.Of(dog)?.packRange ?? 0f) > 0f
                     || !dog.CanReserveAndReach(downed, PathEndMode.ClosestTouch, Danger.Deadly))
                     continue;
-                bool leads = IsLeader(dog);
                 int distance = (dog.Position - downed.Position).LengthHorizontalSquared;
-                bool better;
-                if (best == null)
-                    better = true;
-                else if (!bestLeads && leads)
-                    better = false;
-                else if (bestLeads && !leads)
-                    better = true;
-                else
-                    better = distance < bestDistance || distance == bestDistance && dog.thingIDNumber < bestId;
+                bool better = best == null || distance < bestDistance
+                    || distance == bestDistance && dog.thingIDNumber < bestId;
                 if (!better)
                     continue;
                 best = dog;
-                bestLeads = leads;
                 bestDistance = distance;
                 bestId = dog.thingIDNumber;
             }
@@ -238,22 +235,15 @@ namespace Quadrunner
             Job job = dog.CurJob;
             if (job == null || job.playerForced)
                 return false;
-            return (job.def == JobDefOf.AttackStatic || job.def == JobDefOf.AttackMelee || job.def == JobDefOf.Goto)
-                && job.targetA.Thing is Pawn;
+            return (job.def == JobDefOf.AttackStatic || job.def == JobDefOf.AttackMelee) && job.targetA.Thing is Pawn
+                || job.def == JobDefOf.Goto && job.targetB.Thing is Pawn;
         }
 
         /// <summary>Keeps an attack already aimed at the shared target; restarts only when the dog has another job.</summary>
         private void StartFighting(Pawn dog, Pawn target)
         {
-            if (startedJobs.TryGetValue(dog, out int loadId) && dog.CurJob?.loadID == loadId)
+            if (AimedAt(dog.CurJob, target))
                 return;
-            Job current = dog.CurJob;
-            if (current != null && !current.playerForced && current.targetA.Thing == target
-                && (current.def == JobDefOf.AttackStatic || current.def == JobDefOf.AttackMelee))
-            {
-                startedJobs[dog] = current.loadID;
-                return;
-            }
             // Same deferral as ordinary assignment after an allowed-area change: do not path on a stale grid.
             if (!network.PathInputsReady(dog))
                 return;
@@ -261,19 +251,18 @@ namespace Quadrunner
             if (job == null)
             {
                 targets.Remove(dog);
-                startedJobs.Remove(dog);
                 return;
             }
-            startedJobs[dog] = job.loadID;
             dog.jobs.StartJob(job, JobCondition.InterruptForced);
         }
 
+        private static bool AimedAt(Job job, Pawn target) => job != null && !job.playerForced
+            && ((job.def == JobDefOf.AttackStatic || job.def == JobDefOf.AttackMelee) && job.targetA.Thing == target
+                || job.def == JobDefOf.Goto && job.targetB.Thing == target);
+
         private static void StopFighting(Pawn dog, Pawn target)
         {
-            Job job = dog?.CurJob;
-            if (job == null || job.playerForced || dog.Drafted || job.targetA.Thing != target)
-                return;
-            if (job.def == JobDefOf.AttackStatic || job.def == JobDefOf.AttackMelee || job.def == JobDefOf.Goto)
+            if (dog != null && !dog.Drafted && AimedAt(dog.CurJob, target))
                 dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }
 
@@ -298,15 +287,8 @@ namespace Quadrunner
             if (job == null || job.playerForced || dog.Drafted)
                 return;
             if (job.def == JobDefOf.AttackStatic || job.def == JobDefOf.AttackMelee
-                || job.def == JobDefOf.Goto && job.targetA.Thing is Pawn)
+                || job.def == JobDefOf.Goto && job.targetB.Thing is Pawn)
                 dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
-        }
-
-        private int CompareCandidates(Pawn a, Pawn b)
-        {
-            int distance = (a.Position - sortedAround.Position).LengthHorizontalSquared
-                .CompareTo((b.Position - sortedAround.Position).LengthHorizontalSquared);
-            return distance != 0 ? distance : a.thingIDNumber.CompareTo(b.thingIDNumber);
         }
 
         private bool StandingEnemy(Pawn pawn) =>

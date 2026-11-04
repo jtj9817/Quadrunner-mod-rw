@@ -17,6 +17,8 @@ Give existing and new Tier 3/4 Combatdogs faster chassis and local mixed-tier fo
 | Persistence | Update existing pawns in place, including held/world dogs; retain identity, name, health, battery, affiliation and cargo. Old T4 weapon choices no longer control the loadout. Keep the retired minigun Def/art only for safe deserialization of old equipment and battle-history records, not as an available weapon. New equipment state must survive another reload. |
 | Verification | Focused real-game T3/T4 pack fights, actual projectiles/damage/smoke, target transitions, movement, save migration and affected combat lifecycle. No new unit-test suite and no unrelated full-suite run (user). Scoped actual-package smoke before delivery. |
 | Delivery | Incremental commits after self-contained verified changes; package from committed source; keep generated build/package output untracked. |
+| Engagement continuity | User-reported return trips (2026-11-04): reuse the saved hostile queue, select the next reachable focus at the native job-request boundary, and rank proximity from any eligible pack member rather than just its leader. Preserve valid focus and independent distant groups. No influence-map, spatial-index or planning framework is needed for this handoff fix. |
+| Capture priority | While standing hostiles remain, reserve non-leading dogs for captures; T3/T4 leaders keep fighting. After standing threats clear, leaders may capture normally. Never interrupt an already-started capture or retreat. |
 
 ## Targets
 
@@ -45,6 +47,16 @@ Migration evidence: 2026-11-03 10:19, `f780354-dirty.20261103T101829Z`, **Combat
 Final development evidence: 2026-11-03 10:29 **3/3 PASS**, zero new errors, on `c46562c-dirty.20261103T102828Z`; includes distant packs independently choosing a shared nearest enemy, capture completion without idle dispatch churn, and armed T4 combat with simultaneous-shot observations. Final scenario refinement 10:31 on `c46562c-dirty.20261103T103058Z` passed **T4 pack arsenal → Combat tier legacy migration 2/2**, zero new errors, with an additional save/load during the migrated pack's active fight and no stale-verb/discarded-pawn warnings.
 
 Package evidence: 2026-11-03 10:33, actual `dist/Quadrunner` build `4248756.20261103T103230Z`, **Tier 3 pack combat → Tier 4 pack arsenal → Combat tier legacy migration 3/3 PASS**, zero new errors. Loaded build and package mod root verified; packaged armed-combat/smoke render inspected. Private instance/Xvfb stopped and development symlink restored. Only focused combat/migration cases were run; no unrelated full-suite, unit-test suite or independent removal rerun.
+
+### C4 — Continuous engagement and nearest-member targeting
+
+- [x] A target dying immediately after a dispatch refresh never sends the pack toward its stable while other reachable standing enemies are queued; observe native job starts between frames.
+- [x] A T2 follower's nearer reachable enemy determines its T4-led pack's new focus; valid focus is retained until invalidated.
+- [x] T3/T4 cast-position travel retains combat intent across reload, replaces stale pursuit orders when targets go down, and keeps leaders fighting despite multiple waiting captures.
+- [x] Survivors are captured and dogs dock once standing threats and capture work clear; draft/retreat and existing combat scenarios still pass.
+- [ ] Record development and actual-package evidence with zero new errors, package from committed source and commit the verification records.
+
+Development evidence: unchanged gameplay failed both new regressions at 08:32 (zero new errors): the native trace records a homeward guard job at +4 ticks with two standing enemies already queued, and leader-only proximity ignores a nearer T2 follower. Corrected affected combat sequence at 08:42, `3f4b439-dirty.20261104T083925Z`, passed **10/10**, zero new errors, including movement-intent reload, same-tick pursuit replacement, multiple downed targets, capture completion/docking, draft/retreat, distant packs, weapons and legacy migration. The final nearest-member case at 08:44, `3f4b439-dirty.20261104T084355Z`, passed **1/1**, zero new errors, additionally proving a closer newcomer preserves valid focus and both active firing jobs. See the [iteration log](../test-runs.md).
 
 ## Open questions
 

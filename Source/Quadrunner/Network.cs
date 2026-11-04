@@ -780,6 +780,7 @@ namespace Quadrunner
             Pawn packTarget = packs.Target(dog);
             if (packTarget != null && dog.CurJob?.playerForced != true && PathInputsReady(dog))
             {
+                ReleaseForPack(dog);
                 Job shared = Combat.JobFor(dog, packTarget);
                 if (shared != null)
                 {
@@ -789,7 +790,6 @@ namespace Quadrunner
                         JobMaker.ReturnToPool(shared);
                         return dog.CurJob;
                     }
-                    packs.Ordered(dog, shared);
                     return shared;
                 }
             }

@@ -101,7 +101,10 @@ namespace Quadrunner
                              caster = dog, target = target, verb = verb, maxRangeFromTarget = verb.verbProps.range,
                              wantCoverFromTarget = false,
                          }, out IntVec3 cell))
+                {
                     job = JobMaker.MakeJob(JobDefOf.Goto, cell);
+                    job.targetB = target; // Retain combat intent across travel, retargeting and save/load.
+                }
             }
             job = job ?? JobMaker.MakeJob(JobDefOf.AttackMelee, target);
             job.expiryInterval = RecheckTicks;
