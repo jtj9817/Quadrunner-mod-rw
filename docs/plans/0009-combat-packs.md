@@ -54,9 +54,11 @@ Package evidence: 2026-11-03 10:33, actual `dist/Quadrunner` build `4248756.2026
 - [x] A T2 follower's nearer reachable enemy determines its T4-led pack's new focus; valid focus is retained until invalidated.
 - [x] T3/T4 cast-position travel retains combat intent across reload, replaces stale pursuit orders when targets go down, and keeps leaders fighting despite multiple waiting captures.
 - [x] Survivors are captured and dogs dock once standing threats and capture work clear; draft/retreat and existing combat scenarios still pass.
-- [ ] Record development and actual-package evidence with zero new errors, package from committed source and commit the verification records.
+- [x] Record development and actual-package evidence with zero new errors, package from committed source and commit the verification records.
 
 Development evidence: unchanged gameplay failed both new regressions at 08:32 (zero new errors): the native trace records a homeward guard job at +4 ticks with two standing enemies already queued, and leader-only proximity ignores a nearer T2 follower. Corrected affected combat sequence at 08:42, `3f4b439-dirty.20261104T083925Z`, passed **10/10**, zero new errors, including movement-intent reload, same-tick pursuit replacement, multiple downed targets, capture completion/docking, draft/retreat, distant packs, weapons and legacy migration. The final nearest-member case at 08:44, `3f4b439-dirty.20261104T084355Z`, passed **1/1**, zero new errors, additionally proving a closer newcomer preserves valid focus and both active firing jobs. See the [iteration log](../test-runs.md).
+
+Package evidence: 2026-11-04 08:51, actual `dist/Quadrunner` build `1ebcbc4.20261104T084614Z`, **10/10 affected combat scenarios PASS**, zero new errors. Loaded BUILD and resolved package modRoot verified; both dogs pursue the next queued enemy at +2 ticks without a homeward order. The final closer-newcomer focus-retention check, mid-pursuit reload/invalidation, capture pressure/completion/docking, draft/retreat, T3/T4 arsenal and legacy migration all pass. Native packaged combat rendering inspected. The old DLL was FUSE-held by the user's running game: its leftover directory was preserved in `.devlog`, then the already-built/linted stage promoted without closing/signalling that game. Private game/Xvfb stopped; original installed-release link restored. No unrelated full-suite or independent removal rerun.
 
 ## Open questions
 
