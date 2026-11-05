@@ -9,7 +9,7 @@ Give Rescuedogs (Medirunners) an integrated foam turret, so they respond to any 
 | Area | Decision |
 | --- | --- |
 | Priority | Rescues first (user, 2026-10-25). Fire tasks rank after `Rescue` in the war queue; idle medics take fires. Triage is unchanged. |
-| Foam supply | Unlimited foam; each spray burst drains battery by `RobodogWork.foamDrainPerBurst` (XML, 2%) (user, 2026-10-25). The charging loop is the only limit; nothing new is saved. |
+| Foam supply | Unlimited foam; each spray burst drains battery by `RobodogWork.foamDrainPerBurst` (XML, 2%) (user, 2026-10-25). The charging loop is the only limit; no foam inventory is saved. |
 | Raids | Fires are fought under fire, like rescues: Fire tasks live in the war queue (user, 2026-10-25). |
 | Unlock | Built into every Medirunner, existing and new; no research (user, 2026-10-25). |
 | Scope | Spawned fires (attached ones included) on revealed Home-area cells, reported map-wide by the coordinator like the downed. Fires outside Home are never queued. |
@@ -54,9 +54,11 @@ Packaged proof at 05:18: actual `dist/Quadrunner` build `8771e7f.20261026T051738
 - [x] Lightning weather and an independent Flashstorm condition keep responders deployed beyond the quiet period; new fires are handled from the field, including across save/load.
 - [x] After the weather/condition ends, the ordinary quiet period and docking resume; low battery overrides storm alert.
 - [x] Existing firefighting, rescue precedence, legacy migration and affected shared-dispatch scenarios pass with zero new errors.
-- [ ] The rebuilt actual package passes the affected response scenarios with loaded BUILD and modRoot verified.
+- [x] The rebuilt actual package passes the affected response scenarios with loaded BUILD and modRoot verified.
 
-Focused evidence: 2026-11-05 06:58, `fb7cd93-dirty.20261105T065800Z`, all four new response cases **4/4 PASS, zero new errors**. Native job observation proves the next fire is acquired without homeward travel; actual foam extinguishes the staged fires. Saves cover active response, the positive quiet deadline and both storm alerts. Fresh-map affected integration at 08:14, `a1e42af.20261105T081005Z`, passed **32/32 with zero new errors**, including every Network and Combat recovery case plus rescue/migration/fire/docking. Run all was attempted but stopped after 94 verdicts (84 pass/10 fail) at a paused surplus-roster indicator fixture, with 27 new artwork InfoCard/UI error blocks; no clean full-suite claim. Actual-package verification remains open.
+Focused evidence: 2026-11-05 06:58, `fb7cd93-dirty.20261105T065800Z`, all four new response cases **4/4 PASS, zero new errors**. Native job observation proves the next fire is acquired without homeward travel; actual foam extinguishes the staged fires. Saves cover active response, the positive quiet deadline and both storm alerts. Fresh-map affected integration at 08:14, `a1e42af.20261105T081005Z`, passed **32/32 with zero new errors**, including every Network and Combat recovery case plus rescue/migration/fire/docking. Run all was attempted but stopped after 94 verdicts (84 pass/10 fail) at a paused surplus-roster indicator fixture, with 27 new artwork InfoCard/UI error blocks; no clean full-suite claim.
+
+Package evidence: 2026-11-05 08:16, actual `dist/Quadrunner` build `8fa0518.20261105T081453Z`, **13/13 PASS with zero new errors**. Loaded BUILD and resolved modRoot verified; all four new response cases plus existing docking, assembly, rescue/triage and medic migration/firefighting pass in sequence. Isolated game/Xvfb stopped and original installed-release symlink restored. F3 is complete.
 
 ## Open questions
 
