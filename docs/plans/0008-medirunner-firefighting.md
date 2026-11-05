@@ -16,6 +16,8 @@ Give Rescuedogs (Medirunners) an integrated foam turret, so they respond to any 
 | Race | The Medirunner's intelligence is `ToolUser`, as for Combatdogs. `Animal` gives no equipment tracker. It keeps the beat-fire verb (`Pawn_NativeVerbs`). |
 | Mechanism | `QR_Gun_FoamSprayer`, a built-in gun (Combatdog pattern) with vanilla `Gun_TurretFoam`'s spray and `Proj_Foam`, held via `RobodogWork.builtInGun` and fitted on undock. `Verb_FoamSpray` charges the battery per burst. Vanilla `AttackStatic`/`Goto` jobs, re-issued by the network like combat orders. No Harmony patch. Medirunners have no auto-attack think node, so the sprayer is never turned on enemies. |
 | Existing saves | One-time in-place migration (user, 2026-10-26), not replacement pawns. Vanilla's post-load traversal calls each Medirunner's existing comp, including docked, carried and world pawns. Initialize only missing equipment/apparel trackers and fit the sprayer on living medics. The vanilla trackers persist as the completion marker; later loads leave them and existing weapons unchanged. No recurring sweep, new saved component or Harmony patch. |
+| Continuous response | On deployment and at native job boundaries, select the nearest reachable, unclaimed revealed Home fire from the shared queue, retaining a valid current focus. No homeward leg between fires (user, 2026-11-05; analogous to combat commit `1ebcbc4`). Rescue priority and single-assignee ownership remain unchanged. |
+| Standby and storms | After firefighting, wait in place for three game seconds (180 ticks), check again for fires, then return. Lightning-producing current weather or an active vanilla Flashstorm condition keeps the deployed responder on alert between ignitions; it does not deploy idle docked medics without work. After the storm ends, observe the ordinary three-second quiet period. Charging still takes precedence. Persist the response/quiet deadline across reloads and clear it on docking (user, 2026-11-05). |
 
 ## Targets
 
@@ -43,6 +45,16 @@ Evidence: [test-run log](../test-runs.md), 2026-10-26 05:09–05:15. The new **M
 Independent removal at 05:16 loaded the cleaned export with no Quadrunner assembly, ticked 600, saved/reloaded and ticked another 600, retaining the expected vanilla contents with zero new errors. Log: `.devlog/runs/removal-20261026-051626/Player.log`.
 
 Packaged proof at 05:18: actual `dist/Quadrunner` build `8771e7f.20261026T051738Z` passed **Manual rescue dispatch**, **Medirunner legacy migration**, **Medirunner firefighting** and **Prepare removal**, 4/4 with zero new errors. The harness checked the loaded BUILD and resolved mod root. Private game/Xvfb stopped and the dev symlink restored.
+
+### F3 — Continuous nearest-fire response and storm alert
+
+- [ ] A deployed medic chooses the nearest reachable unclaimed Home fire, not the oldest queued fire, and retains a valid focus.
+- [ ] Native job transitions immediately reacquire remaining fires without a homeward gap, including after reload and while travelling into spray range.
+- [ ] After the last fire, hold position for at least 180 ticks, recheck, then dock; a new fire during standby resumes response and resets the quiet period.
+- [ ] Lightning weather and an independent Flashstorm condition keep responders deployed beyond the quiet period; new fires are handled from the field, including across save/load.
+- [ ] After the weather/condition ends, the ordinary quiet period and docking resume; low battery overrides storm alert.
+- [ ] Existing firefighting, rescue precedence, legacy migration and affected shared-dispatch scenarios pass with zero new errors.
+- [ ] The rebuilt actual package passes the affected response scenarios with loaded BUILD and modRoot verified.
 
 ## Open questions
 
