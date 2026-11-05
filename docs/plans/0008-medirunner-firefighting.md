@@ -60,6 +60,16 @@ Focused evidence: 2026-11-05 06:58, `fb7cd93-dirty.20261105T065800Z`, all four n
 
 Package evidence: 2026-11-05 08:16, actual `dist/Quadrunner` build `8fa0518.20261105T081453Z`, **13/13 PASS with zero new errors**. Loaded BUILD and resolved modRoot verified; all four new response cases plus existing docking, assembly, rescue/triage and medic migration/firefighting pass in sequence. Isolated game/Xvfb stopped and original installed-release symlink restored. F3 is complete.
 
+### F4 — Real post-foam spread-fire regression
+
+User report (2026-11-05): F3 still misses spread-out fires after the Medirunner has sprayed retardant. F3's synthetic target removal followed by reload did not prove uninterrupted real-burst handoff.
+
+- [ ] With multiple separated Home fires in different directions and beyond one spray footprint, actual foam extinguishes the first and the medic naturally discovers/targets/extinguishes the others without manual target removal, forced refreshes or reloads.
+- [ ] Additional untreated, separated fires ignited after actual foam deposition are discovered and physically extinguished while the deposited foam remains.
+- [ ] Nearby fires in different directions exercise post-spray retargeting without relying on a travel leg to reset native job state; evidence records actual additional sprays, not just `AttackStatic` selection.
+- [ ] The demonstrated failure passes after a minimal runtime correction, and existing fire/standby/storm/rescue behavior still passes with zero new errors.
+- [ ] The rebuilt actual package passes the real post-foam regression and affected medic cases with loaded BUILD/modRoot verified.
+
 ## Open questions
 
 None.
