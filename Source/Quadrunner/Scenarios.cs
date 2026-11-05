@@ -87,6 +87,8 @@ namespace Quadrunner
             ("Medirunner legacy migration", MedirunnerLegacyMigration),
             ("Medirunner firefighting", MedirunnerFirefighting),
             ("Medirunner fire continuity", MedirunnerFireContinuity),
+            ("Medirunner fires after foam", MedirunnerFiresAfterFoam),
+            ("Medirunner hot fires after foam", MedirunnerHotFiresAfterFoam),
             ("Medirunner storm weather standby", MedirunnerStormWeatherStandby),
             ("Medirunner storm condition standby", MedirunnerStormConditionStandby),
             ("Medirunner storm charge priority", MedirunnerStormChargePriority),

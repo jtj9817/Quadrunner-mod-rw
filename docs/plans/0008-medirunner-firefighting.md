@@ -64,12 +64,14 @@ Package evidence: 2026-11-05 08:16, actual `dist/Quadrunner` build `8fa0518.2026
 
 User report (2026-11-05): F3 still misses spread-out fires after the Medirunner has sprayed retardant. F3's synthetic target removal followed by reload did not prove uninterrupted real-burst handoff.
 
-- [ ] With multiple separated Home fires in different directions and beyond one spray footprint, actual foam extinguishes the first and the medic naturally discovers/targets/extinguishes the others without manual target removal, forced refreshes or reloads.
-- [ ] Additional untreated, separated fires ignited after actual foam deposition are discovered and physically extinguished while the deposited foam remains.
-- [ ] Nearby fires in different directions exercise post-spray retargeting without relying on a travel leg to reset native job state; evidence records actual additional sprays, not just `AttackStatic` selection.
+- [x] With multiple separated Home fires in different directions and beyond one spray footprint, actual foam extinguishes the first and the medic naturally discovers/targets/extinguishes the others without manual target removal, forced refreshes or reloads.
+- [x] Additional untreated, separated fires ignited after actual foam deposition are discovered and physically extinguished while the deposited foam remains.
+- [x] Nearby fires in different directions exercise post-spray retargeting without relying on a travel leg to reset native job state; evidence records actual additional sprays, not just `AttackStatic` selection.
 - [ ] The demonstrated failure passes after a minimal runtime correction, and existing fire/standby/storm/rescue behavior still passes with zero new errors.
 - [ ] The rebuilt actual package passes the real post-foam regression and affected medic cases with loaded BUILD/modRoot verified.
 
+Reproduction evidence (not a runtime fix): small separated-site case at 08:53 passed with six sprays; dense 54-fire case at 08:57 passed with fifteen sprays; heated-room variant at 09:03 passed with thirteen sprays, all zero new errors on unchanged gameplay. The latter two scenarios each ran in 12 seconds (31 seconds including build/restart). User confirms the missed real fires are **inside Home**. A user-provided copy of the failing save outside the protected live profile is needed to investigate the actual state. No gameplay code changed; no fixed/package claim. The new fixtures are scenario-only maintenance, so the installed gameplay package remains `8fa0518.20261105T081453Z`.
+
 ## Open questions
 
-None.
+Awaiting a user-provided copy of the failing Medirunner/fire state; the live user profile/game remains off limits.
