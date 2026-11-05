@@ -457,8 +457,7 @@ namespace Quadrunner
                     foreach (Pawn patient in Rescue.Patients(Map))
                         if (!patient.Position.Fogged(Map)) Report(NetworkTaskKind.Rescue, patient);
                     // Home-area fires are a colony alarm too: reported map-wide, like the downed (Report skips fog).
-                    foreach (Fire fire in Firefighting.Fires(Map))
-                        Report(NetworkTaskKind.Fire, fire);
+                    ReportFires();
                     // A revealed active raid is a colony alert, not undiscovered hauling. Combatdogs must receive
                     // its targets even when every worker has already withdrawn beyond local scan range.
                     if (War)
@@ -495,11 +494,20 @@ namespace Quadrunner
                 packs.Refresh();
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
-                if (AssignAll(ordered, hasPatient) && !War)
+                if (AssignAll(ordered, hasPatient))
                 {
-                    ordered.Clear(); ordered.AddRange(State.normal);
-                    ordered.Sort(taskComparison);
-                    AssignAll(ordered, hasPatient);
+                    // Each deployed medic chooses from the fire backlog, not the oldest fire choosing a medic.
+                    foreach (Pawn dog in dogs)
+                    {
+                        Job fire = TakeFireOrder(dog);
+                        if (fire != null) dog.jobs.StartJob(fire, JobCondition.InterruptForced);
+                    }
+                    if (!War)
+                    {
+                        ordered.Clear(); ordered.AddRange(State.normal);
+                        ordered.Sort(taskComparison);
+                        AssignAll(ordered, hasPatient);
+                    }
                 }
                 foreach (Pawn dog in dogs)
                 {
@@ -647,6 +655,15 @@ namespace Quadrunner
             for (int i = queue.Count - 1; i >= 0; i--)
             {
                 NetworkTask task = queue[i];
+                // Native Goto watches its destination cell, not the fire retained in target B.
+                if (task.kind == NetworkTaskKind.Fire && Finished(task))
+                {
+                    if (task.assigneeId != null && dogById.TryGetValue(task.assigneeId, out Pawn responder)
+                        && responder.CurJob?.loadID == task.jobId)
+                        StopSafely(responder);
+                    queue.RemoveAt(i);
+                    continue;
+                }
                 if (task.assigneeId != null)
                 {
                     if (dogById.TryGetValue(task.assigneeId, out Pawn dog) && Active(dog)
@@ -718,10 +735,64 @@ namespace Quadrunner
             assignments.Remove(dog.ThingID);
         }
 
+        private void ReportFires()
+        {
+            foreach (Thing thing in Map.listerThings.ThingsOfDef(ThingDefOf.Fire))
+                if (thing is Fire fire && Firefighting.Eligible(fire, Map))
+                    Report(NetworkTaskKind.Fire, fire);
+        }
+
+        /// <summary>Selection only: claim the nearest unowned fire, never start jobs inside native evaluation.</summary>
+        private Job TakeFireOrder(Pawn dog, bool refresh = false)
+        {
+            if (!Active(dog) || RobodogWork.Of(dog)?.rescue != true || dog.Drafted || dog.InMentalState
+                || CompRobodog.Of(dog).WantsCharge || dog.CurJob?.playerForced == true
+                || dog.carryTracker?.CarriedThing != null || assignments.ContainsKey(dog.ThingID)
+                || !IsAvailable(dog) && !Firefighting.AimedAt(dog.CurJob) || !PathInputsReady(dog))
+                return null;
+            if (refresh) ReportFires();
+            // Let the ordinary triage scheduler take a waiting patient before claiming another fire.
+            foreach (NetworkTask task in State.war)
+                if (task.kind == NetworkTaskKind.Rescue && task.assigneeId == null && Now >= task.retryAt
+                    && !Finished(task))
+                    return null;
+            NetworkTask nearest = null;
+            Job selected = null;
+            int distance = int.MaxValue, targetId = int.MaxValue;
+            foreach (NetworkTask task in State.war)
+            {
+                if (task.kind != NetworkTaskKind.Fire || task.assigneeId != null || Now < task.retryAt
+                    || !(task.Target(Map) is Fire fire) || !Firefighting.Eligible(fire, Map))
+                    continue;
+                int local = (fire.Position - dog.Position).LengthHorizontalSquared;
+                if (local > distance || local == distance && fire.thingIDNumber >= targetId
+                    || !dog.CanReach(fire, PathEndMode.Touch, Danger.Deadly))
+                    continue;
+                Job candidate = Firefighting.JobFor(dog, fire);
+                if (candidate == null) continue;
+                if (selected != null) JobMaker.ReturnToPool(selected);
+                nearest = task; selected = candidate; distance = local; targetId = fire.thingIDNumber;
+            }
+            if (nearest == null) return null;
+            Assign(dog, nearest, selected, 0f);
+            CompRobodog.Of(dog).fireStandbyUntil = 0;
+            return selected;
+        }
+
+        private void Assign(Pawn dog, NetworkTask task, Job job, float cost)
+        {
+            task.assigneeId = dog.ThingID; task.jobId = job.loadID;
+            task.phase = NetworkTaskPhase.Assigned; task.reportedAt = task.progressAt = Now;
+            task.lastPosition = dog.Position; task.routeCost = cost;
+            assignments[task.assigneeId] = task;
+            QR.Log($"network assigned #{task.id} {task.kind} to {dog}; path {cost:F0}, job {task.jobId}");
+        }
+
         private bool AssignAll(List<NetworkTask> tasks, bool hasPatient)
         {
             foreach (NetworkTask task in tasks)
             {
+                if (task.kind == NetworkTaskKind.Fire) continue;
                 Thing target = task.Target(Map);
                 if (task.assigneeId != null || Now < task.retryAt || target == null || !target.Spawned) continue;
                 Pawn nearest = null;
@@ -761,13 +832,9 @@ namespace Quadrunner
                     if (!docked) task.retryAt = Now + Tuning.scanInterval;
                     continue;
                 }
-                task.assigneeId = nearest.ThingID; task.jobId = selected.loadID;
-                task.phase = NetworkTaskPhase.Assigned; task.reportedAt = task.progressAt = Now;
-                task.lastPosition = nearest.Position; task.routeCost = cost;
-                assignments[nearest.ThingID] = task;
+                Assign(nearest, task, selected, cost);
                 nearest.jobs.StartJob(selected, JobCondition.InterruptForced);
                 if (nearest.CurJob?.loadID == task.jobId) task.phase = NetworkTaskPhase.Acknowledged;
-                QR.Log($"network assigned #{task.id} {task.kind} to {nearest}; path {cost:F0}, job {task.jobId}");
             }
             return true;
         }
@@ -804,6 +871,7 @@ namespace Quadrunner
                     Job next = JobFor(dog, task, Map);
                     if (next != null)
                     {
+                        if (task.kind == NetworkTaskKind.Fire) CompRobodog.Of(dog).fireStandbyUntil = 0;
                         if (dog.CurJob?.loadID == task.jobId && next.def == dog.CurJobDef
                             && dog.jobs.curDriver.IsContinuation(next))
                         {
@@ -818,10 +886,12 @@ namespace Quadrunner
                 Reset(task);
                 assignments.Remove(dog.ThingID);
             }
+            Job fireOrder = TakeFireOrder(dog, refresh: true);
+            if (fireOrder != null) return fireOrder;
             // Surveying must not keep an injured worker permanently away from a reachable repair dock.
             if (NeedsRepair(dog) && Idle(dog)) return null;
             // Player orders, riding and pre-cutover productive jobs finish normally; exploration cannot steal them.
-            if (dog.CurJob != null && !IsAvailable(dog)) return dog.CurJob;
+            if (dog.CurJob != null && !IsAvailable(dog) && !Firefighting.AimedAt(dog.CurJob)) return dog.CurJob;
             return IdleJob(dog);
         }
 
@@ -855,6 +925,8 @@ namespace Quadrunner
             }
             if (RobodogWork.Of(dog).combat && (War || State.war.Exists(t => t.kind == NetworkTaskKind.Combat)))
                 return Combat.IdleJob(dog, this);
+            if (RobodogWork.Of(dog).rescue)
+                return Firefighting.StandbyJob(dog);
             return null; // The existing dock/nearest-room branches implement standby and maintenance.
         }
 

@@ -10,7 +10,7 @@ namespace Quadrunner
     /// <summary>On a dog race that works: which vanilla work givers it runs, and how a raid changes it.</summary>
     public class RobodogWork : DefModExtension
     {
-        /// <summary>A medic (Medirunner): it only rescues the downed (<see cref="Rescue"/>), raid or not.</summary>
+        /// <summary>A medic: rescues the downed first, then fights Home fires, raid or not.</summary>
         public bool rescue;
         /// <summary>A Combatdog: it only fights and captures hostiles (<see cref="Combat"/>).</summary>
         public bool combat;

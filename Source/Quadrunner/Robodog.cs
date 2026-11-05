@@ -41,6 +41,8 @@ namespace Quadrunner
         // Combatdogs: the built-in gun picked for each weapon slot (null: the slot's default), see Tiers.
         private ThingDef gun1, gun2;
         private int nextSmokeAt;
+        /// <summary>Medic fire response: -1 inactive, 0 working/storm alert, otherwise the saved quiet-period deadline.</summary>
+        public int fireStandbyUntil = -1;
         // What the dog carries and since when, for the flip onto its back (RobodogPose). Not saved: a dog loaded or
         // spawned with a pawn on its back has had it there all along.
         private Thing carried;
@@ -241,6 +243,7 @@ namespace Quadrunner
             Scribe_Defs.Look(ref gun1, "gun1");
             Scribe_Defs.Look(ref gun2, "gun2");
             Scribe_Values.Look(ref nextSmokeAt, "nextSmokeAt");
+            Scribe_Values.Look(ref fireStandbyUntil, "fireStandbyUntil", -1);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
                 Tiers.MigrateLoadout(Dog);
             // Pre-sprayer Medirunners were Animal-intelligence pawns, saved without ToolUser trackers. The load

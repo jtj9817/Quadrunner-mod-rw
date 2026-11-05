@@ -48,13 +48,15 @@ Packaged proof at 05:18: actual `dist/Quadrunner` build `8771e7f.20261026T051738
 
 ### F3 — Continuous nearest-fire response and storm alert
 
-- [ ] A deployed medic chooses the nearest reachable unclaimed Home fire, not the oldest queued fire, and retains a valid focus.
-- [ ] Native job transitions immediately reacquire remaining fires without a homeward gap, including after reload and while travelling into spray range.
-- [ ] After the last fire, hold position for at least 180 ticks, recheck, then dock; a new fire during standby resumes response and resets the quiet period.
-- [ ] Lightning weather and an independent Flashstorm condition keep responders deployed beyond the quiet period; new fires are handled from the field, including across save/load.
-- [ ] After the weather/condition ends, the ordinary quiet period and docking resume; low battery overrides storm alert.
+- [x] A deployed medic chooses the nearest reachable unclaimed Home fire, not the oldest queued fire, and retains a valid focus.
+- [x] Native job transitions immediately reacquire remaining fires without a homeward gap, including after reload and while travelling into spray range.
+- [x] After the last fire, hold position for at least 180 ticks, recheck, then dock; a new fire during standby resumes response and resets the quiet period.
+- [x] Lightning weather and an independent Flashstorm condition keep responders deployed beyond the quiet period; new fires are handled from the field, including across save/load.
+- [x] After the weather/condition ends, the ordinary quiet period and docking resume; low battery overrides storm alert.
 - [ ] Existing firefighting, rescue precedence, legacy migration and affected shared-dispatch scenarios pass with zero new errors.
 - [ ] The rebuilt actual package passes the affected response scenarios with loaded BUILD and modRoot verified.
+
+Focused evidence: 2026-11-05 06:58, `fb7cd93-dirty.20261105T065800Z`, all four new response cases **4/4 PASS, zero new errors**. Native job observation proves the next fire is acquired without homeward travel; actual foam extinguishes the staged fires. Saves cover active response, the positive quiet deadline and both storm alerts. Shared integration and actual-package criteria remain open.
 
 ## Open questions
 
