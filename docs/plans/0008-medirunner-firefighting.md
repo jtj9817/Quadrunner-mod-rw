@@ -67,11 +67,10 @@ User report (2026-11-05): F3 still misses spread-out fires after the Medirunner 
 - [x] With multiple separated Home fires in different directions and beyond one spray footprint, actual foam extinguishes the first and the medic naturally discovers/targets/extinguishes the others without manual target removal, forced refreshes or reloads.
 - [x] Additional untreated, separated fires ignited after actual foam deposition are discovered and physically extinguished while the deposited foam remains.
 - [x] Nearby fires in different directions exercise post-spray retargeting without relying on a travel leg to reset native job state; evidence records actual additional sprays, not just `AttackStatic` selection.
-- [ ] The demonstrated failure passes after a minimal runtime correction, and existing fire/standby/storm/rescue behavior still passes with zero new errors.
-- [ ] The rebuilt actual package passes the real post-foam regression and affected medic cases with loaded BUILD/modRoot verified.
+The user reports the apparent missed fires were caused by a Home-area issue and considers the report resolved (2026-11-05). The previously proposed runtime correction and packaged regression are therefore **not applicable**, rather than proven passes; no gameplay fix or package was made.
 
-Reproduction evidence (not a runtime fix): small separated-site case at 08:53 passed with six sprays; dense 54-fire case at 08:57 passed with fifteen sprays; heated-room variant at 09:03 passed with thirteen sprays, all zero new errors on unchanged gameplay. The latter two scenarios each ran in 12 seconds (31 seconds including build/restart). User confirms the missed real fires are **inside Home**. A user-provided copy of the failing save outside the protected live profile is needed to investigate the actual state. No gameplay code changed; no fixed/package claim. The new fixtures are scenario-only maintenance, so the installed gameplay package remains `8fa0518.20261105T081453Z`.
+Reproduction evidence: small separated-site case at 08:53 passed with six sprays; dense 54-fire case at 08:57 passed with fifteen sprays; heated-room variant at 09:03 passed with thirteen sprays, all zero new errors on unchanged gameplay. The latter two scenarios each ran in 12 seconds (31 seconds including build/restart). The installed gameplay package remains `8fa0518.20261105T081453Z`.
 
 ## Open questions
 
-Awaiting a user-provided copy of the failing Medirunner/fire state; the live user profile/game remains off limits.
+None for the resolved post-foam report.
