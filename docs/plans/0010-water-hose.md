@@ -44,9 +44,11 @@ User request (2026-11-06): fix both scenario defects and enlarge the hose spray 
 - [x] A hose application physically cleans multiple eligible tiles in a broad band comparable to the Medirunner's native foam spray (half-width 5.5 cells, half-depth 3.5 cells); visual spray covers the cleaning area.
 - [x] Preserve one/three/four-plus/no-eligible threshold cases, all layers and last-three continuity, and partial-area progress across save/load.
 - [x] Area spray respects queued/discovered ownership, reservations, Home, fog and walls; only blood and foam are affected.
-- [ ] Affected hose scenarios pass with zero new errors in development and the actual package, with BUILD/modRoot verified and the real spray inspected.
+- [x] Affected hose scenarios pass with zero new errors in development and the actual package, with BUILD/modRoot verified and the real spray inspected.
 
-Development evidence: 2026-11-06 06:06, `835eec3-dirty.20261106T060450Z`, eight Hose scenarios only, 8/8 PASS with zero new errors. The scheduler assigns actual older dirt task #11, one application removes 50 cells over a 4×10 coordinate span, and shadow/thickness/band edges and two-worker ownership pass. Native `hose-spray` and `hose-broad-spray` captures inspected. Package proof pending.
+Development evidence: 2026-11-06 06:06, `835eec3-dirty.20261106T060450Z`, eight Hose scenarios only, 8/8 PASS with zero new errors. The scheduler assigns actual older dirt task #11, one application removes 50 cells over a 4×10 coordinate span, and shadow/thickness/band edges and two-worker ownership pass. Native `hose-spray` and `hose-broad-spray` captures inspected.
+
+Package evidence: 2026-11-06 06:09, actual `dist/Quadrunner` build `8f60a1f.20261106T060759Z`, the same eight Hose scenarios 8/8 PASS with zero new errors. BUILD and loaded modRoot verified, actual package spray inspected, private game/Xvfb stopped and release link restored. No other scenarios or full suite run for H2.
 
 ## Open questions
 
