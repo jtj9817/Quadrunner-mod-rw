@@ -37,4 +37,38 @@
     </children>
   </EffecterDef>
 
+  <!-- One application of the broad hose spray on every affected cell of the band. Vanilla triggered foam droplets
+       (SubEffecter_SprayerTriggered and the FoamSpray fleck) tinted pale blue, matching QR_HoseSpray; the hose job
+       spawns it from the dog to each distinct cell it cleans, as vanilla Verb_ArcSpray does per path cell. The
+       second child splashes on the cleaned cell itself, so the fan visibly covers every tile the water cleans. -->
+  <EffecterDef>
+    <defName>QR_HoseSprayBurst</defName>
+    <children>
+      <li>
+        <subEffecterClass>SubEffecter_SprayerTriggered</subEffecterClass>
+        <positionRadius>0.15</positionRadius>
+        <fleckDef>FoamSpray</fleckDef>
+        <burstCount>2~4</burstCount>
+        <speed>0.6~3.3</speed>
+        <scale>0.8~1.25</scale>
+        <angle>-24~24</angle>
+        <positionLerpFactor>0.85</positionLerpFactor>
+        <fleckUsesAngleForVelocity>true</fleckUsesAngleForVelocity>
+        <color>(0.72, 0.86, 1, 1)</color>
+      </li>
+      <li>
+        <subEffecterClass>SubEffecter_SprayerTriggered</subEffecterClass>
+        <spawnLocType>OnTarget</spawnLocType>
+        <positionRadius>0.35</positionRadius>
+        <fleckDef>FoamSpray</fleckDef>
+        <burstCount>1~2</burstCount>
+        <speed>0.05~0.3</speed>
+        <scale>0.5~0.9</scale>
+        <angle>0~360</angle>
+        <fleckUsesAngleForVelocity>true</fleckUsesAngleForVelocity>
+        <color>(0.72, 0.86, 1, 1)</color>
+      </li>
+    </children>
+  </EffecterDef>
+
 </Defs>

@@ -31,6 +31,12 @@ namespace Quadrunner
         public int hoseMaxTiles = 256;
         /// <summary>Cleaning work multiplier while the hose sprays; above 1 cleans faster than ordinary cleaning.</summary>
         public float hoseCleaningSpeedFactor = 1.5f;
+        /// <summary>Hose spray band, native Verb_ArcSpray geometry: half-width across the caster-to-aim line.</summary>
+        public float hoseSprayWidth = 5.5f;
+        /// <summary>Hose spray band: native sprayThicknessCells; half-depth is half this plus the arching.</summary>
+        public int hoseSprayThicknessCells = 4;
+        /// <summary>Hose spray band: native sprayArching; 3.5 half-depth with the default thickness and arching.</summary>
+        public float hoseSprayArching = 1.5f;
         public List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
         public List<JobDef> jobs = new List<JobDef>();
         public float raidSpeedFactor = 3f;

@@ -10,8 +10,9 @@ namespace Quadrunner
     /// <summary>
     /// The worker Quadrunner's integrated water hose (plan 0010). A network Clean task whose target belongs to a
     /// contiguous patch of more than <see cref="RobodogWork.hoseMinTiles"/> blood/firefoam tiles becomes one hose job
-    /// that walks the patch and sprays every eligible filth object in it, so the last few tiles keep the hose instead
-    /// of falling back to normal cleaning. The hose never targets any other filth (plan 0010: blood and firefoam only).
+    /// that walks the patch and sprays a native <see cref="Verb_ArcSpray"/>-shaped band around each aimed tile, so
+    /// one application cleans every eligible queued tile in that band and the last few tiles keep the hose instead of
+    /// falling back to normal cleaning. The hose never targets any other filth (plan 0010: blood and firefoam only).
     /// </summary>
     public static class Hose
     {
@@ -92,6 +93,29 @@ namespace Quadrunner
             filth != null && dog.CanReach(filth, PathEndMode.Touch, Danger.Deadly);
 
         /// <summary>
+        /// Native <c>Verb_ArcSpray</c> band around <paramref name="aim"/>, oriented from the dog to it: half-width
+        /// across that line, half-depth = spray thickness/2 + arching along it. The Medirunner's foam sprayer
+        /// (5.5 x 3.5 cells at the XML defaults) has the same shape; no random sampling is needed for cleaning.
+        /// </summary>
+        internal static bool InSprayBand(Pawn dog, Filth aim, Filth filth, RobodogWork work)
+        {
+            if (dog == null || aim == null || filth == null)
+                return false;
+            Vector3 direction = (aim.Position.ToVector3Shifted() - dog.Position.ToVector3Shifted()).Yto0();
+            if (direction.sqrMagnitude < 0.001f)
+                direction = Vector3.forward;
+            else
+                direction.Normalize();
+            Vector3 offset = filth.Position.ToVector3Shifted() - aim.Position.ToVector3Shifted();
+            float halfWidth = work != null && work.hoseSprayWidth > 0f ? work.hoseSprayWidth : 5.5f;
+            float halfDepth = work != null
+                ? work.hoseSprayThicknessCells * 0.5f + work.hoseSprayArching : 3.5f;
+            Vector3 tangent = direction.RotatedBy(90f);
+            return Mathf.Abs(Vector3.Dot(offset, tangent)) <= halfWidth
+                && Mathf.Abs(Vector3.Dot(offset, direction)) <= halfDepth;
+        }
+
+        /// <summary>
         /// Distinct affected cells of the contiguous 8-neighbour patch containing <paramref name="origin"/>. A cell
         /// belongs when it is revealed, in Home and holds at least one mature, unforbidden hose filth. The search is
         /// bounded by <see cref="RobodogWork.hosePatchRadius"/> and <see cref="RobodogWork.hoseMaxTiles"/> so a
@@ -140,17 +164,24 @@ namespace Quadrunner
     }
 
     /// <summary>
-    /// Sprays a queued patch: walks to each filth, then streams the native hose effecter at it while applying the
-    /// same cleaning work and thinning as vanilla, so water alone removes the filth. All patch targets were reserved
-    /// when the job started; the queue is saved with the job, which is how the last tiles keep the hose.
+    /// Sprays a queued patch: walks to each filth, then streams the native hose effecter over the native
+    /// <see cref="Hose.InSprayBand"/> around it while applying the same cleaning work and thinning as vanilla to every
+    /// reserved queued target in that band, so water alone removes the filth. All patch targets were reserved when
+    /// the job started; the queue and each tile's partial layer work are saved with the job, which is how the last
+    /// tiles keep the hose.
     /// </summary>
     public class JobDriver_CleanWithHose : JobDriver
     {
         private const TargetIndex FilthInd = TargetIndex.A;
 
-        private float cleaningWorkDone;
+        // Work done toward the current thickness layer, keyed by the numeric Thing ID to avoid formatting strings
+        // on every spray application. Partial progress for each affected tile survives a mid-patch save.
+        private Dictionary<int, float> layerWork = new Dictionary<int, float>();
         private float totalCleaningWorkDone;
         private float totalCleaningWorkRequired;
+        private readonly List<Filth> affected = new List<Filth>();
+        private readonly HashSet<IntVec3> burstCells = new HashSet<IntVec3>();
+        private Effecter sprayBurst;
 
         private Filth Filth => job.GetTarget(FilthInd).Thing as Filth;
 
@@ -176,8 +207,9 @@ namespace Quadrunner
             spray.initAction = () =>
             {
                 Filth filth = Filth;
-                cleaningWorkDone = 0f;
                 totalCleaningWorkDone = 0f;
+                if (filth != null && layerWork.TryGetValue(filth.thingIDNumber, out float done))
+                    totalCleaningWorkDone = done;
                 totalCleaningWorkRequired = filth == null ? 0f
                     : filth.def.filth.cleaningWorkToReduceThickness * filth.thickness;
             };
@@ -186,6 +218,11 @@ namespace Quadrunner
             // Native continuous spray: vanilla's foam-spray fleck, tinted pale blue, from the dog to the filth.
             // Deliberately not EffecterDefOf.Clean, whose bubbles are the ordinary mop's effect.
             spray.WithEffect(QR_DefOf.QR_HoseSpray, FilthInd);
+            spray.AddFinishAction(() =>
+            {
+                sprayBurst?.Cleanup();
+                sprayBurst = null;
+            });
             spray.WithProgressBar(FilthInd, Progress, interpolateBetweenActorAndTarget: true);
             spray.PlaySustainerOrSound(() => Filth?.def.filth.cleaningSound ?? SoundDefOf.Interact_CleanFilth);
             spray.JumpIfDespawnedOrNullOrForbidden(FilthInd, extract);
@@ -198,40 +235,87 @@ namespace Quadrunner
         private float Progress() => totalCleaningWorkRequired <= 0f
             ? 0f : Mathf.Clamp01(totalCleaningWorkDone / totalCleaningWorkRequired);
 
-        /// <summary>Vanilla's cleaning work and <see cref="Filth.ThinFilth"/>, with the hose effect instead of a mop.</summary>
+        /// <summary>
+        /// One vanilla cleaning interval over the native spray band: the aimed filth and every other queued target
+        /// this dog reserved inside <see cref="Hose.InSprayBand"/> (about 11 x 7 cells, matching the Medirunner's
+        /// foam sprayer). Each affected filth gets the same per-cell work and thins exactly like vanilla, so several
+        /// tiles can be cleaned by one application and every thickness layer keeps its own progress.
+        /// </summary>
         private void Spray(int delta)
         {
-            Filth filth = Filth;
-            if (filth == null || filth.Destroyed || !Hose.StillEligible(filth, pawn))
+            Filth aim = Filth;
+            Map map = pawn.Map;
+            if (aim == null || aim.Destroyed || !Hose.StillEligible(aim, pawn)
+                || !GenSight.LineOfSight(pawn.Position, aim.Position, map, skipFirstCell: true))
             {
                 ReadyForNextToil();
                 return;
             }
-            float factor = filth.Position.GetTerrain(filth.Map).GetStatValueAbstract(StatDefOf.CleaningTimeFactor);
-            float work = pawn.GetStatValue(StatDefOf.CleaningSpeed) * delta;
             RobodogWork hose = RobodogWork.Of(pawn);
+            float work = pawn.GetStatValue(StatDefOf.CleaningSpeed) * delta;
             if (hose != null && hose.hoseCleaningSpeedFactor > 0f)
                 work *= hose.hoseCleaningSpeedFactor;
+            affected.Clear();
+            affected.Add(aim);
+            foreach (LocalTargetInfo target in job.GetTargetQueue(FilthInd))
+            {
+                if (!(target.Thing is Filth filth) || filth == aim || !Hose.StillEligible(filth, pawn)
+                    || !pawn.HasReserved(filth) || !Hose.InSprayBand(pawn, aim, filth, hose)
+                    || !GenSight.LineOfSight(pawn.Position, filth.Position, map, skipFirstCell: true))
+                    continue;
+                affected.Add(filth);
+            }
+            burstCells.Clear();
+            foreach (Filth filth in affected)
+            {
+                Apply(filth, work);
+                burstCells.Add(filth.Position);
+            }
+            if (burstCells.Count > 0)
+            {
+                sprayBurst ??= QR_DefOf.QR_HoseSprayBurst.Spawn();
+                foreach (IntVec3 cell in burstCells)
+                    sprayBurst.Trigger(pawn, new TargetInfo(cell, map));
+            }
+            if (aim.Destroyed || !Hose.StillEligible(aim, pawn))
+                ReadyForNextToil();
+        }
+
+        /// <summary>Vanilla's layer work and <see cref="Filth.ThinFilth"/> for one filth in the spray band.</summary>
+        private void Apply(Filth filth, float work)
+        {
+            float factor = filth.Position.GetTerrain(filth.Map)
+                .GetStatValueAbstract(StatDefOf.CleaningTimeFactor);
             if (factor != 0f)
                 work /= factor;
-            cleaningWorkDone += work;
-            totalCleaningWorkDone += work;
-            if (cleaningWorkDone <= filth.def.filth.cleaningWorkToReduceThickness)
+            int id = filth.thingIDNumber;
+            layerWork.TryGetValue(id, out float done);
+            done += work;
+            if (filth == Filth)
+                totalCleaningWorkDone += work;
+            if (done <= filth.def.filth.cleaningWorkToReduceThickness)
+            {
+                layerWork[id] = done;
                 return;
+            }
             filth.ThinFilth();
-            cleaningWorkDone = 0f;
-            if (!filth.Destroyed)
+            if (filth.Destroyed)
+            {
+                layerWork.Remove(id);
+                pawn.records.Increment(RecordDefOf.MessesCleaned);
                 return;
-            pawn.records.Increment(RecordDefOf.MessesCleaned);
-            ReadyForNextToil();
+            }
+            layerWork[id] = 0f;
         }
 
         public override void ExposeData()
         {
             base.ExposeData();
-            Scribe_Values.Look(ref cleaningWorkDone, "hoseCleaningWorkDone", 0f);
+            Scribe_Collections.Look(ref layerWork, "hoseLayerWork", LookMode.Value, LookMode.Value);
             Scribe_Values.Look(ref totalCleaningWorkDone, "hoseTotalCleaningWorkDone", 0f);
             Scribe_Values.Look(ref totalCleaningWorkRequired, "hoseTotalCleaningWorkRequired", 0f);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && layerWork == null)
+                layerWork = new Dictionary<int, float>();
         }
     }
 }

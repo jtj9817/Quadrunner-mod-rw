@@ -130,6 +130,12 @@
         <hoseMaxTiles>256</hoseMaxTiles>
         <!-- A hose cleans 1.5x faster than ordinary cleaning; keep above 1 for the intended advantage. -->
         <hoseCleaningSpeedFactor>1.5</hoseCleaningSpeedFactor>
+        <!-- Spray band shape, mirroring the Medirunner's native foam sprayer (QR_Gun_FoamSprayer): 5.5 cells each
+             side of the caster-to-aim line, and 4/2 + 1.5 = 3.5 cells along it. Every queued target in that band is
+             sprayed by one application; the visual bursts cover the same cells. -->
+        <hoseSprayWidth>5.5</hoseSprayWidth>
+        <hoseSprayThicknessCells>4</hoseSprayThicknessCells>
+        <hoseSprayArching>1.5</hoseSprayArching>
         <raidSpeedFactor>3</raidSpeedFactor>
         <raidDrainFactor>2</raidDrainFactor>
       </li>

@@ -14,6 +14,7 @@ Give worker Quadrunners an integrated water hose to clean clusters of blood and 
 | Existing cleaning | Retain the existing Home-area, discovery, reachability and assignment rules and normal cleaning for other filth; the hose is an alternative for qualifying patches, not a replacement for cleaning (existing network contract, plan 0003). |
 | Design reference | Reuse the relevant continuous selection and handoff ideas from Medirunner foam response, adapted to cleaning rather than treating filth as fire (user, 2026-11-05). |
 | Patch and speed | Eight-neighbor connected, discovered and queueable Home cells, bounded to 12 cells from the first target and 256 cells per job. The hose cleans at 1.5 times normal cleaning work; bounds and rate are XML tunables. |
+| Broad application (H2) | Match the Medirunner's `Verb_ArcSpray` band: 5.5-cell half-width, `4 / 2 + 1.5 = 3.5`-cell half-depth, oriented dog-to-aim. Every eligible reserved queue target in the band receives cleaning work per application, with line of sight checked per tile. Per-tile partial layer work is saved; triggered water flecks cover the affected cells. No equipment migration or new Harmony patch. |
 
 ## Targets
 
@@ -38,12 +39,14 @@ Review correction: H1's attempted dirt-first fixture reordered `State.normal`, b
 
 User request (2026-11-06): fix both scenario defects and enlarge the hose spray AOE to resemble Medirunner firefoam. Run only the affected hose scenarios, including package smoke; no full suite.
 
-- [ ] Prove actual dirt-first network assignment through discovery/task order and observe the resulting hose fallback; no list-position trick.
-- [ ] Replace forbidden-filth no-ops with real dirt isolation; prove the spray leaves dirt alone and ordinary cleaning handles it afterward.
-- [ ] A hose application physically cleans multiple eligible tiles in a broad band comparable to the Medirunner's native foam spray (half-width 5.5 cells, half-depth 3.5 cells); visual spray covers the cleaning area.
-- [ ] Preserve one/three/four-plus/no-eligible threshold cases, all layers and last-three continuity, and partial-area progress across save/load.
-- [ ] Area spray respects queued/discovered ownership, reservations, Home, fog and walls; only blood and foam are affected.
+- [x] Prove actual dirt-first network assignment through discovery/task order and observe the resulting hose fallback; no list-position trick.
+- [x] Replace forbidden-filth no-ops with real dirt isolation; prove the spray leaves dirt alone and ordinary cleaning handles it afterward.
+- [x] A hose application physically cleans multiple eligible tiles in a broad band comparable to the Medirunner's native foam spray (half-width 5.5 cells, half-depth 3.5 cells); visual spray covers the cleaning area.
+- [x] Preserve one/three/four-plus/no-eligible threshold cases, all layers and last-three continuity, and partial-area progress across save/load.
+- [x] Area spray respects queued/discovered ownership, reservations, Home, fog and walls; only blood and foam are affected.
 - [ ] Affected hose scenarios pass with zero new errors in development and the actual package, with BUILD/modRoot verified and the real spray inspected.
+
+Development evidence: 2026-11-06 06:06, `835eec3-dirty.20261106T060450Z`, eight Hose scenarios only, 8/8 PASS with zero new errors. The scheduler assigns actual older dirt task #11, one application removes 50 cells over a 4×10 coordinate span, and shadow/thickness/band edges and two-worker ownership pass. Native `hose-spray` and `hose-broad-spray` captures inspected. Package proof pending.
 
 ## Open questions
 
