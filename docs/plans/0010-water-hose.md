@@ -2,7 +2,7 @@
 
 ## Goal
 
-Give worker Quadrunners an integrated water hose to clean clusters of blood and firefoam, following the continuous targeting pattern of Medirunner firefighting (user, 2026-11-05). This is planned work, not implemented behavior.
+Give worker Quadrunners an integrated water hose to clean clusters of blood and firefoam, following the continuous targeting pattern of Medirunner firefighting (user, 2026-11-05).
 
 ## Decisions
 
@@ -13,20 +13,23 @@ Give worker Quadrunners an integrated water hose to clean clusters of blood and 
 | Continuity | Once a qualifying patch is engaged, continue spraying eligible blood and foam in that area until it is clean, rather than stopping as soon as its remaining count falls to three (user, 2026-11-05). |
 | Existing cleaning | Retain the existing Home-area, discovery, reachability and assignment rules and normal cleaning for other filth; the hose is an alternative for qualifying patches, not a replacement for cleaning (existing network contract, plan 0003). |
 | Design reference | Reuse the relevant continuous selection and handoff ideas from Medirunner foam response, adapted to cleaning rather than treating filth as fire (user, 2026-11-05). |
+| Patch and speed | Eight-neighbor connected, discovered and queueable Home cells, bounded to 12 cells from the first target and 256 cells per job. The hose cleans at 1.5 times normal cleaning work; bounds and rate are XML tunables. |
 
 ## Targets
 
 ### H1 — Integrated hose and patch cleaning
 
-- [ ] Equip worker Quadrunners with a functioning water hose and visibly spray eligible patches; preserve existing workers and saves.
-- [ ] One tile of foam and one tile of blood are cleaned normally without hose use.
-- [ ] A three-tile eligible patch is cleaned normally without hose use.
-- [ ] A four-tile mixed foam/blood patch starts the hose and is cleaned completely, including the last three tiles; exercise a larger mixed patch as well.
-- [ ] With no foam or blood, the hose does not start and does not remove unrelated filth.
-- [ ] Respect Home-area, discovery, reachability, reservations and existing work priorities; leave unrelated filth untouched by the spray.
-- [ ] Verify the changed path and save/load in the isolated game, run affected shared cleaning/dispatch and firefighting scenarios, and inspect the spray visually. Record results and zero-new-error evidence in `docs/test-runs.md`.
+- [x] Equip worker Quadrunners with a functioning water hose and visibly spray eligible patches; preserve existing workers and saves.
+- [x] One tile of foam and one tile of blood are cleaned normally without hose use.
+- [x] A three-tile eligible patch is cleaned normally without hose use.
+- [x] A four-tile mixed foam/blood patch starts the hose and is cleaned completely, including the last three tiles; exercise a larger mixed patch as well.
+- [x] With no foam or blood, the hose does not start and does not remove unrelated filth.
+- [x] Respect Home-area, discovery, reachability, reservations and existing work priorities; leave unrelated filth untouched by the spray.
+- [x] Verify the changed path and save/load in the isolated game, run affected shared cleaning/dispatch and firefighting scenarios, and inspect the spray visually. Record results and zero-new-error evidence in `docs/test-runs.md`.
 - [ ] Build and smoke the actual distributable package with affected scenarios, verify BUILD and modRoot, and record the result and current package in `TODO.md`.
+
+Evidence: affected integration 25/25 PASS with zero new errors (2026-11-06 02:02); dedicated two-worker reservation, fog and Home boundaries 1/1 PASS (02:18). The separate Run all timed out in Artwork showcase with InfoCard errors, so no full-suite pass is claimed. See [test runs](../test-runs.md).
 
 ## Open questions
 
-The precise patch neighborhood and spray footprint are implementation details to establish against the existing game and network behavior; preserve the threshold and continuous-cleaning requirements above.
+None.

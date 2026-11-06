@@ -568,7 +568,8 @@ namespace Quadrunner
                 if (Active(dog) && (dog.CurJobDef == QR_DefOf.QR_CarryToStable
                     || IsWorker(dog) && dog.CurJobDef != QR_DefOf.QR_BeingRidden
                         && (dog.CurJobDef == QR_DefOf.QR_Survey || dog.CurJobDef == JobDefOf.HaulToCell
-                            || dog.CurJobDef == JobDefOf.HaulToContainer || dog.CurJobDef == JobDefOf.Clean)))
+                            || dog.CurJobDef == JobDefOf.HaulToContainer || dog.CurJobDef == JobDefOf.Clean
+                            || dog.CurJobDef == QR_DefOf.QR_CleanWithHose)))
                     StopSafely(dog);
         }
 

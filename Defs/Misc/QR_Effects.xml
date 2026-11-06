@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- The worker hose's visible water spray (plan 0010). A stream of vanilla foam-spray droplets tinted pale blue
+       travels from the dog to the filth, with a small splash at the target. This is a real native effecter, not the
+       ordinary Clean interaction symbol. -->
+  <EffecterDef>
+    <defName>QR_HoseSpray</defName>
+    <children>
+      <li>
+        <subEffecterClass>SubEffecter_SprayerContinuous</subEffecterClass>
+        <fleckDef>FoamSpray</fleckDef>
+        <spawnLocType>BetweenPositions</spawnLocType>
+        <positionLerpFactor>0.85</positionLerpFactor>
+        <positionRadius>0.14</positionRadius>
+        <ticksBetweenMotes>3</ticksBetweenMotes>
+        <burstCount>1~2</burstCount>
+        <speed>0.7~2.4</speed>
+        <scale>0.7~1.2</scale>
+        <angle>-12~12</angle>
+        <color>(0.72, 0.86, 1, 1)</color>
+        <fleckUsesAngleForVelocity>true</fleckUsesAngleForVelocity>
+      </li>
+      <li>
+        <subEffecterClass>SubEffecter_SprayerContinuous</subEffecterClass>
+        <fleckDef>FoamSpray</fleckDef>
+        <spawnLocType>OnTarget</spawnLocType>
+        <positionRadius>0.35</positionRadius>
+        <ticksBetweenMotes>4</ticksBetweenMotes>
+        <burstCount>1~2</burstCount>
+        <speed>0.05~0.3</speed>
+        <scale>0.5~0.9</scale>
+        <angle>0~360</angle>
+        <color>(0.72, 0.86, 1, 1)</color>
+        <fleckUsesAngleForVelocity>true</fleckUsesAngleForVelocity>
+      </li>
+    </children>
+  </EffecterDef>
+
+</Defs>

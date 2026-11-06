@@ -117,6 +117,19 @@
           <li>HaulToContainer</li>
           <li>Clean</li>
         </jobs>
+        <!-- Water hose (plan 0010): clean only these defs, and only a contiguous patch of more than three affected
+             tiles; the assigned target is part of the count. Blood variants are explicit, not a name pattern. -->
+        <hoseFilth>
+          <li>Filth_Blood</li>
+          <li>Filth_BloodSmear</li>
+          <li>Filth_BloodInsect</li>
+          <li>Filth_FireFoam</li>
+        </hoseFilth>
+        <hoseMinTiles>4</hoseMinTiles>
+        <hosePatchRadius>12</hosePatchRadius>
+        <hoseMaxTiles>256</hoseMaxTiles>
+        <!-- A hose cleans 1.5x faster than ordinary cleaning; keep above 1 for the intended advantage. -->
+        <hoseCleaningSpeedFactor>1.5</hoseCleaningSpeedFactor>
         <raidSpeedFactor>3</raidSpeedFactor>
         <raidDrainFactor>2</raidDrainFactor>
       </li>

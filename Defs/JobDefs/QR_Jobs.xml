@@ -50,6 +50,13 @@
   </JobDef>
 
   <JobDef>
+    <defName>QR_CleanWithHose</defName>
+    <driverClass>Quadrunner.JobDriver_CleanWithHose</driverClass>
+    <reportString>spraying down TargetA with the water hose.</reportString>
+    <casualInterruptible>true</casualInterruptible>
+  </JobDef>
+
+  <JobDef>
     <defName>QR_CarryToRoom</defName>
     <driverClass>Quadrunner.JobDriver_CarryToRoom</driverClass>
     <reportString>carrying TargetA away.</reportString>

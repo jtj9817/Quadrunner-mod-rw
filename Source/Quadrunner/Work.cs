@@ -18,6 +18,19 @@ namespace Quadrunner
         public ThingDef builtInGun;
         /// <summary>Battery (0–1) each foam burst costs (<see cref="Verb_FoamSpray"/>); foam itself is unlimited.</summary>
         public float foamDrainPerBurst;
+        /// <summary>
+        /// The only filth the integrated water hose sprays (plan 0010): blood variants and firefoam, by exact def.
+        /// Empty on a race without a hose.
+        /// </summary>
+        public List<ThingDef> hoseFilth = new List<ThingDef>();
+        /// <summary>Hose threshold: a contiguous patch must have at least this many distinct affected tiles.</summary>
+        public int hoseMinTiles = 4;
+        /// <summary>Hose patch search: cells farther than this from the assigned target are not part of its patch.</summary>
+        public int hosePatchRadius = 12;
+        /// <summary>Hose patch search: hard cap on distinct affected cells, so a map-wide spill stays bounded.</summary>
+        public int hoseMaxTiles = 256;
+        /// <summary>Cleaning work multiplier while the hose sprays; above 1 cleans faster than ordinary cleaning.</summary>
+        public float hoseCleaningSpeedFactor = 1.5f;
         public List<WorkGiverDef> workGivers = new List<WorkGiverDef>();
         public List<JobDef> jobs = new List<JobDef>();
         public float raidSpeedFactor = 3f;
@@ -172,6 +185,12 @@ namespace Quadrunner
                 || !dog.CanReserveAndReach(target, scanner.PathEndMode, scanner.MaxPathDanger(dog))
                 || !scanner.HasJobOnThing(dog, target))
                 return null;
+            // A qualifying patch is one hose job (plan 0010); ordinary filth keeps the vanilla Clean job below.
+            if (task.kind == NetworkTaskKind.Clean && Hose.JobFor(dog, target) is Job hose)
+            {
+                hose.workGiverDef = task.giver;
+                return hose;
+            }
             Job job = scanner.JobOnThing(dog, target);
             if (job == null || !RobodogWork.Utility.jobs.Contains(job.def))
                 return null;
@@ -180,6 +199,16 @@ namespace Quadrunner
             job.haulOpportunisticDuplicates = false;
             job.workGiverDef = task.giver;
             TrimQueue(dog, task, job);
+            // Vanilla can batch a qualifying patch behind an ordinary dirt target. Prefer the hose for that patch
+            // before the ordinary job consumes it; the original task remains queued for normal cleaning afterward.
+            if (task.kind == NetworkTaskKind.Clean && job.GetTargetQueue(TargetIndex.A) is List<LocalTargetInfo> queue)
+                foreach (LocalTargetInfo queued in queue)
+                    if (queued.HasThing && queued.Thing != target && Hose.JobFor(dog, queued.Thing) is Job patch)
+                    {
+                        patch.workGiverDef = task.giver;
+                        JobMaker.ReturnToPool(job);
+                        return patch;
+                    }
             return job;
         }
 

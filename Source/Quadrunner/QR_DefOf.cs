@@ -28,6 +28,8 @@ namespace Quadrunner
         public static JobDef QR_RideTo;
         public static JobDef QR_BeingRidden;
         public static JobDef QR_CarryToRoom;
+        public static JobDef QR_CleanWithHose;
+        public static EffecterDef QR_HoseSpray;
         public static ThingDef QR_RobodogBattery;
         public static ThingDef QR_RobodogRepairKit;
         public static HediffDef QR_PoweredDown;
