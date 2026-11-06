@@ -32,6 +32,19 @@ Evidence: affected integration 25/25 PASS with zero new errors (2026-11-06 02:02
 
 Actual package `b2f6f0e.20261106T021902Z`: affected package smoke 10/10 PASS, zero new errors (2026-11-06 02:20); BUILD and loaded modRoot verified.
 
+Review correction: H1's attempted dirt-first fixture reordered `State.normal`, but dispatch sorted by task ID; the recorded passing runs selected blood first. Those runs prove patch cleanup but not the ordinary-dirt batch fallback. H2 below replaces that ineffective control. Filth also cannot be forbidden with `SetForbidden`; isolate ordinary dirt with a real reservation instead.
+
+### H2 — Review corrections and broad area spray
+
+User request (2026-11-06): fix both scenario defects and enlarge the hose spray AOE to resemble Medirunner firefoam. Run only the affected hose scenarios, including package smoke; no full suite.
+
+- [ ] Prove actual dirt-first network assignment through discovery/task order and observe the resulting hose fallback; no list-position trick.
+- [ ] Replace forbidden-filth no-ops with real dirt isolation; prove the spray leaves dirt alone and ordinary cleaning handles it afterward.
+- [ ] A hose application physically cleans multiple eligible tiles in a broad band comparable to the Medirunner's native foam spray (half-width 5.5 cells, half-depth 3.5 cells); visual spray covers the cleaning area.
+- [ ] Preserve one/three/four-plus/no-eligible threshold cases, all layers and last-three continuity, and partial-area progress across save/load.
+- [ ] Area spray respects queued/discovered ownership, reservations, Home, fog and walls; only blood and foam are affected.
+- [ ] Affected hose scenarios pass with zero new errors in development and the actual package, with BUILD/modRoot verified and the real spray inspected.
+
 ## Open questions
 
 None.
