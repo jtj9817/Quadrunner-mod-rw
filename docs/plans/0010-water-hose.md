@@ -26,9 +26,11 @@ Give worker Quadrunners an integrated water hose to clean clusters of blood and 
 - [x] With no foam or blood, the hose does not start and does not remove unrelated filth.
 - [x] Respect Home-area, discovery, reachability, reservations and existing work priorities; leave unrelated filth untouched by the spray.
 - [x] Verify the changed path and save/load in the isolated game, run affected shared cleaning/dispatch and firefighting scenarios, and inspect the spray visually. Record results and zero-new-error evidence in `docs/test-runs.md`.
-- [ ] Build and smoke the actual distributable package with affected scenarios, verify BUILD and modRoot, and record the result and current package in `TODO.md`.
+- [x] Build and smoke the actual distributable package with affected scenarios, verify BUILD and modRoot, and record the result and current package in `TODO.md`.
 
 Evidence: affected integration 25/25 PASS with zero new errors (2026-11-06 02:02); dedicated two-worker reservation, fog and Home boundaries 1/1 PASS (02:18). The separate Run all timed out in Artwork showcase with InfoCard errors, so no full-suite pass is claimed. See [test runs](../test-runs.md).
+
+Actual package `b2f6f0e.20261106T021902Z`: affected package smoke 10/10 PASS, zero new errors (2026-11-06 02:20); BUILD and loaded modRoot verified.
 
 ## Open questions
 
