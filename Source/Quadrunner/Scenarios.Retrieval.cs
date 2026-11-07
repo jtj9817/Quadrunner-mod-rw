@@ -28,17 +28,18 @@ namespace Quadrunner
         {
             bool manual = Current.Game.playSettings.useWorkPriorities;
             Current.Game.playSettings.useWorkPriorities = true;
-            var before = new Dictionary<Pawn, int>();
+            var before = new Dictionary<string, int>();
             foreach (Pawn p in Find.CurrentMap.mapPawns.FreeColonistsSpawned.Where(p => p.workSettings != null))
             {
-                before[p] = p.workSettings.GetPriority(WorkTypeDefOf.Hauling);
+                before[p.ThingID] = p.workSettings.GetPriority(WorkTypeDefOf.Hauling);
                 if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))
                     p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 1);
             }
             s.OnFinish(() =>
             {
-                foreach (KeyValuePair<Pawn, int> kv in before.Where(kv => !kv.Key.Destroyed && kv.Key.workSettings != null))
-                    kv.Key.workSettings.SetPriority(WorkTypeDefOf.Hauling, kv.Value);
+                foreach (KeyValuePair<string, int> kv in before)
+                    if (Scenario.ById(kv.Key) is Pawn p && !p.Destroyed && p.workSettings != null)
+                        p.workSettings.SetPriority(WorkTypeDefOf.Hauling, kv.Value);
                 Current.Game.playSettings.useWorkPriorities = manual;
             });
         }
@@ -472,8 +473,8 @@ namespace Quadrunner
                     doctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
                     s.OnFinish(() =>
                     {
-                        if (!doctor.Destroyed && doctor.workSettings != null)
-                            doctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, prevPriority);
+                        if (Scenario.ById(doctorId) is Pawn doc && !doc.Destroyed && doc.workSettings != null)
+                            doc.workSettings.SetPriority(WorkTypeDefOf.Doctor, prevPriority);
                         Current.Game.playSettings.useWorkPriorities = prevManual;
                     });
                     doctor.drafter.Drafted = false;

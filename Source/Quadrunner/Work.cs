@@ -78,7 +78,7 @@ namespace Quadrunner
     public static class DogWork
     {
         /// <summary>
-        /// Reports utility work and powered-down dogs within the scan radius of <paramref name="observer"/>: cells are
+        /// Reports utility work and downed or powered-down dogs within the scan radius of <paramref name="observer"/>: cells are
         /// enumerated, so nothing outside the radius (or in fog) is ever seen. Eligibility for a particular dog,
         /// forbidden targets and reservations are left to assignment (<see cref="JobFor"/>), so a report never hides
         /// work another dog could do, and the network deduplicates (<see cref="DogNetwork.Report"/>).
