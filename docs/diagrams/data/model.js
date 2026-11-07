@@ -1,118 +1,115 @@
 window.SYSTEM_MODEL = {
  "meta": {
-  "name": "Quadrunner (RimWorld 1.6 mod)",
+  "name": "Quadrunner",
   "mode": "brownfield",
   "version": "1.0.0",
-  "description": "How the Quadrunner mod works: one stable builds robot dogs, a per-map dispatch network assigns vanilla jobs to the nearest dog, and battery, recovery, rescue, riding, combat and rendering each follow explicit rules. Requirements are reconstructed from plans 0001/0003 and the code.",
+  "description": "A RimWorld 1.6 mod: stable-built robot dogs that haul, clean, build, ride, rescue and fight, coordinated map-wide by one dispatcher per map. Requirements are taken from the plan acceptance boxes; every verification names the scenario or tool that proved it.",
   "source_of_truth": "docs/diagrams/model.json",
-  "generated": "2026-10-21"
+  "generated": "2026-11-07"
  },
  "nodes": [
   {
    "id": "sys.quadrunner",
-   "name": "Quadrunner",
+   "name": "Quadrunner mod",
    "level": 0,
    "kind": "system",
    "parent": null,
-   "description": "A RimWorld 1.6 mod (package josh9817.quadrunner): a stable builds robot dogs, a per-map network dispatches them to vanilla work, and each dog's battery, recovery, rescue, riding, combat and rendering follow explicit rules.",
-   "tech": [
-    "C# net472",
-    "RimWorld 1.6"
-   ],
-   "responsibilities": [
-    "Ship one DLL plus Defs/Textures",
-    "Stay inside Core + Harmony"
-   ],
+   "owner": "jtj9817",
+   "description": "One RimWorld mod (Core + Harmony only): an assembly in namespace Quadrunner plus XML defs, textures and stat patches, shipped as dist/Quadrunner. Saved-game identity josh9817.quadrunner."
+  },
+  {
+   "id": "sub.foundation",
+   "name": "Foundation & UI",
+   "level": 1,
+   "kind": "subsystem",
+   "parent": "sys.quadrunner",
+   "description": "Process bootstrap, the XML definition set, mod settings and the player-facing stable UI.",
    "evidence": [
-    "About/About.xml:1-29",
-    "Source/Quadrunner/QR.cs:7-21"
+    "Source/Quadrunner/QR.cs"
    ]
   },
   {
    "id": "sub.stable",
-   "name": "Stable & Fabrication",
+   "name": "Stable & fabrication",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "Houses, builds and services dogs: docking and charging, bills, the Overview tab, recovery and field fixes.",
-   "owner": "stable",
+   "description": "The Quadrunner stable building and every way a dog is created, rebuilt or upgraded: docking bays, recipes, tiers, arsenals.",
    "evidence": [
-    "Source/Quadrunner/Building_Stable.cs",
-    "Source/Quadrunner/Assembly.cs",
-    "Source/Quadrunner/ITab_StableOverview.cs",
-    "Source/Quadrunner/Retrieval.cs",
-    "Source/Quadrunner/FieldFix.cs",
-    "Source/Quadrunner/Removal.cs"
+    "Source/Quadrunner/Building_Stable.cs"
    ]
   },
   {
    "id": "sub.pawn",
-   "name": "Robodog Pawn",
+   "name": "Robodog pawn platform",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "The robot race, its battery comp and the think tree that orders charge, network work, dock and standby.",
-   "owner": "pawn",
+   "description": "What a robodog is: six races, the CompRobodog identity comp, docking behavior, the priority-ordered think tree.",
    "evidence": [
-    "Defs/ThingDefs_Races/QR_Races.xml",
     "Source/Quadrunner/Robodog.cs",
-    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml"
+    "Defs/ThingDefs_Races/QR_Races.xml"
    ]
   },
   {
-   "id": "sub.network",
-   "name": "Dispatch Network",
+   "id": "sub.power",
+   "name": "Energy & charging",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "One dispatcher per map: local discovery, survey exploration, and nearest-capable assignment by path cost.",
-   "owner": "network",
-   "evidence": [
-    "Source/Quadrunner/Network.cs",
-    "Source/Quadrunner/Work.cs",
-    "Source/Quadrunner/Survey.cs"
-   ]
-  },
-  {
-   "id": "sub.charging",
-   "name": "Charging",
-   "level": 1,
-   "kind": "subsystem",
-   "parent": "sys.quadrunner",
-   "description": "How a low dog picks stable or conduit, what it draws from the grid, and how it is recovered at 0%.",
-   "owner": "charging",
+   "description": "Battery drain, the stable-versus-conduit charge decision, and the cached conduit charge-spot search.",
    "evidence": [
     "Source/Quadrunner/Charging.cs",
-    "Source/Quadrunner/ChargeSpots.cs",
-    "Source/Quadrunner/Settings.cs"
+    "Source/Quadrunner/ChargeSpots.cs"
    ]
   },
   {
-   "id": "sub.work",
-   "name": "Work Execution",
+   "id": "sub.dispatch",
+   "name": "Shared dispatch network",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "Turns one queued target into one vanilla job, plus the raid speed/drain stat part and construction check patch.",
-   "owner": "work",
+   "description": "One DogNetwork per map: discovery intake, normal and war queues, assignment, reconciliation, coordinator election, idle surveying. The only thing that matches work to dogs.",
    "evidence": [
-    "Source/Quadrunner/Work.cs",
-    "Patches/QR_Stats.xml",
-    "Defs/WorkGiverDefs/QR_WorkGivers.xml"
+    "Source/Quadrunner/Network.cs"
    ]
   },
   {
    "id": "sub.rescue",
-   "name": "Rescue",
+   "name": "Rescue, firefighting & hose",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "Medirunner triage and the vanilla rescue jobs: ranked patients, one medic each, map-wide and under fire.",
-   "owner": "rescue",
+   "description": "Medirunner behaviors: patient triage and rescue jobs, the integrated foam sprayer, and the worker's water hose for blood/firefoam patches.",
    "evidence": [
     "Source/Quadrunner/Rescue.cs",
-    "Source/Quadrunner/Network.cs",
-    "Defs/ThingDefs_Races/QR_Races.xml"
+    "Source/Quadrunner/Firefighting.cs",
+    "Source/Quadrunner/Hose.cs"
+   ]
+  },
+  {
+   "id": "sub.recovery",
+   "name": "Retrieval & field maintenance",
+   "level": 1,
+   "kind": "subsystem",
+   "parent": "sys.quadrunner",
+   "description": "Getting powered-down, wrecked or casualty dogs home: worker carry jobs, colonist carry menu, field battery/repair-kit delivery, the unreachable alert.",
+   "evidence": [
+    "Source/Quadrunner/Retrieval.cs",
+    "Source/Quadrunner/FieldFix.cs"
+   ]
+  },
+  {
+   "id": "sub.combat",
+   "name": "Combatdogs & drafting",
+   "level": 1,
+   "kind": "subsystem",
+   "parent": "sys.quadrunner",
+   "description": "War-queue combat jobs, local mixed-tier focus-fire packs, patrol/guard idle, capture, and the draft controller patches.",
+   "evidence": [
+    "Source/Quadrunner/Combat.cs",
+    "Source/Quadrunner/PackCombat.cs",
+    "Source/Quadrunner/Drafting.cs"
    ]
   },
   {
@@ -121,704 +118,485 @@ window.SYSTEM_MODEL = {
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "The ride order, the rider/dog job pair with its dismount rules, ridden speed and rider draw offset.",
-   "owner": "riding",
+   "description": "Colonists ride Quadrunners: float menu, the rider-driven job pair, the ridden speed stat part, rider drawing.",
    "evidence": [
-    "Source/Quadrunner/Riding.cs",
-    "Patches/QR_Stats.xml"
-   ]
-  },
-  {
-   "id": "sub.combat",
-   "name": "Combat & Tiers",
-   "level": 1,
-   "kind": "subsystem",
-   "parent": "sys.quadrunner",
-   "description": "Pings, war-queue engagement, capture, patrol and guard, drafting, and four tiers with built-in guns.",
-   "owner": "combat",
-   "evidence": [
-    "Source/Quadrunner/Combat.cs",
-    "Source/Quadrunner/Tiers.cs",
-    "Source/Quadrunner/Drafting.cs",
-    "Defs/ThingDefs_Misc/QR_Weapons.xml"
+    "Source/Quadrunner/Riding.cs"
    ]
   },
   {
    "id": "sub.render",
-   "name": "Rendering",
+   "name": "Rendering & animation",
    "level": 1,
    "kind": "subsystem",
    "parent": "sys.quadrunner",
-   "description": "The render tree, split-leg gait, action poses, back guns and carried pawns, and the two sirens.",
-   "owner": "render",
+   "description": "Per-part walk gait, action poses, weapon mounts and rider/patient layering, plus the original SVG artwork and its export pipeline.",
    "evidence": [
     "Source/Quadrunner/Rendering.cs",
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml",
-    "Source/Quadrunner/Robodog.cs"
+    "Art/"
    ]
   },
   {
-   "id": "comp.stable",
-   "name": "Stable building",
+   "id": "sub.removal",
+   "name": "Clean removal",
+   "level": 1,
+   "kind": "subsystem",
+   "parent": "sys.quadrunner",
+   "description": "The explicit, destructive cutover that exports a save with no Quadrunner content or references.",
+   "evidence": [
+    "Source/Quadrunner/Removal.cs"
+   ]
+  },
+  {
+   "id": "sub.verification",
+   "name": "Verification harness",
+   "level": 1,
+   "kind": "subsystem",
+   "parent": "sys.quadrunner",
+   "description": "Test-only: the in-game driver and scenario suite, the host-side harness, its self-test against a fake game, and the independent removal observer. Ships inside the assembly but is gated by the -quadrunner-autotest launch flag and dev mode; never enters saves.",
+   "evidence": [
+    "Source/Quadrunner/AutoTest.cs",
+    "tools/autotest.py"
+   ]
+  },
+  {
+   "id": "comp.bootstrap",
+   "name": "Bootstrap",
    "level": 2,
    "kind": "service",
-   "parent": "sub.stable",
-   "description": "Docks up to 15 dogs by despawning them into a ThingOwner, charges and repairs them while powered, stores patrol waypoints and owns the network state when elected.",
+   "parent": "sub.foundation",
    "tech": [
-    "Building_WorkTable, IThingHolder"
+    "C# StaticConstructorOnStartup"
    ],
+   "description": "Logs the build id, applies every Harmony patch, starts the test driver. The one entry point the game calls at startup.",
    "responsibilities": [
-    "Dock and undock dogs",
-    "Charge at 0.0012/tick and heal 0.02 HP/tick while powered",
-    "Place and clear patrol waypoints",
-    "Host the map NetworkState when elected"
+    "Build-id log line the harness compares",
+    "Harmony PatchAll",
+    "Create AutoTest MonoBehaviour"
    ],
    "evidence": [
-    "Source/Quadrunner/Building_Stable.cs:10-15",
-    "Source/Quadrunner/Building_Stable.cs:22-88",
-    "Source/Quadrunner/Building_Stable.cs:137-221",
-    "Source/Quadrunner/Building_Stable.cs:226-299",
-    "Defs/ThingDefs_Buildings/QR_Stable.xml:73-82"
+    "Source/Quadrunner/QR.cs:8"
    ]
   },
   {
-   "id": "comp.bills",
-   "name": "Dog bills",
+   "id": "comp.defs",
+   "name": "XML definition set",
    "level": 2,
-   "kind": "job",
-   "parent": "sub.stable",
-   "description": "The stable is the crafting station: assemble and rebuild bills produce or resurrect dogs; a dog bill refuses to start when all 15 slots are taken.",
+   "kind": "library",
+   "parent": "sub.foundation",
    "tech": [
-    "Source/Quadrunner/Assembly.cs, Bill_Production"
+    "RimWorld XML defs"
    ],
+   "description": "Races, stable, items, recipes, jobs, think/render trees, Hediffs, plus the two MoveSpeed StatParts patched onto vanilla via Patches/QR_Stats.xml.",
    "responsibilities": [
-    "Generate a dog per finished bill",
-    "Rebuild a wreck as the same dog",
-    "Count dogs for 'do until X' bills",
-    "Block dog bills on a full stable"
+    "All tunables (DefModExtensions)",
+    "StatPart_RobodogRaid and StatPart_Riding on vanilla MoveSpeed"
    ],
    "evidence": [
-    "Source/Quadrunner/Assembly.cs:10-90",
-    "Defs/RecipeDefs/QR_Recipes.xml:18-236"
+    "Defs/",
+    "Patches/QR_Stats.xml",
+    "Source/Quadrunner/QR_DefOf.cs"
    ]
   },
   {
-   "id": "comp.overview",
-   "name": "Overview tab",
+   "id": "comp.settings",
+   "name": "Mod settings",
    "level": 2,
    "kind": "ui",
-   "parent": "sub.stable",
-   "description": "One row per assigned dog (docked first) with type, battery, health and current job; Combatdogs also get tier, per-slot gun pickers and one upgrade button.",
-   "tech": [
-    "ITab_StableOverview"
-   ],
-   "responsibilities": [
-    "Render the stable's dog rows",
-    "Pick a built-in gun per slot",
-    "Order or cancel one upgrade bill per dog"
-   ],
+   "parent": "sub.foundation",
+   "description": "The one setting (turbine distance, default 6) and the entry point for Prepare-save-for-removal.",
    "evidence": [
-    "Source/Quadrunner/ITab_StableOverview.cs:11-49",
-    "Source/Quadrunner/ITab_StableOverview.cs:92-131",
-    "Languages/English/Keyed/QR_Keyed.xml:3"
+    "Source/Quadrunner/Settings.cs:6",
+    "Source/Quadrunner/Settings.cs:18"
    ]
   },
   {
-   "id": "comp.retrieval",
-   "name": "Dog recovery",
+   "id": "comp.stable-ui",
+   "name": "Overview tab & debug actions",
    "level": 2,
-   "kind": "job",
-   "parent": "sub.stable",
-   "description": "Powered-down dogs lie like downed pawns: a network carrier or a colonist carries one to the nearest stable with a free slot; a fire beside it is beaten out first; raiders can take it.",
-   "tech": [
-    "Source/Quadrunner/Retrieval.cs, Source/Quadrunner/Docking.cs"
-   ],
-   "responsibilities": [
-    "Build the CarryToStable job",
-    "Beat out fire within 1.5 cells first",
-    "Alert on a dog no stable can reach",
-    "Let hostile kidnappers take a powered-down dog"
-   ],
+   "kind": "ui",
+   "parent": "sub.foundation",
+   "description": "Per-dog roster (type, battery, health, activity) with Hearthline lore hovers and upgrade orders; dev-mode scenario/spawn/battery/debug actions.",
    "evidence": [
-    "Source/Quadrunner/Retrieval.cs:15-69",
-    "Source/Quadrunner/Retrieval.cs:77-211",
-    "Source/Quadrunner/Docking.cs:14-100"
+    "Source/Quadrunner/ITab_StableOverview.cs:14",
+    "Source/Quadrunner/DebugActions.cs"
    ]
   },
   {
-   "id": "comp.fieldfix",
-   "name": "Field fixes",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.stable",
-   "description": "Colonists bring a repair kit to a dog below 70% health, then a battery to a powered-down one; both items are made at the stable under Hauling priority 110.",
-   "tech": [
-    "Source/Quadrunner/FieldFix.cs, WorkGiverDef"
-   ],
-   "responsibilities": [
-    "Choose the needed item (kit first)",
-    "Deliver and apply it in the field"
-   ],
-   "evidence": [
-    "Source/Quadrunner/FieldFix.cs:10-118",
-    "Defs/ThingDefs_Items/QR_Items.xml:16-55",
-    "Defs/WorkGiverDefs/QR_WorkGivers.xml:24-35"
-   ]
-  },
-  {
-   "id": "comp.mod-core",
-   "name": "Mod core & removal",
+   "id": "comp.stable-building",
+   "name": "Building_Stable",
    "level": 2,
    "kind": "service",
    "parent": "sub.stable",
-   "description": "Startup and logging, PatchAll, the turbine-distance setting, the dev-only debug actions, and the confirmed clean-removal cutover that writes a backup and a cleaned export.",
    "tech": [
-    "Source/Quadrunner/QR.cs, Source/Quadrunner/Settings.cs, Source/Quadrunner/Removal.cs"
+    "thingClass of QR_Stable"
    ],
+   "description": "The 200 W work-table building: 15 shared dock slots (a typed despawned pawn container), charge/repair tick, bills host, wreck delivery bay with dock occupancy lights, patrol waypoints, optional network host.",
    "responsibilities": [
-    "Log the build id and install the six Harmony patches",
-    "Store mod settings",
-    "Prepare and export a save without mod content"
+    "Dock/undock container",
+    "Charge + repair while powered",
+    "Wreck bay and powered rebuild",
+    "Ticks the map's DogNetwork"
    ],
    "evidence": [
-    "Source/Quadrunner/QR.cs:7-33",
-    "Source/Quadrunner/Settings.cs:6-45",
-    "Source/Quadrunner/Removal.cs:14-203",
-    "Source/Quadrunner/DebugActions.cs:10-131"
+    "Source/Quadrunner/Building_Stable.cs:22",
+    "Defs/ThingDefs_Buildings/QR_Stable.xml"
    ]
   },
   {
-   "id": "comp.race",
-   "name": "Dog races",
+   "id": "comp.fabrication",
+   "name": "Assembly & recipes",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.stable",
+   "description": "Recipe workers for assemble/rebuild/upgrade: product is a pawn that docks straight into the stable; the do-bills work giver exposes only this stable's unprocessed wrecks.",
+   "evidence": [
+    "Source/Quadrunner/Assembly.cs:16",
+    "Source/Quadrunner/Assembly.cs:33",
+    "Source/Quadrunner/Assembly.cs:77",
+    "Source/Quadrunner/Tiers.cs:182"
+   ]
+  },
+  {
+   "id": "comp.tiers",
+   "name": "Tier arsenal & migration",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.stable",
+   "description": "Per-tier gun choices and fixed paired mounts, the paired-shot verb, built-in gun comp, and the one-time in-place migration that fits modern loadouts on legacy T3/T4 dogs.",
+   "evidence": [
+    "Source/Quadrunner/Tiers.cs:37",
+    "Source/Quadrunner/Tiers.cs:155",
+    "Source/Quadrunner/Tiers.cs:171"
+   ]
+  },
+  {
+   "id": "comp.comprobodog",
+   "name": "CompRobodog",
    "level": 2,
    "kind": "service",
    "parent": "sub.pawn",
-   "description": "One abstract robot race on a custom non-organic flesh type, Animal intelligence, no food/rest, untrainable; six concrete models tune work, rescue, combat, riding and tiers.",
-   "tech": [
-    "QR_RobodogBase + 6 ThingDefs"
-   ],
+   "description": "The dog's persistent identity: battery fraction, stable affiliation, gun picks, powered-down hediff, patrol cursor, next smoke launch tick; draws the tail siren; reports casualties and attack pings.",
    "responsibilities": [
-    "Define body, flesh, needs and immunity",
-    "Set per-model work/speed/riding tunables",
-    "Name each Combatdog tier and its upgrade"
+    "Battery drain per cell moved",
+    "Seek-charge latch at 10%",
+    "The only affiliation record",
+    "Casualty/ping reporting"
    ],
    "evidence": [
-    "Defs/ThingDefs_Races/QR_Races.xml:6-92",
-    "Defs/ThingDefs_Races/QR_Races.xml:94-153",
-    "Defs/ThingDefs_Races/QR_Races.xml:157-305",
-    "Defs/Bodies/QR_Bodies.xml",
-    "Defs/Misc/QR_FleshTypes.xml"
+    "Source/Quadrunner/Robodog.cs:30",
+    "Source/Quadrunner/Robodog.cs:274"
    ]
   },
   {
-   "id": "comp.battery",
-   "name": "Battery comp",
+   "id": "comp.docking",
+   "name": "Docking behavior",
    "level": 2,
    "kind": "service",
    "parent": "sub.pawn",
-   "description": "Per-dog battery: drains per cell walked, latches 'wants a charge' at 10%, powers down at 0% with QR_PoweredDown, and carries the saved stable/network/gun state.",
-   "tech": [
-    "CompRobodog"
-   ],
-   "responsibilities": [
-    "Drain on cell changes under 1.5 cells",
-    "Latch/clear want-charge and retreat",
-    "Add/remove QR_PoweredDown",
-    "Save battery, stable, guns and waypoint count"
-   ],
+   "description": "Dock home (adopting the nearest reachable stable with a free slot when homeless), idle return, and the wait-in-a-non-bedroom-room fallback when no stable exists.",
    "evidence": [
-    "Source/Quadrunner/Robodog.cs:10-23",
-    "Source/Quadrunner/Robodog.cs:30-138",
-    "Source/Quadrunner/Robodog.cs:158-187",
-    "Source/Quadrunner/Robodog.cs:220-231",
-    "Defs/HediffDefs/QR_Hediffs.xml:6-22"
+    "Source/Quadrunner/Docking.cs:14",
+    "Source/Quadrunner/Docking.cs:48",
+    "Source/Quadrunner/Docking.cs:69"
    ]
   },
   {
-   "id": "comp.think-tree",
-   "name": "Think tree",
+   "id": "comp.races",
+   "name": "Races & think tree",
    "level": 2,
-   "kind": "service",
+   "kind": "library",
    "parent": "sub.pawn",
-   "description": "The main think tree: despawned/downed sub-trees, drafted orders, seek-charge, network order, dock, wait-in-room, wander. A dog never searches the map for work on its own.",
-   "tech": [
-    "QR_Robodog ThinkTreeDef"
-   ],
-   "responsibilities": [
-    "Order the job givers",
-    "Run drafted orders as vanilla",
-    "Fall back to dock then standby"
-   ],
+   "description": "Six races on abstract QR_RobodogBase: non-organic QR_Robotic flesh, Animal or ToolUser intelligence, custom think tree whose priority order is the behavior contract (queued > drafted > charge > network order > dock > wait > wander).",
    "evidence": [
-    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml:4-51",
-    "Source/Quadrunner/Work.cs:207-211",
-    "Source/Quadrunner/Docking.cs:14-33"
+    "Defs/ThingDefs_Races/QR_Races.xml",
+    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml"
    ]
   },
   {
-   "id": "comp.net-node",
-   "name": "Network node",
+   "id": "comp.charging",
+   "name": "Charge seeking",
    "level": 2,
    "kind": "service",
-   "parent": "sub.network",
-   "description": "One dispatcher per map driven by existing ticks: it elects a node, owns the normal and war queues, reconciles progress, and assigns tasks to the nearest capable dog.",
-   "tech": [
-    "DogNetwork, NetworkState"
-   ],
-   "responsibilities": [
-    "Elect and transfer the saved NetworkState",
-    "Queue, dedupe and reconcile tasks",
-    "Assign by path cost and suspend work in war",
-    "Report queues/coordinator for inspection"
-   ],
+   "parent": "sub.power",
+   "description": "JobGiver_SeekCharge compares time-to-full (travel + missing/rate) between stable and best conduit spot; the conduit driver draws stored energy from the net's battery comps, fullest first, rechecking the spot every 250 ticks.",
    "evidence": [
-    "Source/Quadrunner/Network.cs:13-81",
-    "Source/Quadrunner/Network.cs:96-130",
-    "Source/Quadrunner/Network.cs:200-248",
-    "Source/Quadrunner/Network.cs:301-368",
-    "Source/Quadrunner/Network.cs:387-536",
-    "Source/Quadrunner/Network.cs:618-628"
+    "Source/Quadrunner/Charging.cs:14",
+    "Source/Quadrunner/Charging.cs:57"
    ]
   },
   {
-   "id": "comp.discovery",
-   "name": "Local discovery",
+   "id": "comp.chargespots",
+   "name": "Charge spot cache",
    "level": 2,
-   "kind": "job",
-   "parent": "sub.network",
-   "description": "A dog's radial observation: 15 cells every 120 ticks, revealed only, eligibility per target kind, deduplicated by the network. This is the only way ordinary work enters the queue.",
-   "tech": [
-    "DogWork.ReportLocal"
-   ],
+   "kind": "service",
+   "parent": "sub.power",
+   "description": "Static per-map cache of valid conduit charge spots: free standable roofed indoor non-doorway cells near a power transmitter, outside every wind turbine's clear radius; rebuilt on building-signature change or 2500 ticks; volatile rules rechecked per dog per use.",
+   "evidence": [
+    "Source/Quadrunner/ChargeSpots.cs:27"
+   ]
+  },
+  {
+   "id": "comp.network",
+   "name": "DogNetwork",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.dispatch",
+   "description": "One dispatcher per map, a static dictionary never saved. Owns discovery intake, the normal and war queues (NetworkState saved on exactly one elected node), assignment by real path cost, reconciliation with progress timeout, war-mode transitions and coordinator election.",
    "responsibilities": [
-    "Scan around each active dog",
-    "Map a work giver to a task kind",
-    "Filter fog, forbidden, Home and freshness"
+    "Queued \u2192 Assigned \u2192 Acknowledged \u2192 Working",
+    "Dedupe by (kind, targetId) per queue",
+    "Coordinator election and failover",
+    "War-mode suspension and revalidation"
    ],
    "evidence": [
-    "Source/Quadrunner/Work.cs:55-135",
-    "Source/Quadrunner/Network.cs:332-349"
+    "Source/Quadrunner/Network.cs:98",
+    "Source/Quadrunner/Network.cs:14",
+    "Source/Quadrunner/Network.cs:65",
+    "Source/Quadrunner/Network.cs:165",
+    "Source/Quadrunner/Network.cs:425",
+    "Source/Quadrunner/Network.cs:1023"
+   ]
+  },
+  {
+   "id": "comp.work",
+   "name": "DogWork & job giver",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.dispatch",
+   "description": "Local fog-limited discovery via the Quadrunner race's work-giver scanners; job construction for one assigned target; JobGiver_RobodogWork as the think-tree bridge to DogNetwork.TakeOrder; the raid speed stat part and the construction-eligibility Harmony patch.",
+   "evidence": [
+    "Source/Quadrunner/Work.cs:78",
+    "Source/Quadrunner/Work.cs:261",
+    "Source/Quadrunner/Work.cs:293",
+    "Source/Quadrunner/Work.cs:329"
    ]
   },
   {
    "id": "comp.survey",
    "name": "Survey",
    "level": 2,
-   "kind": "job",
-   "parent": "sub.network",
-   "description": "Idle exploration: Home-first rooms, storage and zones, then residual Home and exterior; shared scan-certified finite sweeps and vanilla route-cost area selection with retained 80-cell travel legs.",
-   "tech": [
-    "Survey, JobDriver_Survey"
-   ],
-   "responsibilities": [
-    "Choose a survey goal",
-    "Keep fog-free paths",
-    "Credit actual local scan footprints in transient shared sweeps"
-   ],
+   "kind": "service",
+   "parent": "sub.dispatch",
+   "description": "Idle exploration policy: classifies Home footprints (enclosed rooms, stockpiles, growing zones, other zones, unzoned Home, then the exterior), picks route-ranked entry candidates by real path cost, and credits coverage only from actual revealed 15-cell scans.",
    "evidence": [
-    "Source/Quadrunner/Survey.cs",
+    "Source/Quadrunner/Survey.cs:14",
     "Source/Quadrunner/Survey.Geometry.cs",
-    "Source/Quadrunner/Network.cs"
+    "Source/Quadrunner/Survey.cs:370"
    ]
   },
   {
-   "id": "comp.charge-decision",
-   "name": "Charge decision",
-   "level": 2,
-   "kind": "service",
-   "parent": "sub.charging",
-   "description": "Chooses between the dog's stable and the best conduit spot by which fills the battery soonest, travel included; with no usable spot it still goes to the stable.",
-   "tech": [
-    "JobGiver_SeekCharge"
-   ],
-   "responsibilities": [
-    "Compute ticks-to-full for both",
-    "Choose the sooner (stable wins ties)",
-    "Fall back to an unpowered stable"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:14-50",
-    "Defs/ThingDefs_Races/QR_Races.xml:80-90"
-   ]
-  },
-  {
-   "id": "comp.charge-spots",
-   "name": "Charge spots",
-   "level": 2,
-   "kind": "service",
-   "parent": "sub.charging",
-   "description": "A per-map cache of standable room cells by conduits that pass room and turbine rules, rebuilt on building changes, re-checked per dog for the volatile rules, then ranked.",
-   "tech": [
-    "ChargeSpots"
-   ],
-   "responsibilities": [
-    "Build and cache spots",
-    "Re-check volatile rules per dog",
-    "Rank the first five by distance/occupancy/energy"
-   ],
-   "evidence": [
-    "Source/Quadrunner/ChargeSpots.cs:27-58",
-    "Source/Quadrunner/ChargeSpots.cs:61-136",
-    "Source/Quadrunner/ChargeSpots.cs:139-195",
-    "Source/Quadrunner/Settings.cs:6-15"
-   ]
-  },
-  {
-   "id": "comp.conduit-charge",
-   "name": "Conduit charge",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.charging",
-   "description": "Lies on the spot and draws the conduit net's stored energy into the dog: up to 100 Wd per full charge, fullest battery first, re-checking the spot every 250 ticks.",
-   "tech": [
-    "JobDriver_ChargeAtConduit"
-   ],
-   "responsibilities": [
-    "Draw per-tick charge from the net",
-    "Pick the fullest batteries first",
-    "End on full, dry net or unusable spot"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:57-130",
-    "Defs/JobDefs/QR_Jobs.xml:19-24"
-   ]
-  },
-  {
-   "id": "comp.work-job",
-   "name": "Job builder",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.work",
-   "description": "For one queued target, asks the task's vanilla scanner for exactly that job, refuses anything outside HaulToCell/HaulToContainer/Clean, and trims vanilla's extra targets.",
-   "tech": [
-    "DogWork.JobFor"
-   ],
-   "responsibilities": [
-    "Build one scanner job per target",
-    "Enforce the allowed job defs",
-    "Disable opportunistic hauling and trim queues"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Work.cs:143-202",
-    "Defs/ThingDefs_Races/QR_Races.xml:100-121"
-   ]
-  },
-  {
-   "id": "comp.construct-patch",
-   "name": "Construction patch",
-   "level": 2,
-   "kind": "service",
-   "parent": "sub.work",
-   "description": "Vanilla's construction check asks for work settings (null on a dog) and skills; for a robodog the prefix reruns it with checkSkills off so material delivery works.",
-   "tech": [
-    "Harmony Patch_GenConstruct_CanConstruct"
-   ],
-   "responsibilities": [
-    "Skip workSettings/skills for robodogs only",
-    "Leave every other pawn untouched"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Work.cs:269-284"
-   ]
-  },
-  {
-   "id": "comp.raid-part",
-   "name": "Raid speed part",
-   "level": 2,
-   "kind": "service",
-   "parent": "sub.work",
-   "description": "MoveSpeed multiplier for a dog that is out (Combatdogs \u00d72 deployed) and \u00d73 while a raid is active; the raid answer is cached for one second.",
-   "tech": [
-    "StatPart_RobodogRaid, Raid"
-   ],
-   "responsibilities": [
-    "Multiply MoveSpeed while out/deployed",
-    "Apply the raid speed factor",
-    "Cache AnyHostileActiveThreatToPlayer"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Work.cs:214-266",
-    "Patches/QR_Stats.xml:4-10"
-   ]
-  },
-  {
-   "id": "comp.triage",
-   "name": "Patient triage",
+   "id": "comp.rescue",
+   "name": "Rescue",
    "level": 2,
    "kind": "service",
    "parent": "sub.rescue",
-   "description": "Who is worth rescuing and in what order: colonist, guest, prisoner, colony animal; fastest-bleeding first within a rank; enemies, robodogs, NoCare skipped.",
-   "tech": [
-    "Rescue.Rank, Rescue.Patients"
-   ],
-   "responsibilities": [
-    "Rank a downed pawn",
-    "Enumerate patients",
-    "Skip no-medical-care patients"
-   ],
+   "description": "Map-wide patient ranking (colonist \u2192 guest \u2192 prisoner \u2192 colony animal, fastest-bleeding within rank, enemies and robodogs excluded) and vanilla rescue/capture job construction; CanPotentiallyRescue pre-check rejects unassignable patients without spawning a medic.",
    "evidence": [
-    "Source/Quadrunner/Rescue.cs:19-36",
-    "Source/Quadrunner/Network.cs:370-385"
+    "Source/Quadrunner/Rescue.cs:16",
+    "Source/Quadrunner/Rescue.cs:46"
    ]
   },
   {
-   "id": "comp.rescue-job",
-   "name": "Rescue jobs",
+   "id": "comp.firefighting",
+   "name": "Foam sprayer",
    "level": 2,
-   "kind": "job",
+   "kind": "service",
    "parent": "sub.rescue",
-   "description": "Builds vanilla Rescue or TakeWoundedPrisonerToBed to a vanilla-found bed, with count 1 so the patient's reservation keeps one medic on it; no bed means no job.",
-   "tech": [
-    "Rescue.JobFor"
-   ],
-   "responsibilities": [
-    "Find a bed",
-    "Build the rescue job",
-    "Decline when forbidden, reserved or unreachable"
-   ],
+   "description": "Every Medirunner carries a built-in foam sprayer (vanilla foam-turret arc verb). Revealed Home-area fires become war-queue tasks handled after rescues; nearest reachable unclaimed fire per responder; 2% battery per burst; 180-tick quiet standby; storm field alert.",
    "evidence": [
-    "Source/Quadrunner/Rescue.cs:38-61",
-    "Defs/ThingDefs_Races/QR_Races.xml:135-153"
+    "Source/Quadrunner/Firefighting.cs:14",
+    "Source/Quadrunner/Firefighting.cs:100"
    ]
   },
   {
-   "id": "comp.ride-order",
-   "name": "Ride order",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.riding",
-   "description": "The right-click offer on an out Quadrunner or its stable (fullest idle rideable), the destination targeter, undocking and the ordered QR_RideTo job.",
-   "tech": [
-    "FloatMenuOptionProvider_Ride, Riding.Ride"
-   ],
-   "responsibilities": [
-    "Offer a ride on dog or stable",
-    "Pick the destination",
-    "Undock and order the ride"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:13-24",
-    "Source/Quadrunner/Riding.cs:68-99",
-    "Source/Quadrunner/Riding.cs:244-278",
-    "Source/Quadrunner/Building_Stable.cs:52-53"
-   ]
-  },
-  {
-   "id": "comp.ride-driver",
-   "name": "Ride drivers",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.riding",
-   "description": "The rider walks to the dog, mounts, walks to the destination while the dog mirrors the rider, and dismounts at arrival, before a door indoors, when drafted/downed, or when the dog powers down.",
-   "tech": [
-    "JobDriver_RideTo, JobDriver_BeingRidden"
-   ],
-   "responsibilities": [
-    "Mount and mirror the dog",
-    "Apply the dismount rules",
-    "Free the dog when the ride ends"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:118-226",
-    "Defs/JobDefs/QR_Jobs.xml:39-51"
-   ]
-  },
-  {
-   "id": "comp.ride-stats",
-   "name": "Ride stat & draw",
+   "id": "comp.hose",
+   "name": "Water hose",
    "level": 2,
    "kind": "service",
-   "parent": "sub.riding",
-   "description": "Mounted riders move at the XML riddenMoveSpeed (7 cells/s) and are drawn at the dog's tweened position plus per-facing offsets, half an altitude step up.",
-   "tech": [
-    "StatPart_Riding, DrawPos patch"
-   ],
-   "responsibilities": [
-    "Set the rider's MoveSpeed",
-    "Offset the rider and dog drawing"
-   ],
+   "parent": "sub.rescue",
+   "description": "The worker's integrated hose: discovered contiguous Home-area blood/firefoam patches of \u22654 tiles are sprayed in an 11\u00d77 band (1.5\u00d7 clean work per tile), continuing through the whole patch; walls block; smaller patches fall back to ordinary cleaning.",
    "evidence": [
-    "Source/Quadrunner/Riding.cs:229-241",
-    "Source/Quadrunner/Riding.cs:281-299",
-    "Patches/QR_Stats.xml:12-18"
+    "Source/Quadrunner/Hose.cs:17",
+    "Source/Quadrunner/Hose.cs:173"
    ]
   },
   {
-   "id": "comp.ping",
-   "name": "Ping",
+   "id": "comp.retrieval",
+   "name": "Retrieval",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.recovery",
+   "description": "Carries powered-down dogs (and Combatdog wrecks) to the nearest stable with a free slot; colonist Carry-to-stable float menu; raider kidnap postfix; the unreachable-dog alert. CanPotentiallyRecover pre-check prevents speculative undocks.",
+   "evidence": [
+    "Source/Quadrunner/Retrieval.cs:15",
+    "Source/Quadrunner/Retrieval.cs:61",
+    "Source/Quadrunner/Retrieval.cs:183",
+    "Source/Quadrunner/Retrieval.cs:305",
+    "Source/Quadrunner/Retrieval.cs:332"
+   ]
+  },
+  {
+   "id": "comp.fieldfix",
+   "name": "Field fixes",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.recovery",
+   "description": "Robodog battery and repair-kit items, their bills, and the work giver that has colonists auto-deliver them to powered-down or damaged dogs in the field within a 2500-tick window.",
+   "evidence": [
+    "Source/Quadrunner/FieldFix.cs:22",
+    "Source/Quadrunner/FieldFix.cs:51",
+    "Source/Quadrunner/FieldFix.cs:83"
+   ]
+  },
+  {
+   "id": "comp.combat",
+   "name": "Combat jobs",
    "level": 2,
    "kind": "service",
    "parent": "sub.combat",
-   "description": "A hostile hitting any player dog reports that attacker into the war queue and forces an immediate dispatch, with or without a stable.",
-   "tech": [
-    "CompRobodog.PostPostApplyDamage, DogNetwork.Ping"
-   ],
-   "responsibilities": [
-    "Detect hostile damage",
-    "Queue the attacker and force a tick"
-   ],
+   "description": "Combatdogs spot standing hostiles within 15 cells with LOS and report them; AttackStatic from position, else walk to a cast position, else melee; downed humans captured to a bed or carried to the nearest empty room; patrol waypoints then guard when idle.",
    "evidence": [
-    "Source/Quadrunner/Robodog.cs:180-187",
-    "Source/Quadrunner/Network.cs:283-289"
+    "Source/Quadrunner/Combat.cs:22",
+    "Source/Quadrunner/Combat.cs:213"
    ]
   },
   {
-   "id": "comp.engage",
-   "name": "Engage & capture",
+   "id": "comp.packcombat",
+   "name": "Pack tactics",
    "level": 2,
-   "kind": "job",
+   "kind": "service",
    "parent": "sub.combat",
-   "description": "Fights the one war target the network assigned: gun from where it stands, else a cast position, else claws; captures a downed humanlike to a bed or carries any downed hostile to an empty room.",
-   "tech": [
-    "Combat.Spot, Combat.JobFor"
-   ],
-   "responsibilities": [
-    "Spot hostiles in sight",
-    "Attack the assigned target",
-    "Capture or carry a downed one"
-   ],
+   "description": "Available T3/T4 leaders recruit nearby Combatdogs of any tier within 15 cells; the pack focuses the queued reachable standing hostile nearest to any member, retains a valid focus, and re-selects at native job boundaries so engagement is continuous.",
    "evidence": [
-    "Source/Quadrunner/Combat.cs:22-56",
-    "Source/Quadrunner/Combat.cs:85-139",
-    "Source/Quadrunner/Combat.cs:210-237"
-   ]
-  },
-  {
-   "id": "comp.patrol",
-   "name": "Patrol & guard",
-   "level": 2,
-   "kind": "job",
-   "parent": "sub.combat",
-   "description": "With nothing to fight during a raid: walk the stable's waypoints in a loop, else guard within 4 cells of the stable (or coordinator); jobs expire every 60 ticks.",
-   "tech": [
-    "Combat.IdleJob"
-   ],
-   "responsibilities": [
-    "Walk the patrol loop",
-    "Guard the post",
-    "Dock when the map is clear"
-   ],
-   "evidence": [
-    "Source/Quadrunner/Combat.cs:64-78",
-    "Source/Quadrunner/Combat.cs:151-195",
-    "Source/Quadrunner/Building_Stable.cs:161-221"
+    "Source/Quadrunner/PackCombat.cs:14"
    ]
   },
   {
    "id": "comp.drafting",
-   "name": "Drafting",
+   "name": "Drafting patches",
    "level": 2,
    "kind": "service",
    "parent": "sub.combat",
-   "description": "Player Combatdogs get a drafter and pass vanilla's controllable-subhuman check only while drafted, so vanilla orders, gizmos and melee attack orders work.",
-   "tech": [
-    "Drafting, 2 Harmony patches"
-   ],
-   "responsibilities": [
-    "Add a drafter to Combatdogs",
-    "Pass control checks only while drafted",
-    "Offer the draft toggle while undrafted"
-   ],
+   "description": "Two Harmony patches give player Combatdogs a vanilla draft controller and pass the colony-subhuman control gate only while drafted; the network excludes drafted dogs and SetBattery undrafts at 10%.",
    "evidence": [
-    "Source/Quadrunner/Drafting.cs:15-70"
+    "Source/Quadrunner/Drafting.cs"
    ]
   },
   {
-   "id": "comp.tiers",
-   "name": "Tiers & guns",
+   "id": "comp.riding",
+   "name": "Riding",
    "level": 2,
    "kind": "service",
-   "parent": "sub.combat",
-   "description": "The tier chain QR_Combatdog to Tier 4, the upgrade bill done only while docked, rebuilding the pawn with its name/battery/gun picks, and one held built-in gun chosen by range.",
-   "tech": [
-    "CombatTier, Tiers, Bill_UpgradeDog"
-   ],
-   "responsibilities": [
-    "Define tier, next kind and slots",
-    "Order and finish upgrade bills",
-    "Pick and arm the gun for the target"
-   ],
+   "parent": "sub.riding",
+   "description": "Float-menu Ride to\u2026; the rider's JobDriver_RideTo drives the ride while the dog's JobDriver_BeingRidden mirrors it; a MoveSpeed stat part replaces speed with riddenMoveSpeed 7; auto-dismount on arrival, indoors, drafting or power-down; DrawPos postfix draws the rider.",
    "evidence": [
-    "Source/Quadrunner/Tiers.cs:12-153",
-    "Defs/ThingDefs_Races/QR_Races.xml:213-302",
-    "Defs/ThingDefs_Misc/QR_Weapons.xml:36-194"
+    "Source/Quadrunner/Riding.cs:32",
+    "Source/Quadrunner/Riding.cs:122",
+    "Source/Quadrunner/Riding.cs:197",
+    "Source/Quadrunner/Riding.cs:229",
+    "Source/Quadrunner/Riding.cs:282"
    ]
   },
   {
-   "id": "comp.render-tree",
-   "name": "Render tree",
+   "id": "comp.render-nodes",
+   "name": "Render nodes",
    "level": 2,
    "kind": "service",
    "parent": "sub.render",
-   "description": "Core's Misc tree with our mount worker: whole sprite for icons, body plus five moving parts, carried pawns and the back-mounted gun drawn by offset.",
-   "tech": [
-    "QR_RobodogRenderTree"
-   ],
-   "responsibilities": [
-    "Replace the carried-thing worker",
-    "Select per-part textures",
-    "Draw guns and carried pawns"
-   ],
+   "description": "Gait worker swings four legs from distance walked along the facing (stops with the dog); pose worker adds pounce/recoil/brace/scoop; mount layer draws carried pawns, paired T4 guns and the smoke launcher; BodyAngle postfix lays a carried patient along the back.",
    "evidence": [
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:9-134",
-    "Source/Quadrunner/Rendering.cs:9-65"
+    "Source/Quadrunner/Rendering.cs:116",
+    "Source/Quadrunner/Rendering.cs:294",
+    "Source/Quadrunner/Rendering.cs:314"
    ]
   },
   {
-   "id": "comp.pose",
-   "name": "Action poses",
+   "id": "comp.art",
+   "name": "Artwork & export",
    "level": 2,
-   "kind": "service",
+   "kind": "library",
    "parent": "sub.render",
-   "description": "The root node moves the whole dog per frame: pounce on a melee strike, braced crouch and recoil per shot, head dip and flip when scooping a pawn; the carried pawn's angle is patched.",
-   "tech": [
-    "RobodogPose, BodyAngle patch"
-   ],
-   "responsibilities": [
-    "Animate pounce, recoil and scoop",
-    "Turn a carried pawn onto the back"
-   ],
+   "description": "Original SVG sources per dog/stable/item with id=\"part-\u2026\" layers; exported to per-facing PNGs by Inkscape so Graphic_Multi mirrors west from east.",
    "evidence": [
-    "Source/Quadrunner/Rendering.cs:148-298"
+    "Art/",
+    "Textures/",
+    "tools/export-textures.sh"
    ]
   },
   {
-   "id": "comp.gait",
-   "name": "Gait",
+   "id": "comp.removal",
+   "name": "Removal export",
    "level": 2,
    "kind": "service",
-   "parent": "sub.render",
-   "description": "Legs swing and lift from the pather state; hind legs draw only in profile; the parts use _body/_leg texture layers exported from the SVG.",
-   "tech": [
-    "PawnRenderNodeWorker_Gait"
-   ],
-   "responsibilities": [
-    "Animate legs while walking",
-    "Hide hind legs in profile"
-   ],
+   "parent": "sub.removal",
+   "description": "Prepare-save cutover: writes QR_before_removal backup, stops mod jobs, releases riders/patients/cargo (to a caravan when off-map), destroys all mod things including in-flight shots, clears caches, then scrubs def references from the exported XML while keeping battle-history IDs.",
    "evidence": [
-    "Source/Quadrunner/Rendering.cs:67-145",
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:35-121"
+    "Source/Quadrunner/Removal.cs:14"
    ]
   },
   {
-   "id": "comp.siren",
-   "name": "Siren",
+   "id": "comp.autotest",
+   "name": "AutoTest driver",
    "level": 2,
    "kind": "service",
-   "parent": "sub.render",
-   "description": "Two lamp draws above everything: a yellow retreat siren on a Combatdog charging home and a red tail dome on a rescuing Medirunner, flashing at 2 Hz real time.",
-   "tech": [
-    "Siren, TailSiren"
-   ],
-   "responsibilities": [
-    "Draw the retreat and rescue lamps",
-    "Place the tail dome per facing"
-   ],
+   "parent": "sub.verification",
+   "description": "MonoBehaviour (never saved, never a GameComponent): heartbeat + JSONL events, one-file-at-a-time command polling, in-game restart via GenCommandLine.Restart(), closes forcePause windows; only speaks the protocol when launched with -quadrunner-autotest.",
    "evidence": [
-    "Source/Quadrunner/Robodog.cs:74-79",
-    "Source/Quadrunner/Robodog.cs:205-218",
-    "Source/Quadrunner/Robodog.cs:244-278"
+    "Source/Quadrunner/AutoTest.cs:24",
+    "Source/Quadrunner/AutoTest.cs:214"
+   ]
+  },
+  {
+   "id": "comp.scenarios",
+   "name": "Scenario suite",
+   "level": 2,
+   "kind": "service",
+   "parent": "sub.verification",
+   "description": "The executable specification: Do/Expect/Wait/SaveAndReload DSL, tracked ThingIDs, storyteller disabled, filtered Run-all order; partials per feature area. Fixtures build their own obstacles on a private quicktest map.",
+   "evidence": [
+    "Source/Quadrunner/Scenario.cs",
+    "Source/Quadrunner/Scenarios.cs"
+   ]
+  },
+  {
+   "id": "comp.host-harness",
+   "name": "Host harness",
+   "level": 2,
+   "kind": "job",
+   "parent": "sub.verification",
+   "tech": [
+    "python3 -I, stdlib only"
+   ],
+   "description": "tools/autotest.py and friends: lint/build/deploy, private profile and Xvfb launch, stale-build restart, command dispatch, hang/crash watchdog, baseline error diff, packaged pkg-run with BUILD/modRoot validation; plus build.sh/package.sh.",
+   "evidence": [
+    "tools/autotest.py",
+    "tools/build.sh",
+    "tools/package.sh",
+    "tools/env.sh"
+   ]
+  },
+  {
+   "id": "comp.selftest",
+   "name": "Harness self-test",
+   "level": 2,
+   "kind": "job",
+   "parent": "sub.verification",
+   "description": "tools/selftest.sh drives the harness against a fake game speaking the same protocol: baseline, cold start, in-game restart, filters, failures, error diff, hang watchdog, stop, package source and dev-link restoration. 19 cases.",
+   "evidence": [
+    "tools/selftest.sh",
+    "tools/selftest/fake_game.py"
+   ]
+  },
+  {
+   "id": "comp.removal-probe",
+   "name": "Removal observer",
+   "level": 2,
+   "kind": "job",
+   "parent": "sub.verification",
+   "description": "An independent test-only mod with no Quadrunner reference: loads the cleaned save in a fresh process, verifies absent assembly and surviving contents, ticks 600, saves/reloads, ticks 600, rejects any new error.",
+   "evidence": [
+    "tools/removal-probe/",
+    "tools/removal-probe/Probe.cs"
    ]
   },
   {
@@ -826,17 +604,24 @@ window.SYSTEM_MODEL = {
    "name": "Player",
    "kind": "person",
    "level": 0,
-   "description": "The colony player: builds the stable, works its bills, reads the Overview tab, rides dogs, drafts Combatdogs and can invoke the removal cutover."
+   "description": "Builds stables, orders assembly/upgrade bills, sets patrol waypoints, rides Quadrunners, drafts Combatdogs, dispatches Rescuedogs, prepares saves for removal."
   },
   {
-   "id": "ext.vanilla",
-   "name": "Vanilla RimWorld 1.6",
+   "id": "actor.developer",
+   "name": "Developer / agent",
+   "kind": "person",
+   "level": 0,
+   "description": "Runs the isolated test harness, reads run records, rebuilds the distributable package. The in-game work loop (AGENTS.md) is executed by this actor, never handed to the player."
+  },
+  {
+   "id": "ext.rimworld",
+   "name": "RimWorld 1.6 (Core)",
    "kind": "external",
    "level": 0,
-   "description": "Core's runtime: think trees and job drivers, work givers/scanners, reservations and the pathfinder, the power grid, raid/kidnap AI, rendering, bills and save/load. The only other game assembly installed.",
+   "description": "The vanilla game: think trees and jobs, work givers, pathfinder, power nets, rooms/zones, raids and threats, render tree, save system.",
    "tech": [
-    "Assembly-CSharp 1.6.4871",
-    "Core only"
+    "1.6.4871",
+    "net472"
    ]
   },
   {
@@ -844,26 +629,9 @@ window.SYSTEM_MODEL = {
    "name": "Harmony",
    "kind": "external",
    "level": 0,
-   "description": "brrainz.harmony supplies 0Harmony at runtime; the mod installs six gameplay patches plus a test-only one through PatchAll.",
+   "description": "Runtime patch library; the mod's only dependency. Six gameplay patches ship, each where vanilla has no virtual or hook.",
    "tech": [
-    "Lib.Harmony 2.4.3",
-    "workshop 2009463077"
-   ]
-  },
-  {
-   "id": "ext.harness",
-   "name": "Automated test harness",
-   "kind": "external",
-   "level": 0,
-   "description": "Development-time system outside the shipped package: tools/autotest.py launches a private game instance and drives it through files. Its in-game adapter (Source/Quadrunner/AutoTest.cs) and the 55-scenario suite are compiled into the DLL but dormant unless launched with -quadrunner-autotest=.",
-   "tech": [
-    "Python 3 stdlib",
-    "Source/Quadrunner/AutoTest.cs file protocol"
-   ],
-   "evidence": [
-    "tools/autotest.py:556-700",
-    "Source/Quadrunner/AutoTest.cs:24-164",
-    "Source/Quadrunner/Scenarios.cs:13-72"
+    "0Harmony 2.4.3"
    ]
   }
  ],
@@ -871,2988 +639,1988 @@ window.SYSTEM_MODEL = {
   {
    "id": "e.player.stable",
    "from": "actor.player",
-   "to": "comp.stable",
-   "label": "build, bills, dock, patrol waypoints",
-   "kind": "control",
-   "protocol": "RimWorld UI",
-   "mechanism": "Microelectronics research and 150 steel + 4 components; 200 W; bills start only with a free slot; waypoints placed one click at a time (the targeter reopens until right-click). A 16th dog made while full waits beside the stable unassigned.",
-   "evidence": [
-    "Source/Quadrunner/Building_Stable.cs:190-221",
-    "Source/Quadrunner/Building_Stable.cs:226-249",
-    "Source/Quadrunner/Assembly.cs:77-90",
-    "Defs/ThingDefs_Buildings/QR_Stable.xml:52-82"
-   ]
-  },
-  {
-   "id": "e.player.overview",
-   "from": "actor.player",
-   "to": "comp.overview",
-   "label": "read rows, pick gun, order upgrade",
-   "kind": "control",
-   "protocol": "inspect tab",
-   "mechanism": "Rows rebuild from stable.Dogs() every frame, docked first; the upgrade button adds one Bill_UpgradeDog and refuses a duplicate; a gun button calls Tiers.PickGun and is limited to that tier's list.",
-   "evidence": [
-    "Source/Quadrunner/ITab_StableOverview.cs:35-49",
-    "Source/Quadrunner/ITab_StableOverview.cs:92-131"
-   ]
+   "to": "comp.stable-building",
+   "label": "bills, waypoints, gizmos",
+   "kind": "sync",
+   "mechanism": "Vanilla bill UI on the work table plus gizmo buttons: Add patrol waypoints / Clear patrol / Dispatch Rescuedogs."
   },
   {
    "id": "e.player.ride",
    "from": "actor.player",
-   "to": "comp.ride-order",
-   "label": "right-click Ride \u2026 to\u2026",
-   "kind": "control",
-   "protocol": "float menu + targeter",
-   "mechanism": "Offered on a rideable dog that is out, or on its stable (which picks the fullest idle rideable and undocks it); the destination targeter then orders QR_RideTo.",
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:76-99",
-    "Source/Quadrunner/Riding.cs:244-278"
-   ]
+   "to": "comp.riding",
+   "label": "right-click: Ride to\u2026",
+   "kind": "sync",
+   "mechanism": "FloatMenuOptionProvider_Ride appears on an undrafted colonist's right-click on a stable or an available Quadrunner; destination picked from the map."
   },
   {
    "id": "e.player.draft",
    "from": "actor.player",
    "to": "comp.drafting",
-   "label": "draft toggle, move, melee order",
-   "kind": "control",
-   "protocol": "vanilla gizmos/orders",
-   "mechanism": "The toggle comes from the comp while undrafted and from vanilla once drafted; only Combatdogs; restricted to spawned player pawns.",
-   "evidence": [
-    "Source/Quadrunner/Drafting.cs:24-43",
-    "Source/Quadrunner/Drafting.cs:47-70"
-   ]
+   "label": "draft move/attack orders",
+   "kind": "sync",
+   "mechanism": "Vanilla draft gizmos once the patches give the Combatdog a draft controller; drafted dogs leave centralized assignment."
   },
   {
-   "id": "e.player.removal",
+   "id": "e.player.settings",
    "from": "actor.player",
-   "to": "comp.mod-core",
-   "label": "Prepare save for removing Quadrunner",
+   "to": "comp.settings",
+   "label": "mod settings, Prepare save",
+   "kind": "sync",
+   "mechanism": "Options \u2192 Mod settings \u2192 Quadrunner; Prepare-save shows a destructive confirmation before running."
+  },
+  {
+   "id": "e.dev.harness",
+   "from": "actor.developer",
+   "to": "comp.host-harness",
+   "label": "run / pkg-run / removal-check",
+   "kind": "sync",
+   "mechanism": "CLI with a private profile (-savedatafolder under .devlog), private Xvfb display and heartbeat watchdog; never the player's profile or window; runs beside the player's open game."
+  },
+  {
+   "id": "e.bootstrap.harmony",
+   "from": "comp.bootstrap",
+   "to": "ext.harmony",
+   "label": "PatchAll at startup",
    "kind": "control",
-   "protocol": "mod settings",
-   "mechanism": "A confirmation dialog; then an untouched QR_before_removal_* save, content removal on every map and the world, and a separate QR_removed_* export. Never automatic.",
-   "evidence": [
-    "Source/Quadrunner/Settings.cs:26-40",
-    "Source/Quadrunner/Removal.cs:19-45"
-   ]
+   "mechanism": "Six gameplay patches (riding draw, kidnap victim, construction check, draft controller, control gate, carried-pawn angle) plus a seventh quicktest patch that returns immediately unless launched with -quadrunner-autotest."
   },
   {
-   "id": "e.vanilla.stable",
-   "from": "ext.vanilla",
-   "to": "comp.stable",
-   "label": "Building.Tick, power, bills, save",
+   "id": "e.bootstrap.autotest",
+   "from": "comp.bootstrap",
+   "to": "comp.autotest",
+   "label": "creates the driver",
    "kind": "control",
-   "protocol": "Core tick",
-   "mechanism": "Core ticks the building and its CompPowerTrader; without power docked dogs neither charge nor heal, but the network still dispatches and the bills still work.",
-   "evidence": [
-    "Source/Quadrunner/Building_Stable.cs:226-249",
-    "Defs/ThingDefs_Buildings/QR_Stable.xml:73-75"
-   ]
+   "mechanism": "MonoBehaviour created in the static constructor, so it survives save/load and never enters a save (a GameComponent would be instantiated into every game and break clean removal)."
   },
   {
-   "id": "e.vanilla.think",
-   "from": "ext.vanilla",
-   "to": "comp.think-tree",
-   "label": "think tree + job driver per tick",
+   "id": "e.game.stable",
+   "from": "ext.rimworld",
+   "to": "comp.stable-building",
+   "label": "Normal tick, power, bills",
+   "kind": "sync",
+   "mechanism": "tickerType Normal; 200 W CompPowerTrader \u2014 power loss pauses charging/repair/bill use but not dispatch; CurrentlyUsableForBills requires PowerOn."
+  },
+  {
+   "id": "e.game.dog",
+   "from": "ext.rimworld",
+   "to": "comp.comprobodog",
+   "label": "Pawn.Tick \u2192 CompTick",
+   "kind": "sync",
+   "mechanism": "Comps tick before jobs. Docking despawns the pawn into the stable's container, so a docked dog does not tick \u2014 the stable's tick keeps the network alive."
+  },
+  {
+   "id": "e.stable.network",
+   "from": "comp.stable-building",
+   "to": "comp.network",
+   "label": "network Tick() every tick",
    "kind": "control",
-   "protocol": "Core AI",
-   "mechanism": "Core's JobGiver pipeline evaluates QR_Robodog; QR job drivers run their toils; the drafted branch uses vanilla JobGiver_Orders/JobGiver_MoveToStandable.",
-   "evidence": [
-    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml:4-51",
-    "Defs/JobDefs/QR_Jobs.xml:5-54"
-   ]
+   "mechanism": "Every spawned dog's CompTick calls DogNetwork.For(Map).Tick() too; the network rate-limits itself to dispatchInterval 60 ticks with a re-entrancy guard, so whichever node ticks first drives it."
   },
   {
-   "id": "e.vanilla.battery",
-   "from": "ext.vanilla",
-   "to": "comp.battery",
-   "label": "CompTick, damage, draw",
-   "kind": "control",
-   "protocol": "ThingComp",
-   "mechanism": "CompTick drains only for single-cell moves (a >1.5-cell teleport costs nothing) and runs before the job that picks a thing up; PostPostApplyDamage reports hostile hits; PostDraw draws the sirens.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:158-187",
-    "Source/Quadrunner/Robodog.cs:209-218"
-   ]
-  },
-  {
-   "id": "e.vanilla.work",
-   "from": "ext.vanilla",
-   "to": "comp.work-job",
-   "label": "WorkGiver_Scanner checks",
-   "kind": "sync",
-   "protocol": "scanner API",
-   "interface": "iface.vanilla-scanner",
-   "mechanism": "ShouldSkip, HasJobOnThing and JobOnThing decide and build the job; vanilla reservations and pathfinder apply; our code rejects any job def outside HaulToCell/HaulToContainer/Clean.",
-   "evidence": [
-    "Source/Quadrunner/Work.cs:143-167",
-    "Defs/ThingDefs_Races/QR_Races.xml:102-121"
-   ]
-  },
-  {
-   "id": "e.vanilla.construct",
-   "from": "ext.vanilla",
-   "to": "comp.construct-patch",
-   "label": "CanConstruct(Thing, Pawn, \u2026)",
-   "kind": "sync",
-   "protocol": "Harmony prefix",
-   "mechanism": "For a robodog only, the prefix reruns CanConstruct with checkSkills:false so the null workSettings and skills are skipped; every other pawn goes through vanilla.",
-   "evidence": [
-    "Source/Quadrunner/Work.cs:269-284"
-   ]
-  },
-  {
-   "id": "e.vanilla.stat",
-   "from": "ext.vanilla",
-   "to": "comp.raid-part",
-   "label": "MoveSpeed stat evaluation",
-   "kind": "sync",
-   "protocol": "StatPart",
-   "mechanism": "StatPart_RobodogRaid multiplies a spawned dog's MoveSpeed by deployedSpeedFactor (2 for Combatdogs) and, during a raid, by 3; otherwise 1. The raid answer is cached 60 ticks.",
-   "evidence": [
-    "Source/Quadrunner/Work.cs:239-266",
-    "Patches/QR_Stats.xml:4-10"
-   ]
-  },
-  {
-   "id": "e.vanilla.spots",
-   "from": "ext.vanilla",
-   "to": "comp.charge-spots",
-   "label": "rooms, conduits, turbines, power nets",
-   "kind": "sync",
-   "protocol": "Core map queries",
-   "mechanism": "Rooms from cells, conduits by CompPowerTransmitter, stored energy by PowerNet, wind cells by WindTurbineUtility; a cache signature hashes every colony building.",
-   "evidence": [
-    "Source/Quadrunner/ChargeSpots.cs:61-96",
-    "Source/Quadrunner/ChargeSpots.cs:121-136"
-   ]
-  },
-  {
-   "id": "e.vanilla.rendertree",
-   "from": "ext.vanilla",
-   "to": "comp.render-tree",
-   "label": "PawnRenderer draws the tree",
-   "kind": "sync",
-   "protocol": "render tree",
-   "mechanism": "Core parses PawnRenderTreeDef and calls our node/worker classes each frame; the never-drawn Whole node supplies the icon graphic.",
-   "evidence": [
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:9-134",
-    "Source/Quadrunner/Rendering.cs:55-65"
-   ]
-  },
-  {
-   "id": "e.vanilla.bodyangle",
-   "from": "ext.vanilla",
-   "to": "comp.pose",
-   "label": "PawnRenderer.BodyAngle",
-   "kind": "sync",
-   "protocol": "Harmony postfix",
-   "mechanism": "For a pawn carried by a robodog the postfix lies it along the back and turns it over during the scoop; vanilla's humanlike rule is bypassed only for our carrier.",
-   "evidence": [
-    "Source/Quadrunner/Rendering.cs:290-298",
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:122-134"
-   ]
-  },
-  {
-   "id": "e.vanilla.drawpos",
-   "from": "ext.vanilla",
-   "to": "comp.ride-stats",
-   "label": "DrawPos getter, MoveSpeed",
-   "kind": "sync",
-   "protocol": "Harmony postfix + StatPart",
-   "mechanism": "A mounted rider is drawn at the dog's tweened position plus the XML per-facing offset, half an altitude step above pawns; StatPart_Riding sets the rider's MoveSpeed to riddenMoveSpeed.",
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:229-241",
-    "Source/Quadrunner/Riding.cs:281-299",
-    "Patches/QR_Stats.xml:12-18"
-   ]
-  },
-  {
-   "id": "e.vanilla.components",
-   "from": "ext.vanilla",
-   "to": "comp.drafting",
-   "label": "dynamic components, control checks",
-   "kind": "sync",
-   "protocol": "Harmony postfixes",
-   "mechanism": "AddAndRemoveDynamicComponents gives a spawned player Combatdog a Pawn_DraftController; IsColonySubhumanPlayerControlled returns true only while it is drafted, so vanilla orders and gizmos accept it.",
-   "evidence": [
-    "Source/Quadrunner/Drafting.cs:47-70"
-   ]
-  },
-  {
-   "id": "e.vanilla.kidnap",
-   "from": "ext.vanilla",
-   "to": "comp.retrieval",
-   "label": "TryFindGoodKidnapVictim",
-   "kind": "sync",
-   "protocol": "Harmony postfix",
-   "mechanism": "Runs only when vanilla found no victim: the nearest reachable powered-down player robodog in range becomes the victim; vanilla JobDriver_Kidnap does the carrying, so colonists still come first.",
-   "evidence": [
-    "Source/Quadrunner/Retrieval.cs:195-211"
-   ]
-  },
-  {
-   "id": "e.vanilla.rescue",
-   "from": "ext.vanilla",
-   "to": "comp.rescue-job",
-   "label": "Rescue jobs, FindBedFor",
-   "kind": "sync",
-   "protocol": "vanilla jobs",
-   "mechanism": "Vanilla carries the patient and picks the bed; our code supplies patient, bed and count=1, and declines when no bed or reach is available.",
-   "evidence": [
-    "Source/Quadrunner/Rescue.cs:38-61"
-   ]
-  },
-  {
-   "id": "e.vanilla.combat",
-   "from": "ext.vanilla",
-   "to": "comp.engage",
-   "label": "AttackStatic/Melee, Capture, cast search",
-   "kind": "sync",
-   "protocol": "vanilla jobs",
-   "mechanism": "Our job chooses the verb/gun and hands vanilla the job; a 60-tick expiry with checkOverrideOnExpire re-asks the network, so a new target is picked up about once a second.",
-   "evidence": [
-    "Source/Quadrunner/Combat.cs:85-139",
-    "Source/Quadrunner/Combat.cs:210-237"
-   ]
-  },
-  {
-   "id": "e.vanilla.tiers",
-   "from": "ext.vanilla",
-   "to": "comp.tiers",
-   "label": "equipment verbs, gun stats",
-   "kind": "sync",
-   "protocol": "ThingDef/equipment",
-   "mechanism": "Built-in guns are destroyOnDrop mech-style weapons; Arm replaces the held one and CompBuiltInGun cancels a busy stance so a cooldown never points at a removed verb.",
-   "evidence": [
-    "Source/Quadrunner/Tiers.cs:63-98",
-    "Defs/ThingDefs_Misc/QR_Weapons.xml:36-194"
-   ]
-  },
-  {
-   "id": "e.vanilla.siren",
-   "from": "ext.vanilla",
-   "to": "comp.siren",
-   "label": "PostDraw, DrawMesh",
-   "kind": "sync",
-   "protocol": "Unity drawing",
-   "mechanism": "The lamp is drawn in MetaOverlays above everything at a 2 Hz real-time phase, with an additive lightning-glow mesh 2.4 times the lamp width.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:244-263"
-   ]
-  },
-  {
-   "id": "e.harmony.core",
-   "from": "ext.harmony",
-   "to": "comp.mod-core",
-   "label": "0Harmony runtime + PatchAll",
-   "kind": "sync",
-   "protocol": "HarmonyLib",
-   "mechanism": "QR's static constructor installs one Harmony instance with PatchAll, which registers the six gameplay patches (plus a test-only one) and the XML StatParts are loaded separately; no other reflection.",
-   "evidence": [
-    "Source/Quadrunner/QR.cs:15-21",
-    "About/About.xml:10-20",
-    "Patches/QR_Stats.xml:1-18"
-   ]
-  },
-  {
-   "id": "e.harness.stable",
-   "from": "ext.harness",
-   "to": "comp.stable",
-   "label": "run scenarios, stage fixtures",
-   "kind": "control",
-   "protocol": "file protocol",
-   "interface": "iface.autotest-files",
-   "mechanism": "One command at a time from the command file, JSON lines to events.jsonl, heartbeat each second; fixtures call AddNewDog/TryUndock/OrderUpgrade and set battery through the comp; the watchdog kills the private instance on a stale heartbeat.",
-   "evidence": [
-    "Source/Quadrunner/AutoTest.cs:24-164",
-    "Source/Quadrunner/Scenarios.cs:13-72",
-    "tools/autotest.py:556"
-   ]
-  },
-  {
-   "id": "e.harness.net",
-   "from": "ext.harness",
-   "to": "comp.net-node",
-   "label": "force dispatch, inspect queues",
-   "kind": "control",
-   "protocol": "in-process calls",
-   "mechanism": "Scenarios call Tick(force:true) and Inspect(); a build change restarts the instance in game with GenCommandLine.Restart(); the result event carries pass count and verdicts.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:283-289",
-    "Source/Quadrunner/Network.cs:618-628",
-    "Source/Quadrunner/AutoTest.cs:118-127"
-   ]
-  },
-  {
-   "id": "e.harness.removal",
-   "from": "ext.harness",
-   "to": "comp.mod-core",
-   "label": "PrepareSave + independent no-mod load",
-   "kind": "control",
-   "protocol": "scenario + probe",
-   "mechanism": "The Prepare removal scenario calls Removal.PrepareSave; removal-check launches a second game process without Quadrunner, loads the export, ticks 600, saves/reloads and ticks 600, then asserts the keeper list.",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Removal.cs:24-216",
-    "tools/removal-probe/Probe.cs:1-40",
-    "tools/autotest.py:599"
-   ]
-  },
-  {
-   "id": "e.think.net",
-   "from": "comp.think-tree",
-   "to": "comp.net-node",
-   "label": "TakeOrder(dog)",
-   "kind": "control",
-   "protocol": "think node",
-   "mechanism": "JobGiver_RobodogWork asks the network; null falls through to dock, wait-in-room, wander. A dog never searches the map for work itself.",
-   "evidence": [
-    "Source/Quadrunner/Work.cs:207-211",
-    "Source/Quadrunner/Network.cs:539-571"
-   ]
-  },
-  {
-   "id": "e.think.charge",
-   "from": "comp.think-tree",
-   "to": "comp.charge-decision",
-   "label": "seek-charge branch",
-   "kind": "control",
-   "protocol": "think node",
-   "mechanism": "JobGiver_SeekCharge sits before JobGiver_RobodogWork and returns a charge job whenever the comp wants a charge.",
-   "evidence": [
-    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml:30-33",
-    "Source/Quadrunner/Charging.cs:14-20"
-   ]
-  },
-  {
-   "id": "e.battery.think",
-   "from": "comp.battery",
-   "to": "comp.think-tree",
-   "label": "WantsCharge latch",
-   "kind": "data",
-   "protocol": "comp state",
-   "mechanism": "SetBattery latches at or below seekChargeAt and clears only at full; at the latch a drafted Combatdog is undrafted and its attack/wait/goto job interrupted.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:81-106"
-   ]
-  },
-  {
-   "id": "e.battery.net",
-   "from": "comp.battery",
-   "to": "comp.net-node",
-   "label": "power down: NodeLeaving",
+   "id": "e.dog.network",
+   "from": "comp.comprobodog",
+   "to": "comp.network",
+   "label": "tick, pings, casualty reports",
    "kind": "event",
-   "protocol": "in-process",
-   "mechanism": "At 0% QR_PoweredDown is added, the dog leaves the roster and is never assigned; above 0% it powers up and re-enters on the next roster refresh.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:107-118",
-    "Source/Quadrunner/Network.cs:153-167"
-   ]
+   "mechanism": "A dog hit by a hostile reports the attacker, drops the 60-tick raid cache and forces a tick, so a stable-less Combatdog still reacts; ReportCasualty/ReportDeath dedupe by casualty identity."
   },
   {
-   "id": "e.race.rendertree",
-   "from": "comp.race",
-   "to": "comp.render-tree",
-   "label": "body + render tree defs",
-   "kind": "data",
-   "protocol": "ThingDef",
-   "mechanism": "The race names body QR_Robodog and renderTree QR_RobodogRenderTree; Core builds the tree once per pawn from those defs.",
-   "evidence": [
-    "Defs/ThingDefs_Races/QR_Races.xml:39-43",
-    "Defs/Bodies/QR_Bodies.xml"
-   ]
+   "id": "e.network.work",
+   "from": "comp.network",
+   "to": "comp.work",
+   "label": "JobFor(assigned target)",
+   "kind": "sync",
+   "mechanism": "Jobs are built for exactly one assignee and target; a Clean task tries the hose job for a qualifying patch before ordinary cleaning; ThingID is cached per scan to keep duplicate discovery allocation-free."
   },
   {
-   "id": "e.race.tiers",
-   "from": "comp.race",
-   "to": "comp.tiers",
-   "label": "tier, next kind, slot lists",
-   "kind": "data",
-   "protocol": "DefModExtension",
-   "mechanism": "CombatTier on each Combatdog race names the tier, the next PawnKindDef, the upgrade recipe and the allowed guns per slot; slot 1 is the default.",
-   "evidence": [
-    "Defs/ThingDefs_Races/QR_Races.xml:212-305",
-    "Source/Quadrunner/Tiers.cs:12-24"
-   ]
+   "id": "e.work.game",
+   "from": "comp.work",
+   "to": "ext.rimworld",
+   "label": "work-giver scanners, JobOnThing",
+   "kind": "sync",
+   "mechanism": "Discovery uses the Quadrunner race's scanners only to test eligibility (15 cells, unfogged, unforbidden, Home + 600-tick age for filth); the job itself is the giver's vanilla JobOnThing, so reservations, storage filters and stack counts stay vanilla. A CanConstruct prefix runs the construction check without skills or workSettings."
   },
   {
-   "id": "e.bills.stable",
-   "from": "comp.bills",
-   "to": "comp.stable",
-   "label": "AddNewDog / TakeNewDog",
-   "kind": "data",
-   "protocol": "in-process",
-   "mechanism": "A finished bill generates a pawn, assigns its stable and docks it; if no slot is free it is spawned beside the stable with a caution message; a rebuild resurrects the wreck's pawn.",
-   "evidence": [
-    "Source/Quadrunner/Assembly.cs:16-58",
-    "Source/Quadrunner/Building_Stable.cs:91-111"
-   ]
+   "id": "e.network.survey",
+   "from": "comp.network",
+   "to": "comp.survey",
+   "label": "idle job / sweep credit",
+   "kind": "sync",
+   "mechanism": "TakeOrder returns a survey job when idle; only actual revealed 15-cell scans credit coverage; war mode stops and invalidates survey legs."
   },
   {
-   "id": "e.overview.bills",
-   "from": "comp.overview",
-   "to": "comp.bills",
-   "label": "OrderUpgrade \u2192 one bill",
+   "id": "e.network.rescue",
+   "from": "comp.network",
+   "to": "comp.rescue",
+   "label": "war-queue rescue tasks",
+   "kind": "sync",
+   "mechanism": "Patients are map-wide alerts independent of worker scans; assignment sorts war queue by rescue rank then bleeding rate; docked Medirunners undock only when CanPotentiallyRescue passes for the winning assignee (2026-11-07 fix removed speculative undocking)."
+  },
+  {
+   "id": "e.network.fire",
+   "from": "comp.network",
+   "to": "comp.firefighting",
+   "label": "fire tasks after rescues",
+   "kind": "sync",
+   "mechanism": "Revealed Home fires join the war queue after rescues; each available medic gets the nearest reachable unclaimed fire (squared distance, ThingID tie); travel intent survives reloads via the job's targetB."
+  },
+  {
+   "id": "e.network.combat",
+   "from": "comp.network",
+   "to": "comp.combat",
+   "label": "war-queue combat jobs",
+   "kind": "sync",
+   "mechanism": "60-tick combat job expiry; pings deploy docked or returning Combatdogs regardless of radius; capture/carry-to-room jobs for downed humans."
+  },
+  {
+   "id": "e.network.pack",
+   "from": "comp.network",
+   "to": "comp.packcombat",
+   "label": "pack refresh",
    "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "One Bill_UpgradeDog per dog (a duplicate is refused); it is doable only while the dog is docked and still that tier, and removed when done or invalid.",
-   "evidence": [
-    "Source/Quadrunner/ITab_StableOverview.cs:117-131",
-    "Source/Quadrunner/Tiers.cs:101-133"
-   ]
+   "mechanism": "Refreshed after discovery and undocking, before one-assignee work; TakeOrder also requests a selection-only refresh at native job boundaries, never starting a job inside think-tree evaluation."
   },
   {
-   "id": "e.overview.tiers",
-   "from": "comp.overview",
-   "to": "comp.tiers",
-   "label": "PickGun(slot, gun)",
+   "id": "e.network.retrieval",
+   "from": "comp.network",
+   "to": "comp.retrieval",
+   "label": "recovery tasks, sorted first",
+   "kind": "sync",
+   "mechanism": "Casualty recovery is normal-queue work ranked ahead of utility work and available to healthy Quadrunners or Medirunners after threats clear; war-queue medical emergencies still take priority."
+  },
+  {
+   "id": "e.thinktree.work",
+   "from": "comp.races",
+   "to": "comp.work",
+   "label": "think-tree node \u2192 TakeOrder",
    "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "The pick is saved on the comp (gun1/gun2), limited to the tier's list, and re-arms slot 1 at once.",
-   "evidence": [
-    "Source/Quadrunner/ITab_StableOverview.cs:92-110",
-    "Source/Quadrunner/Tiers.cs:44-50"
-   ]
+   "mechanism": "QR_Robodog priority order is the contract: player-queued jobs, drafted stance, lord duties, seek-charge, network order (JobGiver_RobodogWork), dock, wait-in-room, wander."
   },
   {
-   "id": "e.stable.battery",
-   "from": "comp.stable",
-   "to": "comp.battery",
-   "label": "dock charge + repair",
+   "id": "e.thinktree.charge",
+   "from": "comp.races",
+   "to": "comp.charging",
+   "label": "node 5: charge first",
+   "kind": "control",
+   "mechanism": "Charge seeking sits above all work: a dog that wants a charge never takes orders."
+  },
+  {
+   "id": "e.thinktree.dock",
+   "from": "comp.races",
+   "to": "comp.docking",
+   "label": "nodes 7\u20138: dock / wait",
+   "kind": "control",
+   "mechanism": "Only reached when the network returns no order; peaceful docking preserves an uninstalled home's affiliation, wartime fallback re-homes to any reachable stable with a free slot."
+  },
+  {
+   "id": "e.charging.spots",
+   "from": "comp.charging",
+   "to": "comp.chargespots",
+   "label": "Best(dog) spot query",
+   "kind": "sync",
+   "mechanism": "Breadth-first over regions the dog may enter, first found candidates by path cost; volatile rules (prison, occupied bed, stored energy, allowed area, fire, hostiles, reservations) rechecked per dog on every use."
+  },
+  {
+   "id": "e.charging.game",
+   "from": "comp.charging",
+   "to": "ext.rimworld",
+   "label": "draw batteryComps, fullest first",
    "kind": "data",
-   "protocol": "Building.Tick",
-   "mechanism": "While powered: +0.0012/tick (3x the conduit rate) until full and the first injury heals 0.02 HP/tick; switched off, neither happens though dispatch continues.",
-   "evidence": [
-    "Source/Quadrunner/Building_Stable.cs:239-248"
-   ]
+   "mechanism": "conduitChargePerTick 0.0004 per tick taken from the net's stored energy only \u2014 a producing net with empty batteries is a dead charge spot; stops when full, dry, or the spot stops qualifying (rechecked every 250 ticks)."
   },
   {
-   "id": "e.stable.net",
-   "from": "comp.stable",
-   "to": "comp.net-node",
-   "label": "tick the network, own its state",
-   "kind": "control",
-   "protocol": "Building.Tick",
-   "mechanism": "Building_Stable.Tick calls DogNetwork.For(map).Tick(); the NetworkState is scribed on exactly one elected node, and NodeLeaving runs on despawn/destroy.",
-   "evidence": [
-    "Source/Quadrunner/Building_Stable.cs:226-232",
-    "Source/Quadrunner/Building_Stable.cs:289-299",
-    "Source/Quadrunner/Network.cs:200-248"
-   ]
+   "id": "e.chargespots.game",
+   "from": "comp.chargespots",
+   "to": "ext.rimworld",
+   "label": "transmitters, rooms, turbines",
+   "kind": "data",
+   "mechanism": "Static cache keyed by Map, rebuilt when the colony's building signature changes or after 2500 ticks; turbine exclusion radius is the one mod setting."
   },
   {
-   "id": "e.net.stable",
-   "from": "comp.net-node",
-   "to": "comp.stable",
-   "label": "undock for work, deploy",
-   "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "Docked dogs that are needed step out at the interaction cell: workers when not at war, a medic with a patient, a Combatdog in war or with targets; the decision repeats each dispatch.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:319-331"
-   ]
+   "id": "e.stable.dog",
+   "from": "comp.stable-building",
+   "to": "comp.comprobodog",
+   "label": "charge/repair docked; find by comp",
+   "kind": "data",
+   "mechanism": "Docked dogs charge at stableChargePerTick 0.0012 (3\u00d7 conduit) and heal one injury per tick while powered; the stable finds its dogs by scanning pawns whose comp points at it \u2014 affiliation is a single saved reference, not a list."
+  },
+  {
+   "id": "e.docking.stable",
+   "from": "comp.docking",
+   "to": "comp.stable-building",
+   "label": "dock into free slot",
+   "kind": "sync",
+   "mechanism": "Docking despawns the pawn into a typed ThingOwner<Pawn> deep-saved on the building; 15 slots shared with field dogs; a rebuilt dog's old affiliation is cleared before TakeNewDog so a full receiver leaves it unassigned, not misassigned."
+  },
+  {
+   "id": "e.fieldfix.game",
+   "from": "comp.fieldfix",
+   "to": "ext.rimworld",
+   "label": "scanner + delivery jobs",
+   "kind": "sync",
+   "mechanism": "WorkGiver_FieldFixRobodog finds powered-down/damaged dogs in the field; colonists deliver a battery (charges to 30%) or repair kit; the 2500-tick AwaitsFieldFix window expires safely."
   },
   {
    "id": "e.retrieval.stable",
    "from": "comp.retrieval",
-   "to": "comp.stable",
-   "label": "CarryToStable docks",
-   "kind": "data",
-   "protocol": "vanilla job",
-   "mechanism": "The nearest stable that takes the dog (its own or one with a free slot) and that the carrier can reach; on arrival the dog is docked, else set down with a log line.",
-   "evidence": [
-    "Source/Quadrunner/Retrieval.cs:20-50",
-    "Source/Quadrunner/Retrieval.cs:100-112"
-   ]
+   "to": "comp.stable-building",
+   "label": "AcceptWreck / dock carry",
+   "kind": "sync",
+   "mechanism": "Living dogs enter the dock; Combatdog corpses transfer into a separately held ThingOwner<Corpse> behind a child IThingHolder, preserving inner pawn and cargo for rebuild."
   },
   {
-   "id": "e.fieldfix.battery",
-   "from": "comp.fieldfix",
-   "to": "comp.battery",
-   "label": "use battery / repair kit",
-   "kind": "data",
-   "protocol": "vanilla job",
-   "mechanism": "The battery charges to full (SetBattery(1)); the kit removes every injury; the kit is chosen first when health is below 70%.",
-   "evidence": [
-    "Source/Quadrunner/FieldFix.cs:24-48",
-    "Source/Quadrunner/FieldFix.cs:88-118"
-   ]
+   "id": "e.fabrication.stable",
+   "from": "comp.fabrication",
+   "to": "comp.stable-building",
+   "label": "bills on stable BillStack",
+   "kind": "control",
+   "mechanism": "Assemble/rebuild recipes produce a pawn that docks straight in; upgrade is a per-dog Bill_UpgradeDog that rebuilds the dog as the next tier keeping name and BuildOrder seniority."
   },
   {
-   "id": "e.tiers.stable",
+   "id": "e.tiers.fabrication",
    "from": "comp.tiers",
-   "to": "comp.stable",
-   "label": "upgrade bill, rebuild dog",
-   "kind": "control",
-   "protocol": "bill + in-process",
-   "mechanism": "On completion a new pawn of the next kind inherits name, stable, battery, build order and gun picks; the old pawn is destroyed and the dock slot reused.",
-   "evidence": [
-    "Source/Quadrunner/Tiers.cs:136-153",
-    "Source/Quadrunner/Building_Stable.cs:137-158"
-   ]
-  },
-  {
-   "id": "e.net.discovery",
-   "from": "comp.net-node",
-   "to": "comp.discovery",
-   "label": "request a local scan",
-   "kind": "control",
-   "protocol": "network tick",
-   "mechanism": "Every scanInterval (120 ticks) or on a forced tick, each active dog scans around itself; nothing outside 15 cells or in fog is ever seen.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:332-340",
-    "Source/Quadrunner/Work.cs:63-95"
-   ]
-  },
-  {
-   "id": "e.discovery.net",
-   "from": "comp.discovery",
-   "to": "comp.net-node",
-   "label": "Report(kind, target, giver)",
+   "to": "comp.fabrication",
+   "label": "arsenals + loadout migration",
    "kind": "data",
-   "protocol": "in-process",
-   "mechanism": "Work kinds go to the normal queue, rescue/combat to the war queue; a duplicate kind+ThingID is refused; fogged, destroyed or off-map targets are refused; task ids come from nextId.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:250-262",
-    "Source/Quadrunner/Work.cs:87-92"
-   ]
+   "mechanism": "Tier XML names the guns; T4's fixed slots are paired charge rifles and 20.9-cell chain shotguns plus an independent smoke launcher; MigrateLoadout fits missing modern equipment on legacy dogs in place through each pawn's normal post-load traversal."
   },
   {
-   "id": "e.net.survey",
-   "from": "comp.net-node",
-   "to": "comp.survey",
-   "label": "survey job for an idle worker",
+   "id": "e.drafting.game",
+   "from": "comp.drafting",
+   "to": "ext.rimworld",
+   "label": "2 patches: draft controller, control gate",
    "kind": "control",
-   "protocol": "think node",
-   "mechanism": "Home-first area categories, vanilla returned route-cost entry ranking, retained within-area coverage and bounded 80-cell legs; 600-tick expiry permits work preemption; unavailable goals remain unobserved.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs",
-    "Source/Quadrunner/Survey.cs"
-   ]
+   "mechanism": "PawnComponentsUtility postfix adds a Pawn_DraftController to player Combatdogs; IsColonySubhumanPlayerControlled postfix returns true only while drafted, so dogs stay out of player-controlled lists otherwise."
   },
   {
-   "id": "e.net.workjob",
-   "from": "comp.net-node",
-   "to": "comp.work-job",
-   "label": "JobFor(dog, task)",
+   "id": "e.riding.game",
+   "from": "comp.riding",
+   "to": "ext.rimworld",
+   "label": "DrawPos postfix, MoveSpeed stat part",
+   "kind": "data",
+   "mechanism": "StatPart_Riding is appended last on vanilla MoveSpeed and replaces the value with riddenMoveSpeed 7, so rider speed is exactly the dog's; the DrawPos postfix pins the rider to the dog at fixed altitude and pulls the dog under the rider's tween."
+  },
+  {
+   "id": "e.render.game",
+   "from": "comp.render-nodes",
+   "to": "ext.rimworld",
+   "label": "render-tree workers, BodyAngle patch",
+   "kind": "data",
+   "mechanism": "Core's Misc render tree with custom workers: gait recomputes leg transforms from distance walked along the facing every frame; poses recompute from vanilla stance state and the pickup tick, never stored; a hidden Whole node keeps the full sprite for icons."
+  },
+  {
+   "id": "e.removal.game",
+   "from": "comp.removal",
+   "to": "ext.rimworld",
+   "label": "destroy mod things, scrub export",
    "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "One candidate job per capable, unassigned dog; path cost by FindPathNow; unreachable = MaxValue; ties go to the lower thingID; the winner is started with InterruptForced and its loadID saved.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:488-535"
-   ]
+   "mechanism": "Removes mod defNames from allowedDefs, nulls removed weapon/projectile/cover metadata in battle-log entries while keeping the records, and throws on any leftover mod reference rather than writing a broken save."
   },
   {
-   "id": "e.net.startjob",
-   "from": "comp.net-node",
-   "to": "ext.vanilla",
-   "label": "StartJob, reservations, path cost",
+   "id": "e.settings.removal",
+   "from": "comp.settings",
+   "to": "comp.removal",
+   "label": "Prepare save action",
+   "kind": "control",
+   "mechanism": "Pauses, writes and verifies the QR_before_removal backup before touching anything; on failure the player keeps Quadrunner enabled and reloads the backup."
+  },
+  {
+   "id": "e.ui.stable",
+   "from": "comp.stable-ui",
+   "to": "comp.stable-building",
+   "label": "roster read, upgrade orders",
+   "kind": "data",
+   "mechanism": "Overview scans the stable's roster including docked dogs (the scoped holder view hides them from MapPawns); dock indicators read actual dock contents, not assignments."
+  },
+  {
+   "id": "e.harness.autotest",
+   "from": "comp.host-harness",
+   "to": "comp.autotest",
+   "label": "file protocol: commands \u2194 events",
    "kind": "sync",
-   "protocol": "vanilla jobs",
-   "mechanism": "Vanilla reservations and pathfinder do the work; assignee, job loadID and routeCost are saved with the task; the scheduler refreshes every 60 ticks.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:514-534",
-    "Source/Quadrunner/Work.cs:137-167"
-   ]
+   "mechanism": ".devlog/autotest/: heartbeat every real second, JSONL events (ready carries build id and resolved modRoot), one command at a time (run [filter] / restart / quit / ping / hang); restart uses the game's own GenCommandLine.Restart so a new assembly loads without killing the process; watchdog declares HANG after 120 s."
   },
   {
-   "id": "e.net.engage",
-   "from": "comp.net-node",
-   "to": "comp.engage",
-   "label": "war job for a Combatdog",
+   "id": "e.autotest.scenarios",
+   "from": "comp.autotest",
+   "to": "comp.scenarios",
+   "label": "drives Scenario.Update",
    "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "Only combat-capable dogs; TakeOrder re-asks Combat.JobFor for the assigned target, continuing a capture or carry already under way rather than restarting it.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:481-493",
-    "Source/Quadrunner/Network.cs:544-561"
-   ]
+   "mechanism": "One scenario at a time in Run-all order with a case-insensitive comma filter; 5 fps between scenarios to spare software rendering; every scenario PASS/FAIL emits a result event with tick/time/fps telemetry."
   },
   {
-   "id": "e.net.rescue",
-   "from": "comp.net-node",
-   "to": "comp.rescue-job",
-   "label": "rescue job for a Medirunner",
-   "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "Capable() requires the race's rescue flag; patient tasks are sorted by rank, then bleed rate, then task id, and the nearest available medic gets each one.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:370-385",
-    "Source/Quadrunner/Network.cs:481-493"
-   ]
-  },
-  {
-   "id": "e.net.retrieval",
-   "from": "comp.net-node",
-   "to": "comp.retrieval",
-   "label": "carry a powered-down dog",
-   "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "Retrieve tasks come from scans; JobFor refuses when a field fix is pending, the dog is forbidden/reserved/unreachable, or no stable will take it, and the task then stays queued.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:490-492",
-    "Source/Quadrunner/Retrieval.cs:57-69"
-   ]
-  },
-  {
-   "id": "e.net.triage",
-   "from": "comp.net-node",
-   "to": "comp.triage",
-   "label": "AnyPatient / Patients",
+   "id": "e.selftest.harness",
+   "from": "comp.selftest",
+   "to": "comp.host-harness",
+   "label": "fake-game protocol test",
    "kind": "sync",
-   "protocol": "in-process",
-   "mechanism": "The network asks whether any patient exists to decide whether a docked Medirunner deploys, and reports each revealed patient every scan.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:319-342"
-   ]
+   "mechanism": "19 cases: baseline, launch/restart, filters, failures, error diff, hang/stop, package source validation and dev-link restoration; must be rerun whenever the protocol changes."
   },
   {
-   "id": "e.net.raid",
-   "from": "comp.net-node",
-   "to": "comp.raid-part",
-   "label": "Raid.Active(map)",
+   "id": "e.probe.game",
+   "from": "comp.removal-probe",
+   "to": "ext.rimworld",
+   "label": "loads cleaned save, no assembly",
    "kind": "sync",
-   "protocol": "in-process",
-   "mechanism": "War = an active threat or a live queued hostile; the answer is cached one second, and war flips warActive, suspends normal work and deploys Combatdogs.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:310-315",
-    "Source/Quadrunner/Work.cs:214-232"
-   ]
-  },
-  {
-   "id": "e.net.patrol",
-   "from": "comp.net-node",
-   "to": "comp.patrol",
-   "label": "patrol/guard job in war",
-   "kind": "control",
-   "protocol": "think node",
-   "mechanism": "With nothing assigned while war is on or targets remain, the dog patrols the stable's waypoints in a loop, else guards within 4 cells; jobs expire every 60 ticks; clear map means dock.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:598-600",
-    "Source/Quadrunner/Combat.cs:64-78"
-   ]
-  },
-  {
-   "id": "e.charge.spots",
-   "from": "comp.charge-decision",
-   "to": "comp.charge-spots",
-   "label": "Best(dog)",
-   "kind": "sync",
-   "protocol": "in-process",
-   "mechanism": "Cached spots filtered by UsableBy, grouped by region, traversed from the dog with its TraverseParms (forbidden doors block), first 5 candidates scored and the lowest taken.",
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:29-36",
-    "Source/Quadrunner/ChargeSpots.cs:161-195"
-   ]
-  },
-  {
-   "id": "e.spots.decision",
-   "from": "comp.charge-spots",
-   "to": "comp.charge-decision",
-   "label": "spot or none",
-   "kind": "data",
-   "protocol": "in-process",
-   "mechanism": "Score = straight distance + 15 x dogs already charging there - 10 x min(stored Wd/1000, 1); none when no reachable region has a usable spot.",
-   "evidence": [
-    "Source/Quadrunner/ChargeSpots.cs:188-195"
-   ]
-  },
-  {
-   "id": "e.charge.stable",
-   "from": "comp.charge-decision",
-   "to": "comp.stable",
-   "label": "dock and charge",
-   "kind": "control",
-   "protocol": "QR_Dock job",
-   "mechanism": "Chosen when stableTicks <= spotTicks: straight-line distance x TicksPerMoveCardinal + missing/0.0012; an unpowered stable counts only when no spot is usable; the dock adds charge and repair.",
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:23-43",
-    "Source/Quadrunner/Building_Stable.cs:239-248"
-   ]
-  },
-  {
-   "id": "e.charge.conduit",
-   "from": "comp.charge-decision",
-   "to": "comp.conduit-charge",
-   "label": "charge in the room",
-   "kind": "control",
-   "protocol": "QR_ChargeAtConduit",
-   "mechanism": "Chosen when a spot fills the dog sooner; the job targets the spot cell and the conduit. From 10% a conduit wins when the stable is about 120 cells further away.",
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:40-42",
-    "Defs/ThingDefs_Races/QR_Races.xml:77-79"
-   ]
-  },
-  {
-   "id": "e.conduit.battery",
-   "from": "comp.conduit-charge",
-   "to": "comp.battery",
-   "label": "Charge(got)",
-   "kind": "data",
-   "protocol": "job driver",
-   "mechanism": "Per tick min(0.0004 x delta, missing); Wd drawn = fraction x 100; the job ends at full, on a dry net, or when the spot stops qualifying (recheck every 250 ticks).",
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:79-107"
-   ]
-  },
-  {
-   "id": "e.conduit.vanilla",
-   "from": "comp.conduit-charge",
-   "to": "ext.vanilla",
-   "label": "draw PowerNet batteries",
-   "kind": "data",
-   "protocol": "PowerNet",
-   "mechanism": "Batteries ordered by StoredEnergy descending; DrawPower takes up to 100 Wd per full charge; no net or empty batteries ends the job and the dog searches again.",
-   "evidence": [
-    "Source/Quadrunner/Charging.cs:110-123"
-   ]
-  },
-  {
-   "id": "e.workjob.vanilla",
-   "from": "comp.work-job",
-   "to": "ext.vanilla",
-   "label": "scanner checks + JobOnThing",
-   "kind": "sync",
-   "protocol": "scanner API",
-   "interface": "iface.vanilla-scanner",
-   "mechanism": "The target must be live, allowed, reachable and reservable; the built job's def must be in the race's jobs list; haulOpportunisticDuplicates is forced off.",
-   "evidence": [
-    "Source/Quadrunner/Work.cs:143-167"
-   ]
-  },
-  {
-   "id": "e.triage.vanilla",
-   "from": "comp.triage",
-   "to": "ext.vanilla",
-   "label": "downed pawns, WantsToBeRescued",
-   "kind": "sync",
-   "protocol": "Core queries",
-   "mechanism": "Rank 0 colonist, 1 guest, 2 prisoner, 3 colony animal; -1 for enemies, robodogs and wild animals; NoCare patients are skipped as vanilla's float menu does.",
-   "evidence": [
-    "Source/Quadrunner/Rescue.cs:19-36"
-   ]
-  },
-  {
-   "id": "e.rideorder.driver",
-   "from": "comp.ride-order",
-   "to": "comp.ride-driver",
-   "label": "QR_RideTo job",
-   "kind": "control",
-   "protocol": "in-process",
-   "mechanism": "The rider reserves the dog; Notify_Starting starts QR_BeingRidden on the dog; if the ride job ends for any reason the rider dismounts and the dog is free.",
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:76-99",
-    "Source/Quadrunner/Riding.cs:138-142",
-    "Source/Quadrunner/Riding.cs:144-165"
-   ]
-  },
-  {
-   "id": "e.driver.battery",
-   "from": "comp.ride-driver",
-   "to": "comp.battery",
-   "label": "movement drains the dog",
-   "kind": "data",
-   "protocol": "CompTick",
-   "mechanism": "Per-cell drain as walking with no raid factor while ridden; at 0% the dog powers down, the rider is put down, and recovery starts.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:60-68",
-    "Source/Quadrunner/Riding.cs:165-186"
-   ]
-  },
-  {
-   "id": "e.driver.vanilla",
-   "from": "comp.ride-driver",
-   "to": "ext.vanilla",
-   "label": "GotoCell + pather",
-   "kind": "sync",
-   "protocol": "vanilla jobs",
-   "mechanism": "The rider's job walks to the destination while the dog mirrors position and rotation; the rider dismounts before an indoor room's next cell or door.",
-   "evidence": [
-    "Source/Quadrunner/Riding.cs:101-116",
-    "Source/Quadrunner/Riding.cs:167-195",
-    "Source/Quadrunner/Riding.cs:197-226"
-   ]
-  },
-  {
-   "id": "e.vanilla.ping",
-   "from": "ext.vanilla",
-   "to": "comp.ping",
-   "label": "PostPostApplyDamage",
-   "kind": "event",
-   "protocol": "ThingComp",
-   "mechanism": "Called when a hostile pawn damages a spawned, living dog; friendly fire and lethal hits do not ping.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:181-187"
-   ]
-  },
-  {
-   "id": "e.ping.net",
-   "from": "comp.ping",
-   "to": "comp.net-node",
-   "label": "Ping(attacker)",
-   "kind": "event",
-   "protocol": "in-process",
-   "mechanism": "Rejects non-hostile/off-map attackers; reports Combat into the war queue, rechecks the raid cache and forces a tick, so one Combatdog answers in the same tick with or without a stable.",
-   "evidence": [
-    "Source/Quadrunner/Network.cs:283-289"
-   ]
-  },
-  {
-   "id": "e.engage.tiers",
-   "from": "comp.engage",
-   "to": "comp.tiers",
-   "label": "Arm(GunFor(target))",
-   "kind": "sync",
-   "protocol": "in-process",
-   "mechanism": "Slot 2's weapon when the target is within its range, else slot 1, else claws; the gun is re-armed before each attack and nothing is ever dropped.",
-   "evidence": [
-    "Source/Quadrunner/Combat.cs:85-110",
-    "Source/Quadrunner/Tiers.cs:52-74"
-   ]
-  },
-  {
-   "id": "e.battery.engage",
-   "from": "comp.battery",
-   "to": "comp.engage",
-   "label": "retreat interrupts the attack",
-   "kind": "control",
-   "protocol": "comp latch",
-   "mechanism": "At the latch an AttackMelee/AttackStatic/Wait/Goto job ends at once; a Capture or QR_CarryToRoom already under way finishes; a drafted dog is undrafted instead.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:86-104"
-   ]
-  },
-  {
-   "id": "e.patrol.stable",
-   "from": "comp.patrol",
-   "to": "comp.stable",
-   "label": "patrol waypoints",
-   "kind": "data",
-   "protocol": "stable field",
-   "mechanism": "Waypoints are placed one click at a time and drawn yellow while the stable is selected; a per-dog counter picks the next one, looping.",
-   "evidence": [
-    "Source/Quadrunner/Combat.cs:151-174",
-    "Source/Quadrunner/Building_Stable.cs:161-221"
-   ]
-  },
-  {
-   "id": "e.pose.tree",
-   "from": "comp.pose",
-   "to": "comp.render-tree",
-   "label": "root pose node",
-   "kind": "data",
-   "protocol": "render worker",
-   "mechanism": "The root properties move the whole dog from vanilla state each frame; tunables are in XML (pounce 24 ticks, recoil 10, brace 8, scoop 45).",
-   "evidence": [
-    "Source/Quadrunner/Rendering.cs:148-283",
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:11-34"
-   ]
-  },
-  {
-   "id": "e.gait.tree",
-   "from": "comp.gait",
-   "to": "comp.render-tree",
-   "label": "body + five moving parts",
-   "kind": "data",
-   "protocol": "render worker",
-   "mechanism": "The sprite is split into body and four leg textures in Art/; the gait cycle comes from the pather, and hind legs draw only in profile; the Whole node serves icons.",
-   "evidence": [
-    "Source/Quadrunner/Rendering.cs:67-145",
-    "Defs/PawnRenderTreeDefs/QR_RenderTrees.xml:35-121"
-   ]
-  },
-  {
-   "id": "e.render.battery",
-   "from": "comp.render-tree",
-   "to": "comp.battery",
-   "label": "carried, carriedSince",
-   "kind": "data",
-   "protocol": "comp state",
-   "mechanism": "The mount worker draws carried pawns and the pickup flip; a dog spawned or loaded with a pawn on its back has carriedSince reset, so no flip replays.",
-   "evidence": [
-    "Source/Quadrunner/Rendering.cs:9-49",
-    "Source/Quadrunner/Robodog.cs:43-46",
-    "Source/Quadrunner/Robodog.cs:121-135"
-   ]
-  },
-  {
-   "id": "e.battery.siren",
-   "from": "comp.battery",
-   "to": "comp.siren",
-   "label": "Retreating / Rescuing",
-   "kind": "data",
-   "protocol": "comp flags",
-   "mechanism": "A yellow lamp at 2 Hz while a Combatdog walks off to charge; a red tail dome while a Medirunner runs Rescue/TakeWoundedPrisonerToBed.",
-   "evidence": [
-    "Source/Quadrunner/Robodog.cs:74-79",
-    "Source/Quadrunner/Robodog.cs:205-218"
-   ]
+   "mechanism": "Fresh process, Quadrunner absent from the mod list; verifies surviving map/caravan contents and battle-history text rendering; any new error or any loaded Quadrunner assembly fails the check."
   }
  ],
  "interfaces": [
   {
-   "id": "iface.network-state",
-   "name": "NetworkState (saved queues)",
-   "provider": "comp.net-node",
+   "id": "iface.autotest",
+   "name": "Autotest file protocol",
+   "provider": "comp.autotest",
    "consumers": [
-    "comp.stable",
-    "comp.battery"
+    "comp.host-harness",
+    "comp.selftest"
    ],
-   "contract": "NetworkState via Scribe_Deep: normal, war, nextId, warActive; exploration is transient and old arrival tags are ignored",
-   "description": "One saved queue owner per map. Exactly one stable or dog carries it; it is transferred on election and cleared when the last eligible node goes, so removing the mod leaves no map component behind."
+   "contract": ".devlog/autotest/{heartbeat, events.jsonl, command}",
+   "description": "Plain files, no sockets: the harness and the game share only this directory. Events: launched, ready (build, game version, map size, actual mod root), scenario, result, restarting, quitting, closed_window."
   },
   {
-   "id": "iface.autotest-files",
-   "name": "Test file protocol",
-   "provider": "ext.harness",
+   "id": "iface.networkstate",
+   "name": "NetworkState hosting",
+   "provider": "comp.network",
    "consumers": [
-    "comp.stable",
-    "comp.net-node"
+    "comp.stable-building",
+    "comp.comprobodog"
    ],
-   "contract": "<autotest>/heartbeat, command, events.jsonl",
-   "description": "The only link between the Python harness and the game process: one command at a time (<id> <verb> [arg]), JSON-line events, a heartbeat each second and a watchdog on the other side."
+   "contract": "Scribe_Deep NetworkState on exactly one elected node",
+   "description": "The dispatcher has no identity in the save: normal/war queues, nextId and warActive are deep-saved on the elected node (lowest-ID spawned player stable, else newest active dog); election clears it everywhere else; losing every eligible node clears the backlog permanently."
   },
   {
-   "id": "iface.vanilla-scanner",
-   "name": "WorkGiver_Scanner contract",
-   "provider": "ext.vanilla",
+   "id": "iface.robodogwork",
+   "name": "RobodogWork extension",
+   "provider": "comp.work",
    "consumers": [
-    "comp.work-job"
+    "comp.races",
+    "comp.network"
    ],
-   "contract": "WorkGiver_Scanner: ShouldSkip / HasJobOnThing / JobOnThing / PathEndMode",
-   "description": "The vanilla interface the job builder uses to turn one queued target into one job; our code never constructs a job without asking the target's scanner first."
+   "contract": "XML DefModExtension on QR_Races.xml (workGivers, jobs, flags, timings)",
+   "description": "The tunable contract between defs and the dispatcher: which work givers/jobs a race may take, rescue/combat flags, raid speed/drain, engage range, scan/dispatch/progress cadences, survey spacing."
+  },
+  {
+   "id": "iface.removal-export",
+   "name": "Cleaned save export",
+   "provider": "comp.removal",
+   "consumers": [
+    "actor.player",
+    "comp.removal-probe"
+   ],
+   "contract": "QR_removed_<timestamp> save file",
+   "description": "The player loads it after disabling the mod; the independent observer loads it with no Quadrunner assembly and rejects any new error across load \u2192 600 ticks \u2192 save/reload \u2192 600 ticks."
   }
  ],
  "requirements": [
   {
    "id": "REQ-SYS-001",
    "level": 0,
-   "text": "A player can build one powered stable that houses 15 dogs, assemble every dog model from bills worked at that stable, and read each assigned dog's type, battery, health and current job in the stable's Overview tab.",
+   "text": "Stable-built Quadrunners perform the colony's utility work \u2014 hauling, cleaning, construction-material delivery \u2014 using vanilla job mechanics, without a stable-centered pickup boundary.",
    "allocated_to": [
-    "sub.stable"
+    "sub.dispatch",
+    "sub.stable",
+    "sub.pawn"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T1: one stable as the crafting station, 15 shared slots, Overview tab rows."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "README.md"
+   ],
+   "rationale": "Plan 0001 Goal: dogs that work so colonists don't have to."
   },
   {
    "id": "REQ-SYS-002",
    "level": 0,
-   "text": "Idle Quadrunners find work by their own local observation and a per-map network assigns each discovered task to the nearest available capable dog; no stable service radius or map-wide work search bounds what is hauled, cleaned, supplied or retrieved.",
+   "text": "Combatdogs defend the colony across four upgrade tiers during raids, including attack pings outside any radius, capture, patrols and automated casualty recovery, without player micromanagement.",
    "allocated_to": [
-    "sub.network",
-    "sub.work"
+    "sub.combat",
+    "sub.dispatch",
+    "sub.stable"
    ],
-   "inferred": true,
-   "rationale": "Plan 0003 Goal and N1; supersedes plan 0001's 40-cell stable dispatch."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "docs/plans/0007-wartime-recovery.md",
+    "docs/plans/0009-combat-packs.md"
+   ]
   },
   {
    "id": "REQ-SYS-003",
    "level": 0,
-   "text": "A dog never dies of an empty battery: at 0% it powers down as a downed condition, can be revived in the field or carried to a stable, and works again after charging.",
+   "text": "Medirunners rescue reachable downed colonists, guests, prisoners and colony animals to appropriate beds with triage, under fire, and fight revealed Home-area fires after rescues.",
    "allocated_to": [
-    "sub.charging",
-    "sub.stable"
+    "sub.rescue",
+    "sub.dispatch"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T2/T4: powered down is a condition, not destruction."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "docs/plans/0008-medirunner-firefighting.md"
+   ]
   },
   {
    "id": "REQ-SYS-004",
    "level": 0,
-   "text": "A Medirunner rescues downed colonists, guests, prisoners and colony animals map-wide, under fire, fastest-bleeding first within a rank and never enemies or robodogs.",
+   "text": "A player can ride an available Quadrunner to a chosen destination at the dog's speed, with safe dismount on arrival, indoors, drafting or power-down.",
    "allocated_to": [
-    "sub.rescue"
+    "sub.riding"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T5 and the Rescue rules decision."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
    "id": "REQ-SYS-005",
    "level": 0,
-   "text": "A colonist can ride a Quadrunner to a chosen cell at about 1.5x walking speed and is put down safely at the destination, before entering a building, when drafted or downed, or when the dog powers down.",
+   "text": "Every robodog manages its own energy: about 3,500 cells per full charge, seeks charging at 10%, powers down at 0%, and charges at a powered stable or a safe conduit spot on stored battery energy.",
    "allocated_to": [
-    "sub.riding"
+    "sub.power",
+    "sub.pawn",
+    "sub.recovery"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T6 and the riding decisions."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "README.md"
+   ]
   },
   {
    "id": "REQ-SYS-006",
    "level": 0,
-   "text": "Combatdogs answer any hostile that damages a dog, deploy for raids, capture downed hostiles, patrol their stable and upgrade through four tiers with built-in guns that are never dropped.",
+   "text": "The mod can be removed from a save cleanly: an explicit export leaves no Quadrunner content or references, keeps surviving battle history, and loads without the assembly with zero new errors.",
    "allocated_to": [
-    "sub.combat"
+    "sub.removal",
+    "sub.verification"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T7/T8."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
    "id": "REQ-SYS-007",
    "level": 0,
-   "text": "Every dog model is one robot race on a custom non-organic flesh type (neither animal nor mechanoid, no food or rest needs), drawn from body-and-leg art, and the mod runs on Core plus Harmony with no DLC.",
+   "text": "Every gameplay behavior is proven by automated scenarios in an isolated real game instance before delivery, and the distributable package is re-verified by cold-launching it.",
    "allocated_to": [
-    "sub.pawn",
-    "sub.render"
+    "sub.verification"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 decisions: flesh type, Core-only release, custom render tree."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "AGENTS.md"
+   ],
+   "rationale": "The core T0 decision: the agent runs the game tests itself; no in-game step is handed to the user."
   },
   {
    "id": "REQ-SYS-008",
    "level": 0,
-   "text": "A colony can be prepared for mod removal: an untouched backup plus a cleaned save that loads, ticks, saves and reloads without the Quadrunner assembly while riders, patients, injuries, vanilla cargo and battle history survive.",
+   "text": "All work on a map is coordinated by one shared dispatcher whose queues survive coordinator loss and save/load; dogs never search for work themselves.",
    "allocated_to": [
-    "comp.mod-core"
+    "sub.dispatch"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T9 clean removal."
+   "evidence": [
+    "docs/plans/0003-network-dispatch.md"
+   ]
   },
   {
    "id": "REQ-SYS-009",
    "level": 0,
-   "text": "Every in-game behaviour the mod ships is exercised by an automated scenario running in an isolated game instance, with a save/load step where state is involved, and a run passes only with zero new errors against a no-mod baseline.",
+   "text": "The dogs read as living animals and a coherent product line: per-part walk animation, combat/rescue action poses, liveries, sirens, and Hearthline lore on every model, bill and item.",
    "allocated_to": [
-    "comp.mod-core"
+    "sub.render",
+    "sub.foundation",
+    "comp.art"
    ],
-   "inferred": true,
-   "rationale": "Plan 0001 T0 and the Testing decision: fully automated, driven by the agent; the 55-scenario suite compiled into the DLL is the executable specification, and the external harness supplies the private game instance and watchdog."
+   "evidence": [
+    "docs/plans/0002-hearthline-lore.md",
+    "TODO.md"
+   ],
+   "rationale": "User-requested after T9: animation, liveries, weapon demos and lore (2026-10-20)."
   },
   {
-   "id": "REQ-STB-001",
+   "id": "REQ-FND-001",
    "level": 1,
-   "text": "A stable owns up to 15 dogs whether docked, out or carried; docking despawns a dog into the stable's container and both the docked dogs and the network state survive save/load.",
-   "allocated_to": [
-    "comp.stable"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-001",
-   "rationale": "Plan 0001 T1 and the Dog ownership decision."
-  },
-  {
-   "id": "REQ-STB-004",
-   "level": 1,
-   "text": "Destroying a stable unassigns its dogs; uninstalling it keeps their affiliation and they walk back and dock once it is reinstalled elsewhere.",
-   "allocated_to": [
-    "comp.stable"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 Stable destroyed or uninstalled decision."
-  },
-  {
-   "id": "REQ-STB-006",
-   "level": 1,
-   "text": "A powered-down dog is recovered to the nearest stable with a free slot and docked there, by a network worker or by a colonist's Carry to stable order.",
-   "allocated_to": [
-    "comp.retrieval"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 T4 retrieval rules."
-  },
-  {
-   "id": "REQ-STB-009",
-   "level": 1,
-   "text": "A powered-down dog that no stable can reach raises a named alert, is not assigned, and is recovered once a path is opened.",
-   "allocated_to": [
-    "comp.retrieval"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 Fire and out of reach decision."
-  },
-  {
-   "id": "REQ-STB-010",
-   "level": 1,
-   "text": "Prepare save for removing Quadrunner writes an untouched backup and a separate cleaned save; the export contains no mod pawns, buildings, items, jobs or shots, and keeps vanilla cargo, riders, patients, injuries and battle-log records.",
-   "allocated_to": [
-    "comp.mod-core"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-008",
-   "rationale": "Plan 0001 T9; the independent removal check is the proof."
-  },
-  {
-   "id": "REQ-PAW-001",
-   "level": 1,
-   "text": "Every robodog is an Animal-intelligence, non-flesh, non-mechanoid race with no food, rest or mood need, trainability None, psychic sensitivity 0, immunity to disease and rot, and no wild or manhunter spawns.",
-   "allocated_to": [
-    "comp.race"
-   ],
-   "inferred": true,
    "parent": "REQ-SYS-007",
-   "rationale": "Plan 0001 Robodog kind decision."
+   "text": "The mod boots on RimWorld 1.6 with Core + Harmony only: one static bootstrap applies every patch at startup and logs the loaded build id that the harness compares against the build it made.",
+   "allocated_to": [
+    "comp.bootstrap"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "Source/Quadrunner/QR.cs"
+   ],
+   "rationale": "T0 acceptance: the loaded-build log line is the harness's stale-build check."
   },
   {
-   "id": "REQ-PAW-002",
+   "id": "REQ-FND-002",
    "level": 1,
-   "text": "Walking drains 1/3500 of a full charge per cell (doubled for a Quadrunner in a raid, not while ridden); at or below 10% the dog latches 'wants a charge' until full and at 0% it powers down.",
+   "parent": "REQ-SYS-009",
+   "text": "The stable's Overview tab shows one row per dog (type, battery, health, current activity) with Hearthline lore on hover for the company, every model, field item and weapon choice, without losing upgrade actions or costs.",
    "allocated_to": [
-    "comp.battery"
+    "comp.stable-ui"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 Battery and Battery tunables decisions."
+   "evidence": [
+    "docs/plans/0002-hearthline-lore.md"
+   ]
   },
   {
-   "id": "REQ-NET-001",
+   "id": "REQ-DIS-001",
    "level": 1,
-   "text": "Each map runs one dispatch network whose persistent productive queues are stored on exactly one elected node - the oldest spawned stable, else the newest-built active dog - and losing the node transfers the same tasks to the next.",
+   "parent": "REQ-SYS-008",
+   "text": "Utility discovery is local and fog-limited: a dog reports work within 15 cells in unfogged cells passing vanilla eligibility (filth additionally needs Home and 600 ticks of age); rescue patients and revealed fires and raid targets are map-wide alerts.",
    "allocated_to": [
-    "comp.net-node"
+    "comp.work",
+    "comp.network"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-002",
-   "rationale": "Plan 0003 Coordination and Persistence decisions."
+   "evidence": [
+    "docs/plans/0003-network-dispatch.md",
+    "Source/Quadrunner/Work.cs"
+   ]
   },
   {
-   "id": "REQ-NET-002",
+   "id": "REQ-DIS-002",
    "level": 1,
-   "text": "Work enters the queues only from a dog's local observation (a 15-cell radial scan every 120 ticks, or a Combatdog's line-of-sight spot); fogged, forbidden, non-Home cleaning and ineligible targets are never reported.",
+   "parent": "REQ-SYS-008",
+   "text": "Each task is assigned once, to the nearest available capable dog by real pathfind cost (ties to the lower thing ID); availability excludes dead, downed, powered-down, charge-seeking, drafted, mentally broken and player-forced dogs.",
    "allocated_to": [
-    "comp.discovery"
+    "comp.network"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-002",
-   "rationale": "Plan 0003 Discovery: no work search, no discovery through fog."
+   "evidence": [
+    "docs/plans/0003-network-dispatch.md",
+    "Source/Quadrunner/Network.cs"
+   ]
   },
   {
-   "id": "REQ-NET-009",
+   "id": "REQ-DIS-003",
    "level": 1,
-   "text": "An active hostile threat suspends normal work immediately: assigned jobs stop, carried cargo is dropped safely, workers wait, the normal queue is retained, and work resumes when the threat clears.",
+   "parent": "REQ-SYS-008",
+   "text": "Assignments are reconciled every network tick: lost dogs or jobs release the task to Queued, and an assignee making no progress for 2500 ticks is stopped safely and retried with a backoff delay.",
    "allocated_to": [
-    "comp.net-node"
+    "comp.network"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-002",
-   "rationale": "Plan 0003 War; supersedes plan 0001's finish-before-standby raid rule."
+   "evidence": [
+    "docs/plans/0003-network-dispatch.md"
+   ]
   },
   {
-   "id": "REQ-CHG-001",
+   "id": "REQ-DIS-004",
    "level": 1,
-   "text": "A dog that wants a charge goes to whichever of its stable or the best conduit spot fills it soonest, travel included; with no usable spot it goes to the stable even when unpowered.",
+   "parent": "REQ-SYS-008",
+   "text": "On a hostile active threat the network suspends normal work (stopping jobs and dropping cargo in place), deploys Combatdogs and rescue-capable Medirunners, and revalidates the kept normal queue when the threat clears.",
    "allocated_to": [
-    "comp.charge-decision"
+    "comp.network"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 Charging and Stable or conduit."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "docs/plans/0003-network-dispatch.md"
+   ]
   },
   {
-   "id": "REQ-CHG-002",
+   "id": "REQ-DIS-005",
    "level": 1,
-   "text": "A conduit charge spot is a standable cell in a roofed, indoor, non-prison room whose conduit sits on a net with stored energy, at least N cells (default 6) from a wind turbine or its wind cells; bedrooms and barracks only when empty; freezers allowed; allowed areas, fire and hostiles respected.",
+   "parent": "REQ-SYS-008",
+   "text": "Coordinator failover is automatic: queues transfer to a surviving node on loss, and losing every eligible node permanently clears both queues rather than resurrecting a stale backlog.",
    "allocated_to": [
-    "comp.charge-spots"
+    "comp.network"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-003",
-   "rationale": "Plan 0001 Charge-spot search decision."
+   "evidence": [
+    "docs/plans/0003-network-dispatch.md"
+   ]
+  },
+  {
+   "id": "REQ-DIS-006",
+   "level": 1,
+   "parent": "REQ-SYS-001",
+   "text": "Idle surveying is area-aware and scan-certified: Home rooms, stockpiles, growing and other zones before the exterior, routes ranked by real path cost, coverage credited only by actual revealed 15-cell scans, sweeps finite and revalidated after load.",
+   "allocated_to": [
+    "comp.survey"
+   ],
+   "evidence": [
+    "docs/plans/0004-area-aware-survey.md"
+   ]
   },
   {
    "id": "REQ-WRK-001",
    "level": 1,
-   "text": "For one assigned task a dog takes exactly one vanilla scanner job for that target (HaulToCell, HaulToContainer or Clean), with opportunistic duplicate hauling off and vanilla reservations intact.",
+   "parent": "REQ-SYS-001",
+   "text": "Hauling, cleaning and blueprint/frame delivery run on vanilla work givers and jobs (storage filters, reservations, forbidding respected), with Harmony only where vanilla assumes human skills or work priorities.",
    "allocated_to": [
-    "comp.work-job"
+    "comp.work",
+    "comp.defs"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-002",
-   "rationale": "Plan 0001 Robodog work and plan 0003 Scope."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
-   "id": "REQ-WRK-004",
+   "id": "REQ-STB-001",
    "level": 1,
-   "text": "While a raid is active, an out working dog takes no new work and moves at 3x speed with 2x battery drain until the raid ends.",
+   "parent": "REQ-SYS-001",
+   "text": "The stable docks up to 15 dogs in shared slots (including dogs working away), saves them, charges and repairs them while powered; power loss pauses charging/repair and bill use but not dispatch; destruction drops dogs safely.",
    "allocated_to": [
-    "comp.raid-part"
+    "comp.stable-building",
+    "comp.docking"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-002",
-   "rationale": "Plan 0001 Raid decision."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
-   "id": "REQ-RES-001",
+   "id": "REQ-STB-002",
    "level": 1,
-   "text": "A Medirunner rescues in rank order (colonist, guest, prisoner, colony animal), fastest-bleeding first within a rank, skipping enemies, robodogs and NoCare patients, map-wide and under fire, with one medic per patient by reservation.",
+   "parent": "REQ-SYS-001",
+   "text": "Assembly bills at the stable produce each dog model under Crafting, and the finished dog docks straight into the stable; no-product recipe UI and do-until counting are safe because the product is a pawn.",
    "allocated_to": [
-    "comp.triage"
+    "comp.fabrication",
+    "comp.stable-building"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-004",
-   "rationale": "Plan 0001 T5 and Rescue rules decision."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-PWN-001",
+   "level": 1,
+   "parent": "REQ-SYS-001",
+   "text": "Robodog races are neither animal nor mechanoid: no food or rest needs, no disease, rot, taming, training, hunting or wild spawns; think-tree priority keeps player orders above charge seeking above network orders above docking.",
+   "allocated_to": [
+    "comp.races",
+    "comp.defs"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-CHG-001",
+   "level": 1,
+   "parent": "REQ-SYS-005",
+   "text": "A dog wanting a charge picks stable or conduit by smallest time-to-full (travel + missing/rate); a conduit spot is a free standable roofed indoor non-doorway cell near a colony power transmitter, outside the (configurable) turbine radius, and charging draws stored battery energy fullest-first.",
+   "allocated_to": [
+    "comp.charging",
+    "comp.chargespots",
+    "comp.settings"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-CHG-002",
+   "level": 1,
+   "parent": "REQ-SYS-005",
+   "text": "Battery drains per cell actually moved (about 3,500 cells per charge; doubled while working during a raid, not while ridden); at 0% the dog gains a powered-down hediff and lies like a downed pawn; crossing 10% mid-fight undrafts or interrupts so the dog retreats to charge.",
+   "allocated_to": [
+    "comp.comprobodog"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-RSC-001",
+   "level": 1,
+   "parent": "REQ-SYS-003",
+   "text": "Rescue triage ranks colonist \u2192 guest \u2192 prisoner \u2192 colony animal, fastest-bleeding first within a rank, one Medirunner per patient by reservation, allowed under fire; enemies, robodogs and wild animals are never rescued.",
+   "allocated_to": [
+    "comp.rescue"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-RSC-002",
+   "level": 1,
+   "parent": "REQ-SYS-003",
+   "text": "A stable's Dispatch Rescuedogs action refreshes the shared dispatcher immediately (even paused), clearing retry backoff only for unassigned rescue tasks, with disabled-state feedback and same-tick distinct assignments.",
+   "allocated_to": [
+    "comp.rescue",
+    "comp.network"
+   ],
+   "evidence": [
+    "docs/plans/0006-manual-rescue-dispatch.md"
+   ]
+  },
+  {
+   "id": "REQ-RSC-003",
+   "level": 1,
+   "parent": "REQ-SYS-003",
+   "text": "Revealed Home-area fires are war-queue tasks handled after rescues even during raids: nearest reachable unclaimed fire per responder, 2% battery per foam burst, fire-to-fire continuation, 180-tick quiet standby with recheck, and a field alert during thunder/flashstorms; docked Medirunners deploy only for assignable work (no speculative undocking).",
+   "allocated_to": [
+    "comp.firefighting",
+    "comp.network"
+   ],
+   "evidence": [
+    "docs/plans/0008-medirunner-firefighting.md",
+    "TODO.md"
+   ]
+  },
+  {
+   "id": "REQ-HOS-001",
+   "level": 1,
+   "parent": "REQ-SYS-001",
+   "text": "The worker hose cleans discovered contiguous Home-area patches of at least four blood/firefoam tiles in a broad 11\u00d77 band at 1.5\u00d7 cleaning work per affected tile, continuing through the whole patch; spray is blocked by walls; smaller patches and other filth use ordinary cleaning; foam removal also removes fire protection.",
+   "allocated_to": [
+    "comp.hose"
+   ],
+   "evidence": [
+    "docs/plans/0010-water-hose.md"
+   ]
+  },
+  {
+   "id": "REQ-REC-001",
+   "level": 1,
+   "parent": "REQ-SYS-005",
+   "text": "Powered-down dogs are retrieved: the network sends a healthy dog to carry each to the nearest stable with a free slot (fire beside it beaten out first); colonists get a Carry-to-stable float menu; raiders can kidnap a dog at 0%; an unreachable dog raises a jump-to alert.",
+   "allocated_to": [
+    "comp.retrieval"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-REC-002",
+   "level": 1,
+   "parent": "REQ-SYS-005",
+   "text": "Robodog battery and repair-kit items are built by bill and colonists auto-deliver them to powered-down or damaged dogs in the field within the 2500-tick window.",
+   "allocated_to": [
+    "comp.fieldfix"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-REC-003",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Combatdogs broadcast their downing/death with last-known coordinates; after threats clear, healthy Quadrunners or Medirunners recover living casualties and wrecks ahead of ordinary utility work (deferred medical emergencies still first); living dogs dock for powered repair, and wrecks rebuild automatically from 50 steel + 25 plasteel physically delivered into the 3\u00d73 bay over 2,000 powered ticks, retaining identity, tier and guns.",
+   "allocated_to": [
+    "comp.network",
+    "comp.retrieval",
+    "comp.stable-building"
+   ],
+   "evidence": [
+    "docs/plans/0007-wartime-recovery.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-001",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Combatdogs engage standing hostiles within 15 cells with line of sight: AttackStatic when hittable from position, else walk to a vanilla cast position, else melee; downed humans are captured to a free prisoner bed or carried to the nearest qualifying empty room, never left imprisoned in the open.",
+   "allocated_to": [
+    "comp.combat"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-002",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Any dog hit by a hostile pings the network, which dispatches a docked or returning Combatdog regardless of radius, retargeting each tick; a Combatdog crossing 10% battery mid-fight retreats with a yellow siren and ignores pings until charged.",
+   "allocated_to": [
+    "comp.combat",
+    "comp.network"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-003",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "While deployed and idle, Combatdogs walk the stable's patrol waypoints in order (persisting across save/load) or guard within 4 cells of the stable, or of the coordinator when stable-less.",
+   "allocated_to": [
+    "comp.combat",
+    "comp.stable-building"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-004",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Tiers 1\u20134 are ordered from the Overview tab and rebuild the dog keeping name, seniority and identity; built-in weapons are never dropped; Tier 4 carries paired charge rifles plus paired 20.9-cell chain shotguns firing two independent shots per burst, with an automatically launching smoke launcher; legacy T3/T4 dogs are migrated in place on load.",
+   "allocated_to": [
+    "comp.fabrication",
+    "comp.tiers"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "docs/plans/0009-combat-packs.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-005",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Nearby Combatdogs of mixed tiers form packs led by T3/T4 within 15 cells: the pack focuses the queued reachable standing hostile nearest to any member, retains a valid focus to avoid thrashing, and re-selects at native job boundaries so engagement is continuous; distant groups keep independent targets; draft, capture and retreat are never overridden.",
+   "allocated_to": [
+    "comp.packcombat"
+   ],
+   "evidence": [
+    "docs/plans/0009-combat-packs.md"
+   ]
+  },
+  {
+   "id": "REQ-CBT-006",
+   "level": 1,
+   "parent": "REQ-SYS-002",
+   "text": "Player Combatdogs are draftable for direct orders with priority targets; drafted dogs are excluded from centralized assignment and undraft automatically at 10% battery.",
+   "allocated_to": [
+    "comp.drafting"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
    "id": "REQ-RID-001",
    "level": 1,
-   "text": "A colonist can order a ride on a Quadrunner that is out, or on its stable (which undocks its fullest idle rideable), pick a destination and mount.",
+   "parent": "REQ-SYS-004",
+   "text": "Riding moves at exactly the dog's riddenMoveSpeed (a stat part replaces MoveSpeed), works from dismount rules (arrival, indoor step or door, drafting, power-down, job end for any reason), draws the rider on the back with per-facing offsets, and leaves no saved carried-pawn state (a loaded rider is treated as always mounted).",
    "allocated_to": [
-    "comp.ride-order"
+    "comp.riding"
    ],
-   "inferred": true,
-   "parent": "REQ-SYS-005",
-   "rationale": "Plan 0001 Riding: mounting and Ride to... decisions."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
-   "id": "REQ-CMB-001",
+   "id": "REQ-RND-001",
    "level": 1,
-   "text": "Any dog damaged by a hostile pings its network: the attacker joins the war queue, one Combatdog is sent at once even without a stable and beyond 40 cells, and an already-queued attacker sends none.",
+   "parent": "REQ-SYS-009",
+   "text": "Walk animation is driven by distance walked along the facing (diagonal leg pairs, matching stride to speed, stopping with the dog, including while ridden); action poses (pounce, brace/recoil, scoop) recompute from vanilla stance state; sirens flash in real time even while paused.",
    "allocated_to": [
-    "comp.ping"
+    "comp.render-nodes"
    ],
-   "inferred": true,
+   "evidence": [
+    "TODO.md",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "REQ-REM-001",
+   "level": 1,
    "parent": "REQ-SYS-006",
-   "rationale": "Plan 0001 Combatdog: queue and pings decision."
+   "text": "The Prepare-save export backs up first (QR_before_removal), releases riders/patients/vanilla cargo safely (failing rather than discarding unplaceable cargo), destroys every mod thing including in-flight projectiles, clears static caches, scrubs def references from the XML while keeping battle-history IDs, and throws rather than write a broken save.",
+   "allocated_to": [
+    "comp.removal",
+    "comp.settings"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
-   "id": "REQ-CMB-008",
+   "id": "REQ-TST-001",
    "level": 1,
-   "text": "An upgrade ordered for one Combatdog adds one bill; a colonist brings the next tier's cost and works it only while the dog is docked; on completion the dog is rebuilt as the next tier keeping name, stable, battery and gun picks, and no built-in gun is ever dropped.",
-   "allocated_to": [
-    "comp.tiers"
-   ],
-   "inferred": true,
-   "parent": "REQ-SYS-006",
-   "rationale": "Plan 0001 Combatdog: upgrades and slot guns decisions."
-  },
-  {
-   "id": "REQ-REN-001",
-   "level": 1,
-   "text": "Every dog is drawn from one render tree: a whole sprite for icons, a body plus four separately animated leg layers (hind legs only in profile), a gait cycle, built-in guns on the back and carried pawns on the back, with action poses for pounce, recoil/brace and scoop/flip.",
-   "allocated_to": [
-    "comp.render-tree",
-    "comp.pose",
-    "comp.gait"
-   ],
-   "inferred": true,
    "parent": "REQ-SYS-007",
-   "rationale": "Plan 0001 Gun rendering and Action animations decisions."
+   "text": "The harness self-verifies against a fake game (19 cases), keeps a per-mod-list error baseline from a run without Quadrunner, restarts the game in-process when the loaded build is stale, and watchdogs hangs (120 s) and crashes.",
+   "allocated_to": [
+    "comp.host-harness",
+    "comp.selftest"
+   ],
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   },
   {
-   "id": "REQ-STB-002",
-   "level": 2,
-   "text": "A finished assemble bill generates a dog of the recipe's kind and docks it at once; a dog bill cannot start while all 15 slots are taken, and a dog finished anyway waits beside the stable unassigned.",
+   "id": "REQ-TST-002",
+   "level": 1,
+   "parent": "REQ-SYS-007",
+   "text": "Scenarios run inside a real isolated game on a private profile and Xvfb display, never the player's, and can run beside the player's open game; each scenario disables the storyteller, cleans up tracked things, and reports PASS/FAIL with telemetry.",
    "allocated_to": [
-    "comp.bills"
+    "comp.scenarios",
+    "comp.autotest",
+    "comp.host-harness"
    ],
-   "inferred": true,
-   "parent": "REQ-STB-001",
-   "rationale": "Plan 0001 Full stable and Stable bills decisions."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md",
+    "AGENTS.md"
+   ]
   },
   {
-   "id": "REQ-STB-003",
-   "level": 2,
-   "text": "A powered stable charges docked dogs at 0.0012/tick (3x the conduit rate) and heals one injury at 0.02 HP/tick; with the stable switched off neither happens while dispatch continues.",
+   "id": "REQ-TST-003",
+   "level": 1,
+   "parent": "REQ-SYS-007",
+   "text": "The distributable package is rebuilt from a clean committed tree after every major feature or fix and verified by cold-launching the actual package, requiring the loaded build and resolved mod root to match it.",
    "allocated_to": [
-    "comp.stable"
+    "comp.host-harness"
    ],
-   "inferred": true,
-   "parent": "REQ-STB-001",
-   "rationale": "Plan 0001 Stable repair decision and Battery tunables."
+   "evidence": [
+    "AGENTS.md",
+    "tools/package.sh"
+   ]
   },
   {
-   "id": "REQ-STB-005",
-   "level": 2,
-   "text": "The Overview tab lists every assigned dog (docked first) with type, battery, health and current job, and for Combatdogs its tier, a per-slot gun picker and one upgrade button per dog.",
+   "id": "REQ-TST-004",
+   "level": 1,
+   "parent": "REQ-SYS-006",
+   "text": "Removal is verified independently: an observer mod with no Quadrunner reference loads the cleaned save, ticks 600, saves/reloads and ticks 600, checking surviving contents and rejecting any new error or loaded Quadrunner assembly.",
    "allocated_to": [
-    "comp.overview"
+    "comp.removal-probe"
    ],
-   "inferred": true,
-   "parent": "REQ-STB-001",
-   "rationale": "Plan 0001 T1/T8 and the Overview tab design."
-  },
-  {
-   "id": "REQ-STB-007",
-   "level": 2,
-   "text": "A colonist brings a repair kit to a field dog below 70% health, then a robodog battery to a powered-down dog, from items made at the stable; the kit is chosen first.",
-   "allocated_to": [
-    "comp.fieldfix"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-006",
-   "rationale": "Plan 0001 Field fixes decision."
-  },
-  {
-   "id": "REQ-STB-008",
-   "level": 2,
-   "text": "A destroyed dog's wreck remains as its corpse and a rebuild bill resurrects the same pawn (name, stable, tier) at about half the assemble cost, docked or beside a full stable.",
-   "allocated_to": [
-    "comp.bills"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-001",
-   "rationale": "Plan 0001 Wrecks decision."
-  },
-  {
-   "id": "REQ-REC-001",
-   "level": 2,
-   "text": "Before a powered-down dog is carried home, a fire within 1.5 cells of it is beaten out first.",
-   "allocated_to": [
-    "comp.retrieval"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-006",
-   "rationale": "Plan 0001 Fire and out of reach decision."
-  },
-  {
-   "id": "REQ-REC-002",
-   "level": 2,
-   "text": "When vanilla finds no humanlike kidnap victim, a hostile kidnapper can take the nearest reachable powered-down player robodog, and the stable keeps its slot.",
-   "allocated_to": [
-    "comp.retrieval"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-006",
-   "rationale": "Plan 0001 Harmony patch 2."
-  },
-  {
-   "id": "REQ-REC-003",
-   "level": 2,
-   "text": "A carrier at its seek threshold mid-carry finishes the delivery when the stable wins the charge comparison, otherwise sets the dog down, charges and returns for it.",
-   "allocated_to": [
-    "comp.retrieval",
-    "comp.charge-decision"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-006",
-   "rationale": "Plan 0001 Carrier on low battery decision."
-  },
-  {
-   "id": "REQ-REC-004",
-   "level": 2,
-   "text": "A powered-down dog with its field fix in stock is left to the colonists for 2500 ticks before a network dog carries it home.",
-   "allocated_to": [
-    "comp.retrieval"
-   ],
-   "inferred": true,
-   "parent": "REQ-STB-006",
-   "rationale": "Plan 0001 Retrieval dispatch decision."
-  },
-  {
-   "id": "REQ-PAW-003",
-   "level": 2,
-   "text": "At 0% the dog gains QR_PoweredDown (Moving 0), is downed, refuses assignments and keeps the condition and want-charge across save/load; above 0% it powers up.",
-   "allocated_to": [
-    "comp.battery"
-   ],
-   "inferred": true,
-   "parent": "REQ-PAW-002",
-   "rationale": "Plan 0001 T2 and Battery tunables."
-  },
-  {
-   "id": "REQ-PAW-004",
-   "level": 2,
-   "text": "The think tree gives every dog, in order: drafted orders, charge search while it wants a charge, a network order, dock, wait-in-room, wander; no dog searches the map for work on its own.",
-   "allocated_to": [
-    "comp.think-tree"
-   ],
-   "inferred": true,
-   "parent": "REQ-PAW-001",
-   "rationale": "Plan 0003 Protocol; plan 0001 Harmony budget note that vanilla assumptions stay untouched."
-  },
-  {
-   "id": "REQ-NET-003",
-   "level": 2,
-   "text": "A target is queued at most once however many dogs or scans report it, and queued tasks survive save/load without duplication.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 N1 and Persistence."
-  },
-  {
-   "id": "REQ-NET-004",
-   "level": 2,
-   "text": "Each unassigned task goes to the nearest available capable dog by actual path cost; unreachable dogs never win, ties break by thingID, and stable affiliation does not restrict assignment.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 Assignment and N1."
-  },
-  {
-   "id": "REQ-NET-005",
-   "level": 2,
-   "text": "A dead, interrupted or re-assigned dog's unfinished task returns to the queue with no duplicate execution, and an acknowledged assignment survives save/load.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 Protocol and N2."
-  },
-  {
-   "id": "REQ-NET-006",
-   "level": 2,
-   "text": "A task whose assignee shows no progress for 2500 ticks is stopped, released and made assignable again after a scan interval.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 Discovery: 2500 ticks of lost progress before release."
-  },
-  {
-   "id": "REQ-NET-007",
-   "level": 2,
-   "text": "When the last eligible node disappears, both productive queues and transient exploration clear and are not resurrected by a new stable or dog after reload.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 Coordination and N2."
-  },
-  {
-   "id": "REQ-NET-008",
-   "level": 2,
-   "text": "Idle workers survey Home-first native areas by vanilla returned entry-route cost, retain within-area coverage over bounded legs, and credit only actual local scans in finite shared sweeps; productive work preempts travel.",
-   "allocated_to": [
-    "comp.survey"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-002",
-   "rationale": "Plan 0003 Exploration."
-  },
-  {
-   "id": "REQ-NET-010",
-   "level": 2,
-   "text": "Rescue and combat tasks enter the war queue from any dog's scan or sight (map-wide for emergency rescue), independent of the reporting dog's own work list.",
-   "allocated_to": [
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-NET-001",
-   "rationale": "Plan 0003 Discovery and War."
-  },
-  {
-   "id": "REQ-CHG-003",
-   "level": 2,
-   "text": "Rules that change without a building change (roof, prisoners, sleepers, stored energy, allowed area, fire, hostiles, reservations) are rechecked for the charging dog, which gets up and searches again when a spot stops qualifying.",
-   "allocated_to": [
-    "comp.charge-spots"
-   ],
-   "inferred": true,
-   "parent": "REQ-CHG-002",
-   "rationale": "Plan 0001 Charge-spot search decision."
-  },
-  {
-   "id": "REQ-CHG-004",
-   "level": 2,
-   "text": "The spot cache is rebuilt when the colony's building signature changes or after 2500 ticks.",
-   "allocated_to": [
-    "comp.charge-spots"
-   ],
-   "inferred": true,
-   "parent": "REQ-CHG-002",
-   "rationale": "Plan 0001 Charge-spot search decision."
-  },
-  {
-   "id": "REQ-CHG-005",
-   "level": 2,
-   "text": "A conduit charge draws at most 100 Wd per full charge from the net's batteries, fullest first; a dry net or a spot that stops qualifying ends the job and the dog searches again.",
-   "allocated_to": [
-    "comp.conduit-charge"
-   ],
-   "inferred": true,
-   "parent": "REQ-CHG-001",
-   "rationale": "Plan 0001 Battery tunables and T2 edge cases."
-  },
-  {
-   "id": "REQ-WRK-002",
-   "level": 2,
-   "text": "A vanilla job that queues extra targets (Clean batches nearby filth) is trimmed to targets the network discovered and no other dog holds.",
-   "allocated_to": [
-    "comp.work-job"
-   ],
-   "inferred": true,
-   "parent": "REQ-WRK-001",
-   "rationale": "Plan 0003 Scope: no dog works targets it never saw."
-  },
-  {
-   "id": "REQ-WRK-003",
-   "level": 2,
-   "text": "A robodog passes vanilla construction checks without work settings or skills and only ever delivers materials to blueprints and frames.",
-   "allocated_to": [
-    "comp.construct-patch"
-   ],
-   "inferred": true,
-   "parent": "REQ-WRK-001",
-   "rationale": "Plan 0001 Harmony patch 1."
-  },
-  {
-   "id": "REQ-RES-002",
-   "level": 2,
-   "text": "A Medirunner uses vanilla Rescue, or TakeWoundedPrisonerToBed for a prisoner, to a bed vanilla finds; a patient with no med care, no bed or no reach is skipped and does not hold the workers back.",
-   "allocated_to": [
-    "comp.rescue-job"
-   ],
-   "inferred": true,
-   "parent": "REQ-RES-001",
-   "rationale": "Plan 0001 Rescue rules and Medirunner treatment."
-  },
-  {
-   "id": "REQ-RES-003",
-   "level": 2,
-   "text": "A docked Medirunner is sent whenever a patient exists, raid or not, while workers stay suspended in war.",
-   "allocated_to": [
-    "comp.rescue-job",
-    "comp.net-node"
-   ],
-   "inferred": true,
-   "parent": "REQ-RES-001",
-   "rationale": "Plan 0001 Rescue rules and plan 0003 War."
-  },
-  {
-   "id": "REQ-RID-002",
-   "level": 2,
-   "text": "While mounted the rider moves at the dog's ridden speed (7 cells/s) in the dog's cell, and the dog drains per cell as when walking, with no raid factor.",
-   "allocated_to": [
-    "comp.ride-stats",
-    "comp.ride-driver"
-   ],
-   "inferred": true,
-   "parent": "REQ-RID-001",
-   "rationale": "Plan 0001 Ridden speed and Riding defaults."
-  },
-  {
-   "id": "REQ-RID-003",
-   "level": 2,
-   "text": "The rider dismounts at the destination, before a door into an indoor room, when drafted or downed, and when the dog powers down; the ride job ending for any reason frees the dog.",
-   "allocated_to": [
-    "comp.ride-driver"
-   ],
-   "inferred": true,
-   "parent": "REQ-RID-001",
-   "rationale": "Plan 0001 Riding: trip and defaults."
-  },
-  {
-   "id": "REQ-RID-004",
-   "level": 2,
-   "text": "A mounted rider is drawn at the dog's tweened position plus per-facing XML offsets, one half altitude step above pawns, with the dog drawn under the rider.",
-   "allocated_to": [
-    "comp.ride-stats"
-   ],
-   "inferred": true,
-   "parent": "REQ-RID-001",
-   "rationale": "Plan 0001 Harmony patch 3."
-  },
-  {
-   "id": "REQ-RID-005",
-   "level": 2,
-   "text": "After a ride the dog is free and returns to work or docks; a ridden dog that powers down is recovered like any powered-down dog.",
-   "allocated_to": [
-    "comp.ride-driver"
-   ],
-   "inferred": true,
-   "parent": "REQ-RID-001",
-   "rationale": "Plan 0001 Riding defaults."
-  },
-  {
-   "id": "REQ-CMB-002",
-   "level": 2,
-   "text": "A spawned Combatdog reports standing hostiles in line of sight within 15 cells into the war queue and engages the assigned one.",
-   "allocated_to": [
-    "comp.engage"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-001",
-   "rationale": "Plan 0001 Combatdog: engage range."
-  },
-  {
-   "id": "REQ-CMB-003",
-   "level": 2,
-   "text": "A standing target is shot from where the dog stands when its gun can hit, else from a found cast position, else meleed; a downed humanlike goes to a free prisoner bed, else any downed hostile is carried to an empty non-bedroom room and left.",
-   "allocated_to": [
-    "comp.engage"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-001",
-   "rationale": "Plan 0001 Combatdog: capture decision."
-  },
-  {
-   "id": "REQ-CMB-005",
-   "level": 2,
-   "text": "With nothing to fight during a raid, a deployed Combatdog walks its stable's waypoints in a loop, else guards within 4 cells of the stable (or coordinator); it docks when the map is clear.",
-   "allocated_to": [
-    "comp.patrol"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-001",
-   "rationale": "Plan 0001 Combatdog: patrol and guard decisions."
-  },
-  {
-   "id": "REQ-CMB-006",
-   "level": 2,
-   "text": "At 10% a Combatdog breaks off, retreats with a yellow flashing siren, ignores pings until fully charged, then returns to the queued target; a drafted one is undrafted.",
-   "allocated_to": [
-    "comp.battery",
-    "comp.siren"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-001",
-   "rationale": "Plan 0001 Combatdog: siren and drafting decisions."
-  },
-  {
-   "id": "REQ-CMB-007",
-   "level": 2,
-   "text": "A player Combatdog can be drafted, holds position between orders, takes vanilla move and melee attack orders ahead of the war queue, ignores the queue while drafted, and stays drafted across save/load.",
-   "allocated_to": [
-    "comp.drafting"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-001",
-   "rationale": "Plan 0001 Combatdog: drafting and Harmony patches 4-5."
-  },
-  {
-   "id": "REQ-CMB-009",
-   "level": 2,
-   "text": "Combatdog weapon slots are filled for free from the mod's built-in guns: slot 1 from Tier 2 (assault rifle default or LMG), slot 2's flamethrower on Tier 3 used within its range, and Tier 4's minigun with its move-speed penalty; one gun is held at a time.",
-   "allocated_to": [
-    "comp.tiers"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-008",
-   "rationale": "Plan 0001 Combatdog: slot guns and Tier 3 fire."
-  },
-  {
-   "id": "REQ-CMB-010",
-   "level": 2,
-   "text": "Each tier has its own armor, health scale and upgrade cost, and a Tier 1 Combatdog survives repeated ordinary melee hits.",
-   "allocated_to": [
-    "comp.race",
-    "comp.tiers"
-   ],
-   "inferred": true,
-   "parent": "REQ-CMB-008",
-   "rationale": "Plan 0001 Combatdog: tier details and T9 balance direction."
-  },
-  {
-   "id": "REQ-REN-002",
-   "level": 2,
-   "text": "A retreating Combatdog carries a yellow lamp flashing at 2 Hz; a rescuing Medirunner flashes a red tail dome; both are drawn above everything.",
-   "allocated_to": [
-    "comp.siren"
-   ],
-   "inferred": true,
-   "parent": "REQ-REN-001",
-   "rationale": "Plan 0001 Combatdog: siren and Liveries decisions."
-  },
-  {
-   "id": "REQ-REN-003",
-   "level": 2,
-   "text": "A pawn carried by a robodog lies along its back and turns over during the scoop.",
-   "allocated_to": [
-    "comp.pose"
-   ],
-   "inferred": true,
-   "parent": "REQ-REN-001",
-   "rationale": "Plan 0001 Harmony patch 6."
+   "evidence": [
+    "docs/plans/0001-quadrunner.md"
+   ]
   }
  ],
  "verifications": [
   {
    "id": "VER-SYS-001",
    "level": 0,
-   "method": "demonstration",
-   "name": "Packaged Run all (55-scenario suite)",
+   "method": "test",
+   "name": "Utility work scenarios",
    "verifies": [
-    "REQ-SYS-001",
-    "REQ-SYS-002",
-    "REQ-SYS-003",
-    "REQ-SYS-004",
-    "REQ-SYS-005",
-    "REQ-SYS-006",
-    "REQ-SYS-007"
+    "REQ-SYS-001"
    ],
-   "procedure": "Run tools/autotest.py run against the actual package; every scenario must PASS with zero new errors against the no-mod baseline, with save/load steps in the suite. Recorded result: 54/55 in the full packaged run, the one failure a stale fixture assumption, corrected and that scenario re-proven 1/1 with 0 new errors (docs/test-runs.md:14-17); no full-suite rerun followed the fix.",
    "status": "passing",
+   "procedure": "Haul/clean/construction-delivery scenarios with fixtures on a fresh map; latest affected integration 25/25 PASS, 0 new errors (2026-11-06 02:02).",
    "evidence": [
-    "docs/test-runs.md:14",
-    "docs/test-runs.md:16",
-    "tools/autotest.py:556",
-    "Source/Quadrunner/Scenario.cs:114-156"
+    "Source/Quadrunner/Scenarios.Dispatch.cs",
+    "docs/test-runs.md"
    ]
   },
   {
    "id": "VER-SYS-002",
    "level": 0,
    "method": "test",
-   "name": "Independent removal check (no Quadrunner assembly)",
+   "name": "Combat & recovery scenarios",
    "verifies": [
-    "REQ-SYS-008"
+    "REQ-SYS-002"
    ],
-   "procedure": "Load the cleaned export in a second game process without Quadrunner; tick 600, save/reload, tick 600, and assert the keeper list (riders, patients, injuries, vanilla cargo, battle-log records).",
    "status": "passing",
+   "procedure": "Combat/pack/recovery scenarios; actual package 10/10 PASS, 0 new errors (2026-11-04 08:51, build 1ebcbc4).",
    "evidence": [
-    "docs/test-runs.md:17",
-    "tools/removal-probe/Probe.cs:1-40",
-    "tools/autotest.py:599"
+    "Source/Quadrunner/Scenarios.Combat.cs",
+    "Source/Quadrunner/Scenarios.Packs.cs",
+    "docs/test-runs.md"
    ]
   },
   {
    "id": "VER-SYS-003",
    "level": 0,
-   "method": "inspection",
-   "name": "Core + Harmony only",
+   "method": "test",
+   "name": "Rescue & firefighting scenarios",
    "verifies": [
-    "REQ-SYS-007"
+    "REQ-SYS-003"
    ],
-   "procedure": "Inspect About.xml dependencies and the assembly for DLC checks; the test profile loads Core, Harmony and Quadrunner only, so every scenario doubles as a Core-only run.",
    "status": "passing",
+   "procedure": "Rescue/triage/manual-dispatch/fire/storm scenarios; actual release package 12/12 PASS, 0 new errors (2026-11-07 01:17, build 62ae7cd).",
    "evidence": [
-    "About/About.xml:10-20",
-    "Source/Quadrunner/QR.cs:15-21"
+    "Source/Quadrunner/Scenarios.Rescue.cs",
+    "Source/Quadrunner/Scenarios.Firefighting.cs",
+    "docs/test-runs.md"
    ]
   },
   {
    "id": "VER-SYS-004",
    "level": 0,
    "method": "test",
-   "name": "Smoke, Save and reload, and the harness self-test",
+   "name": "Riding scenarios",
    "verifies": [
-    "REQ-SYS-009"
+    "REQ-SYS-004"
    ],
-   "procedure": "Smoke proves the runner starts, ticks and cleans up; Save and reload proves a scenario survives a reload with tracked ThingIDs; tools/selftest.sh proves the harness itself (baseline, restart, filters, failures, new errors, hang watchdog) against a fake game.",
    "status": "passing",
+   "procedure": "Ride and dismount / Ride until 0% / Rider pose; part of the recorded 39/39 packaged Run all (2026-10-20).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.cs:290 (Smoke)",
-    "Source/Quadrunner/Scenarios.cs:301 (Save and reload)",
-    "tools/selftest.sh",
-    "docs/test-runs.md:16"
+    "Source/Quadrunner/Scenarios.Riding.cs",
+    "docs/test-runs.md"
    ]
   },
   {
-   "id": "VER-STB-DOCK",
+   "id": "VER-SYS-005",
+   "level": 0,
+   "method": "test",
+   "name": "Battery & charging scenarios",
+   "verifies": [
+    "REQ-SYS-005"
+   ],
+   "status": "passing",
+   "procedure": "Battery drain/power-down, Charging maze, Stable or conduit, room rules; packaged Run all 39/39 PASS after the 3,500-cell range increase (2026-10-20 17:51).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Charging.cs",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "VER-SYS-006",
+   "level": 0,
+   "method": "test",
+   "name": "Independent removal check",
+   "verifies": [
+    "REQ-SYS-006"
+   ],
+   "status": "passing",
+   "procedure": "tools/autotest.py removal-check: fresh process, no Quadrunner assembly, load \u2192 600 ticks \u2192 save/reload \u2192 600 ticks, 0 new errors; latest clean run recorded with the F2 migration (2026-10-26).",
+   "evidence": [
+    "tools/autotest.py",
+    "tools/removal-probe/Probe.cs",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "VER-SYS-007",
+   "level": 0,
+   "method": "test",
+   "name": "Packaged Run all",
+   "verifies": [
+    "REQ-SYS-007"
+   ],
+   "status": "passing",
+   "procedure": "Full scenario sequence against the actual dist/Quadrunner package: 39/39 PASS, 0 new errors, BUILD and resolved modRoot verified (2026-10-20 09:04). Later releases verify scoped affected scenarios per package (see annotation on this model's verification subsystem).",
+   "evidence": [
+    "docs/test-runs.md",
+    "tools/package.sh"
+   ]
+  },
+  {
+   "id": "VER-SYS-008",
+   "level": 0,
+   "method": "test",
+   "name": "Network dispatch scenarios",
+   "verifies": [
+    "REQ-SYS-008"
+   ],
+   "status": "passing",
+   "procedure": "Ten network cases from the actual package: discovery, blocked-route ranking, reload, final-node clearing, repeated failover, war transitions (2026-10-21).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Network.cs",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "VER-SYS-009",
+   "level": 0,
+   "method": "inspection",
+   "name": "Artwork & animation captures",
+   "verifies": [
+    "REQ-SYS-009",
+    "REQ-FND-002"
+   ],
+   "status": "passing",
+   "procedure": "Actual private-game screenshots inspected for gait, poses, liveries, sirens, Overview tooltips and weapon demos; Walk animation / Rescue animation scenarios PASS (2026-10-20).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Gait.cs",
+    "Source/Quadrunner/Scenarios.Animation.cs",
+    "Source/Quadrunner/Scenarios.Art.cs",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "VER-DIS-001",
    "level": 1,
    "method": "test",
-   "name": "Dock and undock",
+   "name": "Discovery cases",
    "verifies": [
-    "REQ-STB-001",
-    "REQ-PAW-001",
-    "REQ-PAW-004"
+    "REQ-DIS-001"
    ],
-   "procedure": "Spawn a stable and a new Quadrunner: docked, race properties (not animal/mechanoid/flesh, untrainable, no needs, no wild spawns), undock, walk home, dock, two reloads.",
    "status": "passing",
+   "procedure": "Network scenario set proves local fog-limited reporting, dedupe and map-wide alerts; allocation regression proved single-report storage at 256 reports (2026-10-27).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.cs:162 (Dock and undock)"
+    "Source/Quadrunner/Scenarios.Network.cs",
+    "docs/test-runs.md"
    ]
   },
   {
-   "id": "VER-STB-FULL",
+   "id": "VER-DIS-002",
    "level": 1,
    "method": "test",
-   "name": "Stable full (16th dog)",
+   "name": "Assignment cases",
    "verifies": [
-    "REQ-STB-001",
-    "REQ-STB-002"
+    "REQ-DIS-002"
    ],
-   "procedure": "14 dogs plus a bill; add the 15th: bill doable; add a 16th: bill not doable, the extra dog is out and unassigned; reload keeps 15 assigned and the 16th unassigned.",
    "status": "passing",
+   "procedure": "Two-stables and nearest-dog scenarios: the closest idle dog dispatches, each job claimed once; excluded-availability states checked in dispatch scenarios.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.cs:257 (Stable full (16th dog))"
+    "Source/Quadrunner/Scenarios.Dispatch.cs"
    ]
   },
   {
-   "id": "VER-STB-ASM",
-   "level": 2,
-   "method": "test",
-   "name": "Assemble and dock / Assemble Medirunner / Assemble Combatdog",
-   "verifies": [
-    "REQ-STB-002"
-   ],
-   "procedure": "A colonist takes the bill; the finished dog of the recipe's kind joins and docks; the bill is done; reload keeps it with the stable.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.cs:224 (Assemble and dock, Assemble Medirunner, Assemble Combatdog)"
-   ]
-  },
-  {
-   "id": "VER-STB-CHARGE",
+   "id": "VER-DIS-003",
    "level": 1,
    "method": "test",
-   "name": "Stable or conduit",
+   "name": "Reconciliation & retry cases",
    "verifies": [
-    "REQ-STB-003",
-    "REQ-CHG-001",
-    "REQ-PAW-004"
+    "REQ-DIS-003"
    ],
-   "procedure": "At 10% the dog docks (stable fills it sooner); the measured rate tracks 0.0012/tick and is 2.5x+ the conduit rate; at 97% the adjacent conduit wins and it tops up and resumes surveying.",
    "status": "passing",
+   "procedure": "Manual-rescue retry scenarios prove automatic refresh waits while a forced dispatch clears backoff only for unassigned rescues; progress-timeout release covered by network cases.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:450 (Stable or conduit)"
+    "Source/Quadrunner/Scenarios.Rescue.cs",
+    "docs/plans/0006-manual-rescue-dispatch.md"
    ]
   },
   {
-   "id": "VER-STB-POWER",
-   "level": 2,
-   "method": "test",
-   "name": "Stable power loss",
-   "verifies": [
-    "REQ-STB-003"
-   ],
-   "procedure": "Switch the stable off: dispatch continues and dirt is cleaned, but a docked low dog neither charges nor heals; after reload and power-on it charges (5% to 18%) and heals (8.0 to 5.9).",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:368 (Stable power loss)"
-   ]
-  },
-  {
-   "id": "VER-STB-FIRE",
+   "id": "VER-DIS-004",
    "level": 1,
    "method": "test",
-   "name": "Stable fire with docked dogs",
+   "name": "War-mode transitions",
    "verifies": [
-    "REQ-STB-004"
+    "REQ-DIS-004"
    ],
-   "procedure": "Burn the stable: both dogs are out and unassigned, the newest coordinates, and both survey instead of waiting indoors; still true after reload.",
    "status": "passing",
+   "procedure": "Raid scenarios: workers finish/dock with raid speed and drain, cargo dropped in place, queue revalidated after the threat; wartime medic and recovery sequence 19/20\u2192fixed (2026-11-07).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:420 (Stable fire with docked dogs)"
+    "Source/Quadrunner/Scenarios.Dispatch.cs",
+    "Source/Quadrunner/Scenarios.CombatRecovery.cs"
    ]
   },
   {
-   "id": "VER-STB-UNINSTALL",
+   "id": "VER-DIS-005",
    "level": 1,
    "method": "test",
-   "name": "Stable uninstall and reinstall",
+   "name": "Coordinator failover",
    "verifies": [
-    "REQ-STB-004"
+    "REQ-DIS-005"
    ],
-   "procedure": "Minify the stable: the dog keeps affiliation, itself coordinates, surveys, waits on a low battery; after reload and reinstall 10+ cells away it walks over and docks.",
    "status": "passing",
+   "procedure": "Repeated failover, active-assignment reload and final-node clearing pass from the actual package (plan 0003 complete, 2026-10-21).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:462 (Stable uninstall and reinstall)"
+    "Source/Quadrunner/Scenarios.Network.cs"
    ]
   },
   {
-   "id": "VER-STB-OVERVIEW",
+   "id": "VER-DIS-006",
    "level": 1,
    "method": "test",
-   "name": "Tier upgrade",
+   "name": "Survey behavior & benchmarks",
    "verifies": [
-    "REQ-STB-005",
-    "REQ-CMB-008",
-    "REQ-CMB-009"
+    "REQ-DIS-006"
    ],
-   "procedure": "Rows show Tier 1/claws; the tab's upgrade button adds exactly one bill; a colonist works it; the dog returns as Tier 2 with its name and the default rifle; the row and gun pick update; reload preserves them.",
    "status": "passing",
+   "procedure": "Sixteen survey behavior cases plus matched historical/current benchmarks and a legacy-save case: 75/75 PASS, 0 new errors (2026-10-23 10:59).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Tiers.cs:30 (Tier upgrade)"
+    "Source/Quadrunner/Scenarios.Survey.cs",
+    "Source/Quadrunner/Scenarios.SurveyBench.cs"
    ]
   },
   {
-   "id": "VER-STB-CARRY",
+   "id": "VER-WRK-001",
    "level": 1,
    "method": "test",
-   "name": "Carry home",
+   "name": "Vanilla-rail work cases",
    "verifies": [
-    "REQ-STB-006"
-   ],
-   "procedure": "Force dispatch after a powered-down dog appears 15-25 cells out: a network dog carries it and docks it, across a reload; then a colonist's real Carry to stable float option does the same.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:50 (Carry home)"
-   ]
-  },
-  {
-   "id": "VER-STB-FIELD",
-   "level": 2,
-   "method": "test",
-   "name": "Field battery and repair kit",
-   "verifies": [
-    "REQ-STB-007"
-   ],
-   "procedure": "Make both items at the stable; a damaged, powered-down field dog gets the kit first, then the battery; both items are consumed and health/injury checks pass across reload.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:114 (Field battery and repair kit)"
-   ]
-  },
-  {
-   "id": "VER-STB-WRECK",
-   "level": 2,
-   "method": "test",
-   "name": "Wreck rebuilt",
-   "verifies": [
-    "REQ-STB-008"
-   ],
-   "procedure": "Destroy a dog beside its stable; the wreck is not a dog; a colonist works the rebuild bill; the same pawn is resurrected alive, named and assigned, after reload.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:354 (Wreck rebuilt)"
-   ]
-  },
-  {
-   "id": "VER-STB-REMOVAL",
-   "level": 1,
-   "method": "test",
-   "name": "Prepare removal",
-   "verifies": [
-    "REQ-STB-010"
-   ],
-   "procedure": "Stage bills, docked and deployed dogs, a rider mid-ride and a powered-down dog; PrepareSave; assert riders/patients/cargo/injuries survive and every mod object and QR job is gone.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Removal.cs:24 (Prepare removal)"
-   ]
-  },
-  {
-   "id": "VER-STB-ALERT",
-   "level": 1,
-   "method": "test",
-   "name": "Retrieval under fire",
-   "verifies": [
-    "REQ-STB-009",
-    "REQ-REC-001"
-   ],
-   "procedure": "A dog at 0% with a fire beside it: the dog beats the fire out, then carries it home; a walled-in dog is alerted by name and not assigned, and after the wall opens it is carried home.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:235 (Retrieval under fire)"
-   ]
-  },
-  {
-   "id": "VER-PAW-DRAIN",
-   "level": 1,
-   "method": "test",
-   "name": "Battery drain and power-down",
-   "verifies": [
-    "REQ-PAW-002",
-    "REQ-PAW-003"
-   ],
-   "procedure": "Walk measured distances at 50%, 10.5% and 0.3%: drain matches 1/3500 per cell; below 10% it wants a charge; at 0% it is downed with the hediff; reload keeps both; 50% powers it up.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:168 (Battery drain and power-down)"
-   ]
-  },
-  {
-   "id": "VER-NET-COORD",
-   "level": 1,
-   "method": "test",
-   "name": "Network: coordinator failover",
-   "verifies": [
-    "REQ-NET-001"
-   ],
-   "procedure": "Stable A coordinates; A burns, B takes the same task; B burns, the newest dog coordinates the same task across reload; the dog dies, the older dog coordinates and finishes the haul with no stable.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:315 (Network: coordinator failover)"
-   ]
-  },
-  {
-   "id": "VER-NET-DISC",
-   "level": 1,
-   "method": "test",
-   "name": "Network: discovery beyond the boundary",
-   "verifies": [
-    "REQ-NET-002",
-    "REQ-NET-008"
-   ],
-   "procedure": "A revealed narrow corridor with gold 60 cells out: the idle worker surveys, discovers the stack only after walking near it, exactly once, hauls it across the old 40-cell boundary; reload resumes surveying.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:60 (Network: discovery beyond the boundary)"
-   ]
-  },
-  {
-   "id": "VER-NET-SCAN",
-   "level": 1,
-   "method": "test",
-   "name": "Network: scan eligibility",
-   "verifies": [
-    "REQ-NET-002",
     "REQ-WRK-001"
    ],
-   "procedure": "Forbidden gold, fogged gold and dirt outside Home are ignored over several scans; after allowing/revealing/Home they execute; permitted work stays complete after reload.",
    "status": "passing",
+   "procedure": "Haul and clean / far blueprint and frame delivery / storage-filter and forbidden checks across the dispatch scenario set.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:106 (Network: scan eligibility)"
+    "Source/Quadrunner/Scenarios.Dispatch.cs"
    ]
   },
   {
-   "id": "VER-NET-DEDUP",
-   "level": 2,
-   "method": "test",
-   "name": "Network: dedup and queue persistence",
-   "verifies": [
-    "REQ-NET-003"
-   ],
-   "procedure": "Two stacks 30-40 cells out; both queued exactly once; a duplicate manual report changes nothing; rescans do not duplicate while hauling; a walled pocket stays queued exactly once across scans and reload, then completes.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:166 (Network: dedup and queue persistence)"
-   ]
-  },
-  {
-   "id": "VER-NET-NEAR",
-   "level": 2,
-   "method": "test",
-   "name": "Network: nearest dog wins",
-   "verifies": [
-    "REQ-NET-004"
-   ],
-   "procedure": "A 41-cell wall with a stable north and south: the south dog wins the south stack despite a shorter beeline, then the north dog wins the north one; walling in the nearer north dog makes the reachable south dog win.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:232 (Network: nearest dog wins)"
-   ]
-  },
-  {
-   "id": "VER-NET-DEATH",
-   "level": 2,
-   "method": "test",
-   "name": "Network: death and interruption reassignment",
-   "verifies": [
-    "REQ-NET-005"
-   ],
-   "procedure": "D1 is killed mid-task and D2 finishes the stack; D2's acknowledged job survives reload without duplication; a manual interruption is re-issued and the stack is delivered once.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:462 (Network: death and interruption reassignment)"
-   ]
-  },
-  {
-   "id": "VER-NET-CLEAR",
-   "level": 2,
-   "method": "test",
-   "name": "Network: last node clears the backlog",
-   "verifies": [
-    "REQ-NET-007"
-   ],
-   "procedure": "Kill the last dog and burn the last stable: both queues clear; reload resurrects nothing; a new stable and dog never pick up the discarded backlog.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:399 (Network: last node clears the backlog)"
-   ]
-  },
-  {
-   "id": "VER-NET-WAR",
+   "id": "VER-STB-001",
    "level": 1,
    "method": "test",
-   "name": "Network: war suspends hauls",
+   "name": "Stable lifecycle cases",
    "verifies": [
-    "REQ-NET-009"
+    "REQ-STB-001"
    ],
-   "procedure": "A raider appears while the dog carries a far stack: the haul stops at once, cargo is dropped safely, the worker stands by for 600 ticks and across reload, then finishes both stacks after the raider leaves.",
    "status": "passing",
+   "procedure": "Assemble and dock / Stable full (16th dog) / Dock and undock / Stable power loss / Stable fire with docked dogs / Stable uninstall and reinstall, each with save/load.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:541 (Network: war suspends hauls)"
+    "Source/Quadrunner/Scenarios.cs",
+    "Source/Quadrunner/Scenarios.Dispatch.cs"
    ]
   },
   {
-   "id": "VER-WRK-RAID",
+   "id": "VER-STB-002",
    "level": 1,
    "method": "test",
-   "name": "Raid: suspend and resume",
+   "name": "Assembly bill cases",
    "verifies": [
-    "REQ-NET-009",
-    "REQ-WRK-004",
-    "REQ-PAW-002"
+    "REQ-STB-002"
    ],
-   "procedure": "Measure calm speed and drain, start a raid: the haul suspends and cargo is dropped, raid speed is 3x calm and drain factor 2; reload keeps the queue; the raid ending restores 1x speed and drain and completes both stacks.",
    "status": "passing",
+   "procedure": "Assemble Quadrunner/Medirunner/Combatdog scenarios; product docks straight in; do-until bill counting with docked dogs included explicitly.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:251 (Raid: suspend and resume)"
+    "Source/Quadrunner/Scenarios.cs"
    ]
   },
   {
-   "id": "VER-NET-NOSTABLE",
-   "level": 2,
-   "method": "test",
-   "name": "Network: combatdog without a stable",
+   "id": "VER-PWN-001",
+   "level": 1,
+   "method": "inspection",
+   "name": "Race def review",
    "verifies": [
-    "REQ-NET-010",
-    "REQ-CMB-002"
+    "REQ-PWN-001"
    ],
-   "procedure": "A free worker and Combatdog and no stable: the newest dog coordinates in war, the Combatdog engages the raider while the worker stands by and the gold waits across reload; after the fight the worker delivers it.",
    "status": "passing",
+   "procedure": "QR_Races.xml defines QR_Robotic flesh, no needs/taming/wild spawns; think-tree order exercised by every dispatch/charging scenario (charge before work, orders before dock).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:637 (Network: combatdog without a stable)"
+    "Defs/ThingDefs_Races/QR_Races.xml",
+    "Defs/ThinkTreeDefs/QR_ThinkTrees.xml"
    ]
   },
   {
-   "id": "VER-NET-MEDIC",
-   "level": 2,
-   "method": "test",
-   "name": "Network: medic keeps rescuing in war",
-   "verifies": [
-    "REQ-NET-010",
-    "REQ-RES-003"
-   ],
-   "procedure": "From the first raid tick the worker stands by docked with its haul queued while the Medirunner rescues; reload mid-carry leaves the patient in bed and the queue waiting; after the raider dies the worker hauls.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Network.cs:704 (Network: medic keeps rescuing in war)"
-   ]
-  },
-  {
-   "id": "VER-CHG-SPOT",
+   "id": "VER-CHG-001",
    "level": 1,
    "method": "test",
-   "name": "Conduit charging",
+   "name": "Charging decision cases",
    "verifies": [
-    "REQ-CHG-002",
-    "REQ-CHG-005"
+    "REQ-CHG-001"
    ],
-   "procedure": "A roofed room with a conduit under a wall and a full battery: a cached spot exists, the dog lies down and charges at 0.0004/tick, survives reload, completes and draws about 90 Wd.",
    "status": "passing",
+   "procedure": "Stable or conduit (3\u00d7 rate difference), Charging maze (turbine, forbidden door), Batteries drain mid-charge, Charging room rules (prisons never, bedrooms unused only, freezers allowed, allowed areas).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:215 (Conduit charging)"
+    "Source/Quadrunner/Scenarios.Charging.cs"
    ]
   },
   {
-   "id": "VER-CHG-MAZE",
+   "id": "VER-CHG-002",
    "level": 1,
    "method": "test",
-   "name": "Charging maze",
+   "name": "Battery drain & power-down",
    "verifies": [
-    "REQ-CHG-001",
     "REQ-CHG-002"
    ],
-   "procedure": "A room by a turbine, a near room behind a forbidden door, a far open room: no spot by the turbine (setting 0 gives one, back to 6 gives none), the dog charges in the far room, and with no reachable spot it goes to its stable and charges.",
    "status": "passing",
+   "procedure": "Battery drain and power-down / Ride until 0% / mounted power-down and Low-battery retreat (undraft/retreat at the threshold).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:273 (Charging maze)"
+    "Source/Quadrunner/Scenarios.Charging.cs",
+    "Source/Quadrunner/Scenarios.Riding.cs",
+    "Source/Quadrunner/Scenarios.Combat.cs"
    ]
   },
   {
-   "id": "VER-CHG-ROOM",
-   "level": 2,
-   "method": "test",
-   "name": "Charging room rules",
-   "verifies": [
-    "REQ-CHG-002",
-    "REQ-CHG-003",
-    "REQ-CHG-005"
-   ],
-   "procedure": "Room rules one by one: prisoner bed never, occupied bedroom no, empty bedroom yes, freezer yes, allowed-area exclusion no; charging then opening the roof makes the dog get up still wanting a charge.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:343 (Charging room rules)"
-   ]
-  },
-  {
-   "id": "VER-CHG-DRAIN",
-   "level": 2,
-   "method": "test",
-   "name": "Batteries drain mid-charge",
-   "verifies": [
-    "REQ-CHG-005"
-   ],
-   "procedure": "A near room holding 30 Wd and a far full one: the dog charges near, leaves when the battery runs dry at about 30-45%, searches again, charges far and completes.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Charging.cs:416 (Batteries drain mid-charge)"
-   ]
-  },
-  {
-   "id": "VER-WRK-HAUL",
+   "id": "VER-RSC-001",
    "level": 1,
    "method": "test",
-   "name": "Haul and clean",
+   "name": "Triage & mass casualty",
    "verifies": [
-    "REQ-NET-008",
-    "REQ-WRK-001",
-    "REQ-WRK-003"
+    "REQ-RSC-001"
    ],
-   "procedure": "Two dogs: the near blueprint and frame get steel, the near gold is stored, three filth are cleaned, idle workers survey; a survey finds gold 50-60 out and hauls it across the old boundary after reload.",
    "status": "passing",
+   "procedure": "Mass-casualty raid (three downed colonists, one Medirunner), Rescue order, wartime medic cases.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:111 (Haul and clean)"
+    "Source/Quadrunner/Scenarios.Rescue.cs"
    ]
   },
   {
-   "id": "VER-WRK-TWO",
+   "id": "VER-RSC-002",
    "level": 1,
    "method": "test",
-   "name": "Two stables",
+   "name": "Manual rescue dispatch",
    "verifies": [
-    "REQ-NET-004",
-    "REQ-WRK-001"
+    "REQ-RSC-002"
    ],
-   "procedure": "Two stables share one queue across reload; separate cleaning targets are never claimed by both dogs at once; home-stable affiliation does not reserve nearby work.",
    "status": "passing",
+   "procedure": "Plan 0006 sequence: disabled states, same-tick distinct assignments, repeat-click safety, save/load, bed delivery, unpowered return (3/3 PASS 2026-10-24).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Dispatch.cs:192 (Two stables)"
+    "Source/Quadrunner/Scenarios.Rescue.cs",
+    "docs/plans/0006-manual-rescue-dispatch.md"
    ]
   },
   {
-   "id": "VER-RES-MASS",
+   "id": "VER-RSC-003",
    "level": 1,
    "method": "test",
-   "name": "Mass-casualty raid",
+   "name": "Firefighting & deployment guard",
    "verifies": [
-    "REQ-RES-001",
-    "REQ-RES-002",
-    "REQ-RES-003"
+    "REQ-RSC-003"
    ],
-   "procedure": "Three colonists down 18-28 cells out with a raider walled in among them: the Medirunner goes for the fastest-bleeding first, carries each to a bed, then docks, across a reload.",
    "status": "passing",
+   "procedure": "Fire continuity, fires after foam, storm standby and the idle deployment guard (zero spawns across 690+ ticks with unassignable queue entries); package 12/12 PASS (2026-11-07).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Rescue.cs:61 (Mass-casualty raid)"
+    "Source/Quadrunner/Scenarios.Firefighting.cs",
+    "Source/Quadrunner/Scenarios.FireContinuity.cs",
+    "Source/Quadrunner/Scenarios.Standby.cs"
    ]
   },
   {
-   "id": "VER-RES-ORDER",
+   "id": "VER-HOS-001",
    "level": 1,
    "method": "test",
-   "name": "Rescue order",
+   "name": "Hose scenarios",
    "verifies": [
-    "REQ-RES-001",
-    "REQ-RES-002"
+    "REQ-HOS-001"
    ],
-   "procedure": "Two Medirunners, two medical beds, a prison cell, an animal spot and five downed pawns: rank order colonist/guest/prisoner/animal starts first, two patients at once, the prisoner in the prison cell, the enemy left.",
    "status": "passing",
+   "procedure": "Eight Hose scenarios: dirt-first dispatch, thresholds, patch completion across reload, two-worker boundaries, broad 50-cell band application, shadow/layer/edge respect; actual package 8/8 PASS (2026-11-06).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Rescue.cs:123 (Rescue order)"
+    "Source/Quadrunner/Scenarios.Hose.cs"
    ]
   },
   {
-   "id": "VER-RID-EMPTY",
+   "id": "VER-REC-001",
    "level": 1,
    "method": "test",
-   "name": "Ride until 0%",
+   "name": "Retrieval cases",
    "verifies": [
-    "REQ-RID-001",
-    "REQ-RID-002",
-    "REQ-RID-003",
-    "REQ-RID-005",
-    "REQ-PAW-002"
+    "REQ-REC-001"
    ],
-   "procedure": "Ride from the stable 70-90 cells out with the dog at 1.5%: the rider moves at 7.0 c/s in the dog's cell, the battery drains, reload keeps the ride, at 0% the dog powers down and the rider walks on; the other dog carries it home.",
    "status": "passing",
+   "procedure": "Carry home / Carrier runs low / Retrieval under fire / Raider carries off a dog / unreachable alert.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Riding.cs:45 (Ride until 0%)"
+    "Source/Quadrunner/Scenarios.Retrieval.cs"
    ]
   },
   {
-   "id": "VER-RID-DISMOUNT",
+   "id": "VER-REC-002",
    "level": 1,
    "method": "test",
-   "name": "Ride and dismount",
-   "verifies": [
-    "REQ-RID-001",
-    "REQ-RID-003",
-    "REQ-RID-005"
-   ],
-   "procedure": "Ride on the dog and from the stable; dismount at the destination, before an indoor door, when drafted, when downed; reload mid-ride; the dog is free afterwards.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Riding.cs:105 (Ride and dismount)"
-   ]
-  },
-  {
-   "id": "VER-RID-POSE",
-   "level": 2,
-   "method": "test",
-   "name": "Rider pose",
-   "verifies": [
-    "REQ-RID-004"
-   ],
-   "procedure": "Pause with a mounted rider, camera close, turn to each facing and capture ride-north/east/south/west.png; inspect the offsets in the summary.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Riding.cs:197 (Rider pose)"
-   ]
-  },
-  {
-   "id": "VER-CMB-PING",
-   "level": 1,
-   "method": "test",
-   "name": "Ping chain",
-   "verifies": [
-    "REQ-CMB-001",
-    "REQ-CMB-003"
-   ],
-   "procedure": "Two raiders hit a Quadrunner 50-70 cells out: the Combatdog takes a war assignment beyond 40 cells, both are dealt with across reload; a third raider pings another dog and the Combatdog turns round; it docks.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Combat.cs:86 (Ping chain)"
-   ]
-  },
-  {
-   "id": "VER-CMB-SWEEP",
-   "level": 2,
-   "method": "test",
-   "name": "Combatdog sweep",
-   "verifies": [
-    "REQ-CMB-003",
-    "REQ-CMB-005"
-   ],
-   "procedure": "Four raiders: three down (one to the prisoner bed, two carried to an empty room past a nearer bedroom), the dead skipped, reload mid-carry; then three patrol waypoints across reload with a walled-in raider keeping the raid on.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Combat.cs:166 (Combatdog sweep)"
-   ]
-  },
-  {
-   "id": "VER-CMB-RETREAT",
-   "level": 2,
-   "method": "test",
-   "name": "Low-battery retreat",
-   "verifies": [
-    "REQ-CMB-006",
-    "REQ-REN-002"
-   ],
-   "procedure": "At 10% the Combatdog breaks off, retreats with the siren lit (siren.png captured), ignores a new ping for 200 ticks, docks or charges, and after charging goes back for the raiders.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Combat.cs:287 (Low-battery retreat)"
-   ]
-  },
-  {
-   "id": "VER-CMB-DRAFT",
-   "level": 2,
-   "method": "test",
-   "name": "Drafted priority target",
-   "verifies": [
-    "REQ-CMB-006",
-    "REQ-CMB-007"
-   ],
-   "procedure": "Draft the Combatdog with its toggle: it holds and takes a vanilla melee order on a farther, unpinned raider ahead of the queued one; reload keeps it drafted and idle for 300 ticks; at 10% it is undrafted and retreats, then returns.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Combat.cs:385 (Drafted priority target)"
-   ]
-  },
-  {
-   "id": "VER-CMB-T3",
-   "level": 2,
-   "method": "test",
-   "name": "Tier 3 and 4 weapons",
-   "verifies": [
-    "REQ-CMB-009"
-   ],
-   "procedure": "Tier 3 holds rifle + flamethrower: it rifles a far raider, switches to the flamethrower for a 4-6 cell one, survives reload; upgraded to Tier 4 it holds the minigun and its deployed speed is 0.5 c/s lower.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Tiers.cs:121 (Tier 3 and 4 weapons)"
-   ]
-  },
-  {
-   "id": "VER-CMB-DEMO",
-   "level": 2,
-   "method": "demonstration",
-   "name": "Tier 2/3/4 weapon demos",
-   "verifies": [
-    "REQ-CMB-009"
-   ],
-   "procedure": "Upgrade a Combatdog to each tier, arm each allowed gun and let it fight raiders at normal speed; a screenshot catches a burst in flight and the rounds are named in the demo output.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Demo.cs:47 (Tier 2/3/4 weapon demo)"
-   ]
-  },
-  {
-   "id": "VER-CMB-ENDURE",
-   "level": 2,
-   "method": "test",
-   "name": "Combatdog endurance",
-   "verifies": [
-    "REQ-CMB-010"
-   ],
-   "procedure": "A fresh Tier 1 dog without a stable takes three then six ordinary fist hits and stays standing, with damage persisting across reload.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Balance.cs:13 (Combatdog endurance)"
-   ]
-  },
-  {
-   "id": "VER-REN-ART",
-   "level": 1,
-   "method": "test",
-   "name": "Artwork showcase",
-   "verifies": [
-    "REQ-REN-001"
-   ],
-   "procedure": "Every model lined up on clear ground, captured from four facings at close range, plus stable facings, mounted guns and the overview tab; images inspected.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Art.cs:14 (Artwork showcase)"
-   ]
-  },
-  {
-   "id": "VER-REN-WALK",
-   "level": 1,
-   "method": "test",
-   "name": "Walk animation",
-   "verifies": [
-    "REQ-REN-001"
-   ],
-   "procedure": "A Quadrunner and a Tier 4 Combatdog walk 16 cells: layer check (whole + body + legs), legs swing and lift while moving and rest when stopped, across a reload.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Gait.cs:29 (Walk animation)"
-   ]
-  },
-  {
-   "id": "VER-REN-RESCUE",
-   "level": 1,
-   "method": "test",
-   "name": "Rescue animation",
-   "verifies": [
-    "REQ-REN-001",
-    "REQ-REN-002",
-    "REQ-REN-003"
-   ],
-   "procedure": "A Medirunner runs to a downed colonist at normal speed: siren frames, head dip/duck at the pickup, 180-degree patient flip, then delivery to bed; captures inspected.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Animation.cs:60 (Rescue animation)"
-   ]
-  },
-  {
-   "id": "VER-REN-COMBAT",
-   "level": 1,
-   "method": "test",
-   "name": "Combat animation",
-   "verifies": [
-    "REQ-REN-001"
-   ],
-   "procedure": "A Combatdog fights at normal speed: pounce on melee strikes, braced crouch and recoil kick per shot, measured and captured.",
-   "status": "passing",
-   "evidence": [
-    "Source/Quadrunner/Scenarios.Animation.cs:184 (Combat animation)"
-   ]
-  },
-  {
-   "id": "VER-REC-KIDNAP",
-   "level": 2,
-   "method": "test",
-   "name": "Raider carries off a dog",
+   "name": "Field fix cases",
    "verifies": [
     "REQ-REC-002"
    ],
-   "procedure": "A raider 6-10 cells from a powered-down dog: the kidnap search finds the dog, the raider picks it up and leaves the map with it, and the stable keeps its docked dog.",
    "status": "passing",
+   "procedure": "Field battery and repair kit: bills make the items, colonists auto-deliver to field dogs.",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:302 (Raider carries off a dog)"
+    "Source/Quadrunner/Scenarios.Retrieval.cs"
    ]
   },
   {
-   "id": "VER-REC-CARRIER",
-   "level": 2,
+   "id": "VER-REC-003",
+   "level": 1,
    "method": "test",
-   "name": "Carrier runs low",
+   "name": "Casualty recovery & auto-rebuild",
    "verifies": [
     "REQ-REC-003"
    ],
-   "procedure": "A carrier drops to 10% mid-carry: with a powered stable it finishes and docks the dog; with the stable off and a charge room near, it sets the dog down, charges and then carries it home.",
    "status": "passing",
+   "procedure": "Combat recovery cases (living and wreck, identity/tier/guns retained), auto-rebuild with delivered 50 steel + 25 plasteel across save/load, and manual rebuild bills using recovered wrecks (2026-10-24/29).",
    "evidence": [
-    "Source/Quadrunner/Scenarios.Retrieval.cs:186 (Carrier runs low)"
+    "Source/Quadrunner/Scenarios.CombatRecovery.cs",
+    "Source/Quadrunner/Scenarios.AutoRebuild.cs",
+    "Source/Quadrunner/Scenarios.RebuildBills.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-001",
+   "level": 1,
+   "method": "test",
+   "name": "Engagement & capture cases",
+   "verifies": [
+    "REQ-CBT-001"
+   ],
+   "status": "passing",
+   "procedure": "Combatdog sweep: capture with and without a free bed, patrol order across reload, engagement ranges.",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Combat.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-002",
+   "level": 1,
+   "method": "test",
+   "name": "Ping chain & retreat",
+   "verifies": [
+    "REQ-CBT-002"
+   ],
+   "status": "passing",
+   "procedure": "Ping chain retargeting and Low-battery retreat with the yellow siren (screenshot inspected).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Combat.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-003",
+   "level": 1,
+   "method": "test",
+   "name": "Patrol persistence",
+   "verifies": [
+    "REQ-CBT-003"
+   ],
+   "status": "passing",
+   "procedure": "Waypoints 1\u21922\u21923\u21921 walked in order across a reload (2026-10-20 05:09).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Combat.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-004",
+   "level": 1,
+   "method": "test",
+   "name": "Tiers, arsenal & migration",
+   "verifies": [
+    "REQ-CBT-004"
+   ],
+   "status": "passing",
+   "procedure": "Tier upgrade / Tier 3 and 4 weapons / Tier 2/3/4 weapon demos / pack-migration fixtures across holders, repeat and mid-fight loads (2026-11-03).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Tiers.cs",
+    "Source/Quadrunner/Scenarios.Demo.cs",
+    "Source/Quadrunner/Scenarios.PackMigration.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-005",
+   "level": 1,
+   "method": "test",
+   "name": "Pack continuity",
+   "verifies": [
+    "REQ-CBT-005"
+   ],
+   "status": "passing",
+   "procedure": "Pack scenarios: nearest-member focus, focus retention, closer-newcomer joins, engagement across native job boundaries; actual package 10/10 PASS (2026-11-04).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Packs.cs",
+    "Source/Quadrunner/Scenarios.PackContinuity.cs"
+   ]
+  },
+  {
+   "id": "VER-CBT-006",
+   "level": 1,
+   "method": "test",
+   "name": "Drafting cases",
+   "verifies": [
+    "REQ-CBT-006"
+   ],
+   "status": "passing",
+   "procedure": "Drafted priority target; excluded-from-assignment and undraft-at-10% covered in dispatch/charging scenarios.",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Combat.cs"
+   ]
+  },
+  {
+   "id": "VER-RID-001",
+   "level": 1,
+   "method": "test",
+   "name": "Riding cases",
+   "verifies": [
+    "REQ-RID-001"
+   ],
+   "status": "passing",
+   "procedure": "Ride and dismount / Ride until 0% (7.0 c/s) / Rider pose captures of all four facings.",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Riding.cs"
+   ]
+  },
+  {
+   "id": "VER-RND-001",
+   "level": 1,
+   "method": "inspection",
+   "name": "Animation captures",
+   "verifies": [
+    "REQ-RND-001"
+   ],
+   "status": "passing",
+   "procedure": "Walk animation and Rescue animation scenarios PASS; gait/pose/siren screenshots inspected from the actual game (2026-10-20).",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Gait.cs",
+    "Source/Quadrunner/Scenarios.Animation.cs"
+   ]
+  },
+  {
+   "id": "VER-REM-001",
+   "level": 1,
+   "method": "test",
+   "name": "Prepare removal scenario",
+   "verifies": [
+    "REQ-REM-001"
+   ],
+   "status": "passing",
+   "procedure": "Prepare-removal fixture: backup verified, riders/patients/cargo retained in the backup, wrecks/packed stables/in-flight shots removed from the export, unrelated vanilla shots kept, battle metadata cleared with IDs kept.",
+   "evidence": [
+    "Source/Quadrunner/Scenarios.Removal.cs"
+   ]
+  },
+  {
+   "id": "VER-TST-001",
+   "level": 1,
+   "method": "test",
+   "name": "Harness self-test",
+   "verifies": [
+    "REQ-TST-001"
+   ],
+   "status": "passing",
+   "procedure": "tools/selftest.sh: 19 cases OK against the fake game (2026-10-20 08:52).",
+   "evidence": [
+    "tools/selftest.sh",
+    "tools/selftest/fake_game.py"
+   ]
+  },
+  {
+   "id": "VER-TST-002",
+   "level": 1,
+   "method": "test",
+   "name": "Scenario suite runs",
+   "verifies": [
+    "REQ-TST-002",
+    "REQ-FND-001"
+   ],
+   "status": "passing",
+   "procedure": "Every row of docs/test-runs.md is produced this way; proven beside the user's open game (2026-10-19 23:20, 11/11 PASS, user profile untouched).",
+   "evidence": [
+    "docs/test-runs.md",
+    "Source/Quadrunner/Scenario.cs"
+   ]
+  },
+  {
+   "id": "VER-TST-003",
+   "level": 1,
+   "method": "test",
+   "name": "Package verification",
+   "verifies": [
+    "REQ-TST-003"
+   ],
+   "status": "passing",
+   "procedure": "pkg-run cold-launches dist/Quadrunner, requires loaded BUILD and resolved modRoot to match, runs affected scenarios, restores the dev link; latest package 62ae7cd.20261107T011508Z 12/12 PASS (2026-11-07).",
+   "evidence": [
+    "tools/autotest.py",
+    "docs/test-runs.md"
+   ]
+  },
+  {
+   "id": "VER-TST-004",
+   "level": 1,
+   "method": "test",
+   "name": "Independent removal observer",
+   "verifies": [
+    "REQ-TST-004"
+   ],
+   "status": "passing",
+   "procedure": "removal-check reports LOADED CLEAN with 0 new errors; observer carries no Quadrunner reference or saved component.",
+   "evidence": [
+    "tools/removal-probe/Probe.cs",
+    "docs/test-runs.md"
    ]
   }
  ],
  "flows": [
   {
-   "id": "flow.dispatch",
-   "name": "Dispatch a haul",
-   "trigger": "An idle Quadrunner is out of a job and a revealed item lies within its scan",
-   "description": "The paying path: local observation, deduplicated queue, nearest-capable assignment by real path cost, a vanilla job, then completion or reassignment.",
+   "id": "flow.haul",
+   "name": "One haul, end to end",
+   "trigger": "An idle Quadrunner finishes its current survey leg on a peaceful map",
+   "description": "The system's core loop: local discovery, central assignment, vanilla execution, central completion. This is the path that pays for the mod.",
    "steps": [
     {
      "n": 1,
-     "from": "comp.net-node",
-     "to": "comp.discovery",
-     "action": "Request a local scan",
-     "condition": "every 120 ticks, for each active dog",
-     "mechanism": "15-cell radial scan per active dog; fogged and distant cells are never seen."
+     "from": "ext.rimworld",
+     "to": "comp.comprobodog",
+     "action": "Pawn ticks; think tree evaluated",
+     "mechanism": "Priority order means a dog with no player order, not drafted and not charge-seeking reaches JobGiver_RobodogWork (node 6)."
     },
     {
      "n": 2,
-     "from": "comp.discovery",
-     "to": "comp.net-node",
-     "action": "Report the task",
-     "mechanism": "Item, frame/blueprint materials, Home filth, dog; fogged, forbidden, off-map refused; dedup."
+     "from": "comp.work",
+     "to": "comp.network",
+     "action": "ReportLocal: steel stack seen",
+     "condition": "dog inside dispatch tick (network rate-limits to 60 ticks)",
+     "mechanism": "The Quadrunner race's work-giver scanners test eligibility \u2014 within 15 cells, unfogged, unforbidden, on the haulables list; the dog's cached ThingID is reused so duplicate discovery allocates nothing."
     },
     {
      "n": 3,
-     "from": "comp.net-node",
-     "to": "comp.work-job",
-     "action": "Build one candidate job",
-     "mechanism": "The task's own scanner is asked; reservations and reach checked; 3 job defs."
+     "from": "comp.network",
+     "to": "comp.network",
+     "action": "Queue Haul task, deduped",
+     "mechanism": "Refuses a second task with the same (kind, targetId) in the normal queue; tasks store ThingIDs, never references, so a destroyed target cannot poison a save."
     },
     {
      "n": 4,
-     "from": "comp.work-job",
-     "to": "comp.net-node",
-     "action": "Candidate job or null",
-     "mechanism": "Null when forbidden, reserved, unreachable or refused: that dog is no candidate."
+     "from": "comp.network",
+     "to": "comp.work",
+     "action": "AssignAll \u2192 JobFor(dog, stack)",
+     "mechanism": "Sorts war queue (rescue rank, bleeding, kind, id) then normal queue (kind, id); nearest available capable dog by real pathfind with the task's PathEndMode; ties to lower thing ID; the job is built for exactly this one target."
     },
     {
      "n": 5,
-     "from": "comp.net-node",
-     "to": "ext.vanilla",
-     "action": "Assign the nearest by path cost",
-     "mechanism": "FindPathNow cost; unreachable = MaxValue; ties to lower thingID; assignee saved."
+     "from": "comp.work",
+     "to": "ext.rimworld",
+     "action": "StartJob on vanilla rails",
+     "mechanism": "Reservations, storage filters and stack counts are all vanilla \u2014 only the target choice was centralized."
     },
     {
      "n": 6,
-     "from": "comp.think-tree",
-     "to": "comp.net-node",
-     "action": "Ask for the next order",
-     "mechanism": "Assigned job continues; finished tasks drop; else survey, dock or wait."
+     "from": "comp.network",
+     "to": "comp.network",
+     "action": "Reconcile each tick",
+     "mechanism": "Assigned \u2192 Acknowledged when the dog's running job matches the task's saved jobId (vanilla Job.loadID, so it survives save/load); \u2192 Working on progress; no progress for 2500 ticks stops the dog safely and retries with backoff."
     },
     {
      "n": 7,
-     "from": "comp.net-node",
-     "to": "ext.vanilla",
-     "action": "Reconcile and complete",
-     "mechanism": "Each 60 ticks: job, toil and position tracked; 2500 idle ticks release it."
-    },
-    {
-     "n": 8,
-     "from": "comp.net-node",
-     "to": "comp.survey",
-     "action": "Survey when there is nothing",
-     "condition": "no task assignable to this dog",
-     "mechanism": "Home-first scan-certified area sweep; 600-tick expiry so work preempts."
+     "from": "comp.network",
+     "to": "comp.comprobodog",
+     "action": "Finished \u2192 next order",
+     "condition": "stack is in valid best storage",
+     "mechanism": "Completion is revalidated centrally; the dog's next think-tree pass asks TakeOrder again, gets a new survey or docks when nothing is reachable."
     }
    ],
    "failure_modes": [
     {
-     "when": "No dog can reach the target",
-     "then": "The task stays queued with retryAt = now + 120 ticks; it is dropped only when Finished() says it is moot or a dog can take it.",
-     "detected_by": "VER-NET-NEAR"
+     "when": "Target destroyed or despawns mid-task",
+     "then": "Re-resolution treats the missing ThingID as finished; no error, no poisoned save.",
+     "detected_by": "VER-DIS-001"
     },
     {
-     "when": "The assignee dies or its job is interrupted",
-     "then": "The assignment resets and the same task is re-queued; an acknowledged job reloads without duplicate execution.",
-     "detected_by": "VER-NET-DEATH"
+     "when": "Assignee dies, is drafted or loses its job",
+     "then": "Reconciliation releases the task to Queued for the next dispatch tick.",
+     "detected_by": "VER-DIS-003"
     },
     {
-     "when": "The assignee stops making progress",
-     "then": "After 2500 ticks StopSafely, drop any carried cargo, release the task and retry after a scan interval. Implemented but unproven: no scenario forces a stall, so REQ-NET-006 is a reported traceability gap."
+     "when": "War breaks out mid-haul",
+     "then": "The normal\u2192war edge resets the task to Queued, stops the job and drops carried cargo in place; the kept queue is revalidated when the threat clears.",
+     "detected_by": "VER-DIS-004"
+    }
+   ]
+  },
+  {
+   "id": "flow.war",
+   "name": "Raid: war mode to recovery",
+   "trigger": "Vanilla reports any hostile active threat to the player (cached 60 ticks), or a dog is hit by a hostile",
+   "description": "The path with the most state transitions: suspension, deployment, casualty tracking and the return to work. Deliberately destructive to in-flight work.",
+   "steps": [
+    {
+     "n": 1,
+     "from": "ext.rimworld",
+     "to": "comp.network",
+     "action": "War edge",
+     "mechanism": "Sets warActive, resets every normal task to Queued, stops matching jobs and any survey/haul/clean/carry-home job, dropping cargo in place; the normal queue itself is kept."
     },
     {
-     "when": "A raid starts mid-haul",
-     "then": "Normal work is suspended at once, cargo is dropped safely and the worker waits; the queue is retained and resumes after the threat (see the combat flow).",
-     "detected_by": "VER-NET-WAR"
+     "n": 2,
+     "from": "comp.comprobodog",
+     "to": "comp.network",
+     "action": "Attack ping (bypasses cadence)",
+     "mechanism": "A dog hit by a hostile reports the attacker, drops the raid cache and forces an immediate tick \u2014 a stable-less Combatdog still reacts."
+    },
+    {
+     "n": 3,
+     "from": "comp.network",
+     "to": "comp.combat",
+     "action": "Deploy Combatdogs",
+     "mechanism": "Available Combatdogs deploy; idle workers return to their home stable when reachable, else any reachable stable with a free slot (wartime-only re-homing), else wait and retry; Medirunners deploy when patients exist."
+    },
+    {
+     "n": 4,
+     "from": "comp.network",
+     "to": "comp.packcombat",
+     "action": "Pack focus",
+     "mechanism": "T3/T4 leaders recruit within 15 cells; focus = queued reachable standing hostile nearest to any member; retained while valid; re-selected at native job boundaries so pursuit never hands off to a homeward guard gap."
+    },
+    {
+     "n": 5,
+     "from": "comp.comprobodog",
+     "to": "comp.network",
+     "action": "Casualty broadcast",
+     "condition": "Combatdog downed or destroyed",
+     "mechanism": "ReportCasualty/ReportDeath dedupe by casualty identity and save pawn ID, last-known cell and living/wreck state; a destroyed wreck never produces a replacement task."
+    },
+    {
+     "n": 6,
+     "from": "comp.network",
+     "to": "comp.retrieval",
+     "action": "Recovery after threats",
+     "condition": "warActive clears",
+     "mechanism": "Normal queue revalidated; recovery tasks sort ahead of utility work; healthy Quadrunners or Medirunners carry living dogs to a dock and wrecks to the stable's holder \u2014 deferred medical emergencies still outrank recovery."
+    },
+    {
+     "n": 7,
+     "from": "comp.stable-building",
+     "to": "comp.fabrication",
+     "action": "Powered wreck rebuild",
+     "condition": "50 steel + 25 plasteel delivered into the 3\u00d73 interaction bay",
+     "mechanism": "Consumes ingredients only when all present, one recipe-work unit per tick for 2,000 powered ticks; load never spends twice; resurrection restores the same pawn, tier and guns."
+    }
+   ],
+   "failure_modes": [
+    {
+     "when": "Coordinator stable is destroyed mid-war",
+     "then": "Election moves NetworkState to a surviving node (next stable by thingID, else newest active dog) without losing the queues.",
+     "detected_by": "VER-DIS-005"
+    },
+    {
+     "when": "Every stable and active dog is lost",
+     "then": "Both queues and transient exploration are permanently cleared; a later node never resurrects the old backlog.",
+     "detected_by": "VER-DIS-005"
+    },
+    {
+     "when": "Home stable unreachable for a returning worker",
+     "then": "Wartime-only fallback re-homes to another reachable stable with a free slot; with none, the dog waits in place and retries on later refreshes.",
+     "detected_by": "VER-DIS-004"
+    },
+    {
+     "when": "Rebuild interrupted by power loss",
+     "then": "Processing pauses and resumes; ingredient accounting survives save/load with no duplicate payment.",
+     "detected_by": "VER-REC-003"
     }
    ]
   },
   {
    "id": "flow.charge",
-   "name": "The charge decision",
-   "trigger": "A dog's battery falls to 10% and it latches 'wants a charge'",
-   "description": "How a low dog picks stable or conduit, what it draws, and what happens when it reaches 0% and has to be recovered.",
+   "name": "Charge decision: stable versus conduit",
+   "trigger": "Battery crosses 10% (latch wantsCharge; clears only at 100%)",
+   "description": "The decision that surprises newcomers: a dog on a conduit is powered by the colony's stored energy, not by live generation.",
    "steps": [
     {
      "n": 1,
-     "from": "comp.battery",
-     "to": "comp.charge-decision",
-     "action": "Latch want-charge",
-     "condition": "battery <= 10%",
-     "mechanism": "Latch at 10%, cleared only at 100%; a drafted dog is undrafted at once."
+     "from": "comp.comprobodog",
+     "to": "comp.charging",
+     "action": "Think-tree node 5 fires",
+     "mechanism": "Charge seeking sits above all work; a dog that wants a charge never takes network orders. Crossing 10% mid-fight undrafts or interrupts a combat job so the dog retreats."
     },
     {
      "n": 2,
-     "from": "comp.think-tree",
-     "to": "comp.charge-decision",
-     "action": "Take the charge branch",
-     "mechanism": "Seek-charge sits before the work giver, so charging outranks work."
+     "from": "comp.charging",
+     "to": "comp.chargespots",
+     "action": "Compare time-to-full",
+     "mechanism": "Straight-line travel + missing-charge/rate for the powered stable (fast: 0.0012/tick) versus the best conduit spot (slow: 0.0004/tick, 3\u00d7 slower but may win when the stable is far); an unpowered stable is a fallback only when no spot exists."
     },
     {
      "n": 3,
-     "from": "comp.charge-decision",
-     "to": "comp.charge-spots",
-     "action": "Find the best spot",
-     "mechanism": "Cached spots, UsableBy per dog, region traversal; forbidden doors block."
+     "from": "comp.chargespots",
+     "to": "ext.rimworld",
+     "action": "Spot eligibility",
+     "mechanism": "Free standable roofed indoor non-doorway cell served by a colony power transmitter, outside the turbine radius (mod setting, default 6); static cache rebuilt on building-signature change or 2500 ticks."
     },
     {
      "n": 4,
-     "from": "comp.charge-spots",
-     "to": "comp.charge-decision",
-     "action": "Spot or none",
-     "mechanism": "Score = distance + 15 x dogs there - 10 x min(stored Wd / 1000, 1); none if no spot qualifies."
+     "from": "comp.charging",
+     "to": "ext.rimworld",
+     "action": "Draw from batteries",
+     "condition": "conduit spot chosen",
+     "mechanism": "Lies down and takes 0.0004/tick from the net's batteryComps, fullest first; stops when full, when batteries run dry, or when the spot stops qualifying (rechecked every 250 ticks)."
     },
     {
      "n": 5,
-     "from": "comp.charge-decision",
-     "to": "comp.stable",
-     "action": "Dock and charge",
-     "condition": "stable fills it sooner, travel included",
-     "mechanism": "Travel + missing/0.0012 vs missing/0.0004; unpowered stable only if no spot."
-    },
-    {
-     "n": 6,
-     "from": "comp.charge-decision",
-     "to": "comp.conduit-charge",
-     "action": "Charge in the room",
-     "condition": "a conduit spot fills it sooner",
-     "mechanism": "QR_ChargeAtConduit to the spot; from 10% a spot wins only ~120 cells closer."
-    },
-    {
-     "n": 7,
-     "from": "comp.conduit-charge",
-     "to": "comp.battery",
-     "action": "Draw from the net",
-     "mechanism": "Lie down; +0.0004/tick; 100 Wd per full charge, fullest battery first."
-    },
-    {
-     "n": 8,
-     "from": "comp.battery",
-     "to": "comp.net-node",
-     "action": "Power down",
-     "condition": "battery reaches 0%",
-     "mechanism": "Moving 0: downed, off the roster, never assigned; above 0% powers up."
-    },
-    {
-     "n": 9,
-     "from": "comp.net-node",
-     "to": "comp.retrieval",
-     "action": "Send a dog to carry it home",
-     "mechanism": "Retrieve task from any scan; fire at 1.5 cells first; nearest stable docks it."
+     "from": "comp.charging",
+     "to": "comp.comprobodog",
+     "action": "Charged \u2192 back to orders",
+     "condition": "battery reaches 100%",
+     "mechanism": "wantsCharge clears only at full; the dog's next think-tree pass takes network orders or surveys again."
     }
    ],
    "failure_modes": [
     {
-     "when": "No stable and no spot is reachable",
-     "then": "The dog searches again while it still wants a charge and eventually powers down where it stands; recovery then applies.",
-     "detected_by": "VER-CHG-MAZE"
+     "when": "No valid conduit spot exists",
+     "then": "The dog charges at the stable \u2014 an unpowered stable is accepted as the fallback.",
+     "detected_by": "VER-CHG-001"
     },
     {
-     "when": "The net's batteries run dry mid-charge",
-     "then": "The job ends Incompletable, the dog gets up and searches again; it moves to a room with a fuller battery.",
-     "detected_by": "VER-CHG-DRAIN"
+     "when": "Batteries run dry mid-charge",
+     "then": "The driver gets up and searches again; a producing net with empty batteries is a dead spot.",
+     "detected_by": "VER-CHG-001"
     },
     {
-     "when": "The spot stops qualifying (roof opened, prisoner bed, fire, hostile)",
-     "then": "The 250-tick re-check ends the job; the dog gets up still wanting a charge and searches again.",
-     "detected_by": "VER-CHG-ROOM"
-    },
-    {
-     "when": "A carrier hits 10% while carrying a dog",
-     "then": "It compares stable versus spot: finish when the stable wins, otherwise set the dog down, charge and come back for it.",
-     "detected_by": "VER-REC-CARRIER"
-    }
-   ]
-  },
-  {
-   "id": "flow.combat",
-   "name": "The combat ping chain",
-   "trigger": "A hostile pawn damages one of the player's dogs",
-   "description": "From a single hit to a Combatdog answering, the war queue and work suspension, engagement, capture, and the low-battery retreat.",
-   "steps": [
-    {
-     "n": 1,
-     "from": "ext.vanilla",
-     "to": "comp.ping",
-     "action": "Hostile damages a dog",
-     "mechanism": "Hostile pawn, dog spawned and alive; friendly damage and a killing hit do not."
-    },
-    {
-     "n": 2,
-     "from": "comp.ping",
-     "to": "comp.net-node",
-     "action": "Ping the attacker",
-     "mechanism": "War-queue report (dedup), Raid.Recheck, forced tick: answered the same tick."
-    },
-    {
-     "n": 3,
-     "from": "comp.net-node",
-     "to": "comp.engage",
-     "action": "Assign the war target",
-     "condition": "attacker queued and a combat-capable dog is available",
-     "mechanism": "Nearest combat dog by path cost; a queued attacker sends no second dog."
-    },
-    {
-     "n": 4,
-     "from": "comp.net-node",
-     "to": "comp.think-tree",
-     "action": "Suspend normal work",
-     "mechanism": "War stops normal jobs, drops cargo safely, workers Wait; queue retained."
-    },
-    {
-     "n": 5,
-     "from": "comp.engage",
-     "to": "comp.tiers",
-     "action": "Arm the gun for the range",
-     "mechanism": "Slot 2 within range, else slot 1, else claws; re-armed before each attack."
-    },
-    {
-     "n": 6,
-     "from": "comp.engage",
-     "to": "ext.vanilla",
-     "action": "Attack or capture",
-     "mechanism": "AttackStatic, else cast-position Goto, else melee; downed: bed or empty room."
-    },
-    {
-     "n": 7,
-     "from": "comp.battery",
-     "to": "comp.engage",
-     "action": "Break off at 10%",
-     "condition": "battery <= 10%",
-     "mechanism": "Job ends at once (a capture finishes); undrafted; siren; pings ignored."
-    },
-    {
-     "n": 8,
-     "from": "comp.net-node",
-     "to": "comp.patrol",
-     "action": "Patrol or guard",
-     "condition": "war on, nothing to fight",
-     "mechanism": "Waypoints in a loop, else guard within 4 cells; 60-tick jobs; clear = dock."
-    }
-   ],
-   "failure_modes": [
-    {
-     "when": "There is no Combatdog on the map",
-     "then": "Workers stand by; no worker takes combat; the queue holds until a Combatdog exists or the threat clears.",
-     "detected_by": "VER-NET-WAR"
-    },
-    {
-     "when": "The target dies, is downed or becomes a prisoner",
-     "then": "Finished() drops the task; a capture already under way completes and the queue empties.",
-     "detected_by": "VER-CMB-SWEEP"
-    },
-    {
-     "when": "No prisoner bed is free",
-     "then": "A downed humanlike is carried to the nearest empty non-bedroom room and left downed, not a prisoner; with no such room it stays queued.",
-     "detected_by": "VER-CMB-SWEEP"
-    },
-    {
-     "when": "The Combatdog hits 10% mid-fight",
-     "then": "It retreats with the siren, ignores further pings, charges, then returns to the queued target.",
-     "detected_by": "VER-CMB-RETREAT"
+     "when": "Battery hits 0% before any charger",
+     "then": "QR_PoweredDown hediff zeroes Moving (downed); the network queues retrieval, a colonist can carry the dog, or a field battery is delivered; raiders may kidnap it.",
+     "detected_by": "VER-REC-001"
     }
    ]
   }
  ],
  "annotations": [
   {
-   "id": "ann.1",
-   "target": "ext.harness",
+   "id": "ann.dispatchersavenotidentity",
+   "target": "comp.network",
    "kind": "decision",
-   "text": "Boundary call: the harness is modelled outside the product. tools/autotest.py is not shipped; Source/Quadrunner/AutoTest.cs and the scenario suite are compiled into the shipped DLL but dormant unless the game is launched with -quadrunner-autotest=. The command/event files are the only link.",
-   "author": "brownfield reconstruction 2026-10-21"
+   "text": "The dispatcher deliberately has no identity in the save. DogNetwork is a static per-map dictionary; only NetworkState is saved, on exactly one elected node. Deleting the coordinator in dev tools re-elects on next access; losing every node clears the backlog permanently.",
+   "author": "plan 0003 decision, restated in docs/architecture.md"
   },
   {
-   "id": "ann.2",
-   "target": "VER-SYS-001",
+   "id": "ann.conduitbatteries",
+   "target": "comp.charging",
+   "kind": "risk",
+   "text": "Conduit charging draws stored battery energy, fullest first. A power net that is producing but has no stored energy cannot charge a dog even though the base is powered \u2014 the single most surprising behavior in the mod.",
+   "author": "docs/architecture.md"
+  },
+  {
+   "id": "ann.dockednotspawned",
+   "target": "comp.stable-building",
    "kind": "note",
-   "text": "Newest results: the packaged Run all was 54/55 PASS with 0 new errors; the one failure was a fresh-filth fixture assumption. After the fixture fix the affected scenario passed alone (1/1) from the refreshed package, but no full 55-scenario rerun followed that fix.",
-   "author": "docs/test-runs.md 2026-10-21 03:55 and 04:03"
+   "text": "Docked does not mean spawned: docking despawns the pawn into the stable's container, so docked dogs do not tick and their think tree does not run. The stable's tick keeps the network alive and must explicitly undock a dog before it can work.",
+   "author": "docs/architecture.md"
   },
   {
-   "id": "ann.3",
-   "target": "REQ-NET-006",
+   "id": "ann.scopedverification",
+   "target": "sub.verification",
    "kind": "risk",
-   "text": "Progress-timeout release (2500 ticks without progress) is implemented but no scenario forces a stall; VER-NET-TIMEOUT is planned, not passing.",
-   "author": "traceability review"
+   "text": "Recent practice is scoped runs (only scenarios the change can affect), not full Run all: the shared instance shares the CPU with the player's game and some fixtures are sequence-sensitive on a reused map. The last clean full packaged Run all is 39/39 (2026-10-20); later releases record scoped package verifications in docs/test-runs.md. No recent full-suite pass is claimed.",
+   "author": "TODO.md current state, 2026-11-07"
   },
   {
-   "id": "ann.4",
-   "target": "REQ-WRK-002",
-   "kind": "risk",
-   "text": "Trimming a vanilla job's extra targets is inspected in code only; no scenario asserts it.",
-   "author": "traceability review"
-  },
-  {
-   "id": "ann.5",
-   "target": "REQ-CHG-004",
-   "kind": "risk",
-   "text": "Cache rebuild on a building-signature change is untested; the charging scenarios clear the cache by hand instead.",
-   "author": "traceability review"
-  },
-  {
-   "id": "ann.6",
-   "target": "REQ-REC-004",
-   "kind": "risk",
-   "text": "The 2500-tick deferral of a downed dog to colonists with a field fix in stock is untested; only the colonist delivery itself is.",
-   "author": "traceability review"
-  },
-  {
-   "id": "ann.7",
-   "target": "comp.stable",
-   "kind": "note",
-   "text": "JobGiver_WaitInRoom (standby in the nearest non-bedroom room) is only reachable when no survey area exists; Stable fire observes surveying instead, so the room choice has no scenario.",
-   "author": "brownfield reconstruction"
-  },
-  {
-   "id": "ann.8",
-   "target": "comp.mod-core",
+   "id": "ann.besideusergame",
+   "target": "comp.host-harness",
    "kind": "decision",
-   "text": "Parented under Stable & Fabrication for want of a mod-level page: this is mod-wide plumbing (startup, settings, removal) that happens to dismantle stable and dog content.",
-   "author": "brownfield reconstruction"
+   "text": "The harness runs beside the player's open game (proven 2026-10-19, made the default): private profile, private Xvfb display, private log. It never touches the player's profile, window or input; tools/status.sh reports both games.",
+   "author": "AGENTS.md"
   },
   {
-   "id": "ann.9",
-   "target": "ext.harness",
-   "kind": "note",
-   "text": "A seventh Harmony patch is test-only (Root_Play.SetupForQuickTestPlay: fixture tile and map size) and active only with the launch argument; the gameplay patch count stays at six plus two XML StatParts.",
-   "author": "plan 0001 Test map size decision"
-  },
-  {
-   "id": "ann.10",
-   "target": "comp.net-node",
+   "id": "ann.harmonybudget",
+   "target": "comp.bootstrap",
    "kind": "decision",
-   "text": "State lives on an elected stable or dog, not a saved map component: removing the mod leaves no orphan map state, which is what makes the independent removal check clean.",
-   "author": "plan 0003 Persistence; AGENTS.md architecture note"
+   "text": "Harmony budget of about six patches, each where vanilla has no virtual or hook: rider draw, kidnap victims, construction eligibility, draft controller, colony-subhuman gate, carried-pawn angle. The seventh (quicktest setup) is test-gated and inert in a normal game. XML StatParts were preferred where a hook existed.",
+   "author": "plan 0001 Decisions; docs/design.md"
+  },
+  {
+   "id": "ann.newestsubsystem",
+   "target": "comp.hose",
+   "kind": "note",
+   "text": "Newest gameplay subsystem (plan 0010, delivered 2026-11-06). Hose jobs are chosen inside Work's clean-task construction: a qualifying \u22654-tile patch takes the hose job before ordinary cleaning.",
+   "author": "docs/plans/0010-water-hose.md"
+  },
+  {
+   "id": "ann.modelmaintenance",
+   "target": "sys.quadrunner",
+   "kind": "note",
+   "text": "This model is generated documentation: to change any diagram, edit docs/diagrams/model.json and re-run the renderer (see docs/diagrams/README.md). Line-number evidence was captured at generation time (2026-11-07) and will drift as source moves.",
+   "author": "docs/diagrams README"
   }
  ],
  "index": {
   "reqs_for_node": {
+   "sub.dispatch": [
+    "REQ-SYS-001",
+    "REQ-SYS-002",
+    "REQ-SYS-003",
+    "REQ-SYS-008"
+   ],
    "sub.stable": [
     "REQ-SYS-001",
-    "REQ-SYS-003"
-   ],
-   "sub.network": [
     "REQ-SYS-002"
    ],
-   "sub.work": [
-    "REQ-SYS-002"
-   ],
-   "sub.charging": [
-    "REQ-SYS-003"
-   ],
-   "sub.rescue": [
-    "REQ-SYS-004"
-   ],
-   "sub.riding": [
+   "sub.pawn": [
+    "REQ-SYS-001",
     "REQ-SYS-005"
    ],
    "sub.combat": [
+    "REQ-SYS-002"
+   ],
+   "sub.rescue": [
+    "REQ-SYS-003"
+   ],
+   "sub.riding": [
+    "REQ-SYS-004"
+   ],
+   "sub.power": [
+    "REQ-SYS-005"
+   ],
+   "sub.recovery": [
+    "REQ-SYS-005"
+   ],
+   "sub.removal": [
     "REQ-SYS-006"
    ],
-   "sub.pawn": [
+   "sub.verification": [
+    "REQ-SYS-006",
     "REQ-SYS-007"
    ],
    "sub.render": [
-    "REQ-SYS-007"
+    "REQ-SYS-009"
    ],
-   "comp.mod-core": [
-    "REQ-SYS-008",
-    "REQ-SYS-009",
-    "REQ-STB-010"
+   "sub.foundation": [
+    "REQ-SYS-009"
    ],
-   "comp.stable": [
-    "REQ-STB-001",
-    "REQ-STB-004",
-    "REQ-STB-003"
+   "comp.art": [
+    "REQ-SYS-009"
    ],
-   "comp.retrieval": [
-    "REQ-STB-006",
-    "REQ-STB-009",
-    "REQ-REC-001",
-    "REQ-REC-002",
+   "comp.bootstrap": [
+    "REQ-FND-001"
+   ],
+   "comp.stable-ui": [
+    "REQ-FND-002"
+   ],
+   "comp.work": [
+    "REQ-DIS-001",
+    "REQ-WRK-001"
+   ],
+   "comp.network": [
+    "REQ-DIS-001",
+    "REQ-DIS-002",
+    "REQ-DIS-003",
+    "REQ-DIS-004",
+    "REQ-DIS-005",
+    "REQ-RSC-002",
+    "REQ-RSC-003",
     "REQ-REC-003",
-    "REQ-REC-004"
-   ],
-   "comp.race": [
-    "REQ-PAW-001",
-    "REQ-CMB-010"
-   ],
-   "comp.battery": [
-    "REQ-PAW-002",
-    "REQ-PAW-003",
-    "REQ-CMB-006"
-   ],
-   "comp.net-node": [
-    "REQ-NET-001",
-    "REQ-NET-009",
-    "REQ-NET-003",
-    "REQ-NET-004",
-    "REQ-NET-005",
-    "REQ-NET-006",
-    "REQ-NET-007",
-    "REQ-NET-010",
-    "REQ-RES-003"
-   ],
-   "comp.discovery": [
-    "REQ-NET-002"
-   ],
-   "comp.charge-decision": [
-    "REQ-CHG-001",
-    "REQ-REC-003"
-   ],
-   "comp.charge-spots": [
-    "REQ-CHG-002",
-    "REQ-CHG-003",
-    "REQ-CHG-004"
-   ],
-   "comp.work-job": [
-    "REQ-WRK-001",
-    "REQ-WRK-002"
-   ],
-   "comp.raid-part": [
-    "REQ-WRK-004"
-   ],
-   "comp.triage": [
-    "REQ-RES-001"
-   ],
-   "comp.ride-order": [
-    "REQ-RID-001"
-   ],
-   "comp.ping": [
-    "REQ-CMB-001"
-   ],
-   "comp.tiers": [
-    "REQ-CMB-008",
-    "REQ-CMB-009",
-    "REQ-CMB-010"
-   ],
-   "comp.render-tree": [
-    "REQ-REN-001"
-   ],
-   "comp.pose": [
-    "REQ-REN-001",
-    "REQ-REN-003"
-   ],
-   "comp.gait": [
-    "REQ-REN-001"
-   ],
-   "comp.bills": [
-    "REQ-STB-002",
-    "REQ-STB-008"
-   ],
-   "comp.overview": [
-    "REQ-STB-005"
-   ],
-   "comp.fieldfix": [
-    "REQ-STB-007"
-   ],
-   "comp.think-tree": [
-    "REQ-PAW-004"
+    "REQ-CBT-002"
    ],
    "comp.survey": [
-    "REQ-NET-008"
+    "REQ-DIS-006"
    ],
-   "comp.conduit-charge": [
-    "REQ-CHG-005"
+   "comp.defs": [
+    "REQ-WRK-001",
+    "REQ-PWN-001"
    ],
-   "comp.construct-patch": [
-    "REQ-WRK-003"
+   "comp.stable-building": [
+    "REQ-STB-001",
+    "REQ-STB-002",
+    "REQ-REC-003",
+    "REQ-CBT-003"
    ],
-   "comp.rescue-job": [
-    "REQ-RES-002",
-    "REQ-RES-003"
+   "comp.docking": [
+    "REQ-STB-001"
    ],
-   "comp.ride-stats": [
-    "REQ-RID-002",
-    "REQ-RID-004"
+   "comp.fabrication": [
+    "REQ-STB-002",
+    "REQ-CBT-004"
    ],
-   "comp.ride-driver": [
-    "REQ-RID-002",
-    "REQ-RID-003",
-    "REQ-RID-005"
+   "comp.races": [
+    "REQ-PWN-001"
    ],
-   "comp.engage": [
-    "REQ-CMB-002",
-    "REQ-CMB-003"
+   "comp.charging": [
+    "REQ-CHG-001"
    ],
-   "comp.patrol": [
-    "REQ-CMB-005"
+   "comp.chargespots": [
+    "REQ-CHG-001"
    ],
-   "comp.siren": [
-    "REQ-CMB-006",
-    "REQ-REN-002"
+   "comp.settings": [
+    "REQ-CHG-001",
+    "REQ-REM-001"
+   ],
+   "comp.comprobodog": [
+    "REQ-CHG-002"
+   ],
+   "comp.rescue": [
+    "REQ-RSC-001",
+    "REQ-RSC-002"
+   ],
+   "comp.firefighting": [
+    "REQ-RSC-003"
+   ],
+   "comp.hose": [
+    "REQ-HOS-001"
+   ],
+   "comp.retrieval": [
+    "REQ-REC-001",
+    "REQ-REC-003"
+   ],
+   "comp.fieldfix": [
+    "REQ-REC-002"
+   ],
+   "comp.combat": [
+    "REQ-CBT-001",
+    "REQ-CBT-002",
+    "REQ-CBT-003"
+   ],
+   "comp.tiers": [
+    "REQ-CBT-004"
+   ],
+   "comp.packcombat": [
+    "REQ-CBT-005"
    ],
    "comp.drafting": [
-    "REQ-CMB-007"
+    "REQ-CBT-006"
+   ],
+   "comp.riding": [
+    "REQ-RID-001"
+   ],
+   "comp.render-nodes": [
+    "REQ-RND-001"
+   ],
+   "comp.removal": [
+    "REQ-REM-001"
+   ],
+   "comp.host-harness": [
+    "REQ-TST-001",
+    "REQ-TST-002",
+    "REQ-TST-003"
+   ],
+   "comp.selftest": [
+    "REQ-TST-001"
+   ],
+   "comp.scenarios": [
+    "REQ-TST-002"
+   ],
+   "comp.autotest": [
+    "REQ-TST-002"
+   ],
+   "comp.removal-probe": [
+    "REQ-TST-004"
    ]
   },
   "vers_for_req": {
@@ -3860,389 +2628,294 @@ window.SYSTEM_MODEL = {
     "VER-SYS-001"
    ],
    "REQ-SYS-002": [
-    "VER-SYS-001"
-   ],
-   "REQ-SYS-003": [
-    "VER-SYS-001"
-   ],
-   "REQ-SYS-004": [
-    "VER-SYS-001"
-   ],
-   "REQ-SYS-005": [
-    "VER-SYS-001"
-   ],
-   "REQ-SYS-006": [
-    "VER-SYS-001"
-   ],
-   "REQ-SYS-007": [
-    "VER-SYS-001",
-    "VER-SYS-003"
-   ],
-   "REQ-SYS-008": [
     "VER-SYS-002"
    ],
-   "REQ-SYS-009": [
+   "REQ-SYS-003": [
+    "VER-SYS-003"
+   ],
+   "REQ-SYS-004": [
     "VER-SYS-004"
    ],
-   "REQ-STB-001": [
-    "VER-STB-DOCK",
-    "VER-STB-FULL"
+   "REQ-SYS-005": [
+    "VER-SYS-005"
    ],
-   "REQ-PAW-001": [
-    "VER-STB-DOCK"
+   "REQ-SYS-006": [
+    "VER-SYS-006"
    ],
-   "REQ-PAW-004": [
-    "VER-STB-DOCK",
-    "VER-STB-CHARGE"
+   "REQ-SYS-007": [
+    "VER-SYS-007"
    ],
-   "REQ-STB-002": [
-    "VER-STB-FULL",
-    "VER-STB-ASM"
+   "REQ-SYS-008": [
+    "VER-SYS-008"
    ],
-   "REQ-STB-003": [
-    "VER-STB-CHARGE",
-    "VER-STB-POWER"
+   "REQ-SYS-009": [
+    "VER-SYS-009"
    ],
-   "REQ-CHG-001": [
-    "VER-STB-CHARGE",
-    "VER-CHG-MAZE"
+   "REQ-FND-002": [
+    "VER-SYS-009"
    ],
-   "REQ-STB-004": [
-    "VER-STB-FIRE",
-    "VER-STB-UNINSTALL"
+   "REQ-DIS-001": [
+    "VER-DIS-001"
    ],
-   "REQ-STB-005": [
-    "VER-STB-OVERVIEW"
+   "REQ-DIS-002": [
+    "VER-DIS-002"
    ],
-   "REQ-CMB-008": [
-    "VER-STB-OVERVIEW"
+   "REQ-DIS-003": [
+    "VER-DIS-003"
    ],
-   "REQ-CMB-009": [
-    "VER-STB-OVERVIEW",
-    "VER-CMB-T3",
-    "VER-CMB-DEMO"
+   "REQ-DIS-004": [
+    "VER-DIS-004"
    ],
-   "REQ-STB-006": [
-    "VER-STB-CARRY"
+   "REQ-DIS-005": [
+    "VER-DIS-005"
    ],
-   "REQ-STB-007": [
-    "VER-STB-FIELD"
-   ],
-   "REQ-STB-008": [
-    "VER-STB-WRECK"
-   ],
-   "REQ-STB-010": [
-    "VER-STB-REMOVAL"
-   ],
-   "REQ-STB-009": [
-    "VER-STB-ALERT"
-   ],
-   "REQ-REC-001": [
-    "VER-STB-ALERT"
-   ],
-   "REQ-PAW-002": [
-    "VER-PAW-DRAIN",
-    "VER-WRK-RAID",
-    "VER-RID-EMPTY"
-   ],
-   "REQ-PAW-003": [
-    "VER-PAW-DRAIN"
-   ],
-   "REQ-NET-001": [
-    "VER-NET-COORD"
-   ],
-   "REQ-NET-002": [
-    "VER-NET-DISC",
-    "VER-NET-SCAN"
-   ],
-   "REQ-NET-008": [
-    "VER-NET-DISC",
-    "VER-WRK-HAUL"
+   "REQ-DIS-006": [
+    "VER-DIS-006"
    ],
    "REQ-WRK-001": [
-    "VER-NET-SCAN",
-    "VER-WRK-HAUL",
-    "VER-WRK-TWO"
+    "VER-WRK-001"
    ],
-   "REQ-NET-003": [
-    "VER-NET-DEDUP"
+   "REQ-STB-001": [
+    "VER-STB-001"
    ],
-   "REQ-NET-004": [
-    "VER-NET-NEAR",
-    "VER-WRK-TWO"
+   "REQ-STB-002": [
+    "VER-STB-002"
    ],
-   "REQ-NET-005": [
-    "VER-NET-DEATH"
+   "REQ-PWN-001": [
+    "VER-PWN-001"
    ],
-   "REQ-NET-007": [
-    "VER-NET-CLEAR"
-   ],
-   "REQ-NET-009": [
-    "VER-NET-WAR",
-    "VER-WRK-RAID"
-   ],
-   "REQ-WRK-004": [
-    "VER-WRK-RAID"
-   ],
-   "REQ-NET-010": [
-    "VER-NET-NOSTABLE",
-    "VER-NET-MEDIC"
-   ],
-   "REQ-CMB-002": [
-    "VER-NET-NOSTABLE"
-   ],
-   "REQ-RES-003": [
-    "VER-NET-MEDIC",
-    "VER-RES-MASS"
+   "REQ-CHG-001": [
+    "VER-CHG-001"
    ],
    "REQ-CHG-002": [
-    "VER-CHG-SPOT",
-    "VER-CHG-MAZE",
-    "VER-CHG-ROOM"
+    "VER-CHG-002"
    ],
-   "REQ-CHG-005": [
-    "VER-CHG-SPOT",
-    "VER-CHG-ROOM",
-    "VER-CHG-DRAIN"
+   "REQ-RSC-001": [
+    "VER-RSC-001"
    ],
-   "REQ-CHG-003": [
-    "VER-CHG-ROOM"
+   "REQ-RSC-002": [
+    "VER-RSC-002"
    ],
-   "REQ-WRK-003": [
-    "VER-WRK-HAUL"
+   "REQ-RSC-003": [
+    "VER-RSC-003"
    ],
-   "REQ-RES-001": [
-    "VER-RES-MASS",
-    "VER-RES-ORDER"
+   "REQ-HOS-001": [
+    "VER-HOS-001"
    ],
-   "REQ-RES-002": [
-    "VER-RES-MASS",
-    "VER-RES-ORDER"
-   ],
-   "REQ-RID-001": [
-    "VER-RID-EMPTY",
-    "VER-RID-DISMOUNT"
-   ],
-   "REQ-RID-002": [
-    "VER-RID-EMPTY"
-   ],
-   "REQ-RID-003": [
-    "VER-RID-EMPTY",
-    "VER-RID-DISMOUNT"
-   ],
-   "REQ-RID-005": [
-    "VER-RID-EMPTY",
-    "VER-RID-DISMOUNT"
-   ],
-   "REQ-RID-004": [
-    "VER-RID-POSE"
-   ],
-   "REQ-CMB-001": [
-    "VER-CMB-PING"
-   ],
-   "REQ-CMB-003": [
-    "VER-CMB-PING",
-    "VER-CMB-SWEEP"
-   ],
-   "REQ-CMB-005": [
-    "VER-CMB-SWEEP"
-   ],
-   "REQ-CMB-006": [
-    "VER-CMB-RETREAT",
-    "VER-CMB-DRAFT"
-   ],
-   "REQ-REN-002": [
-    "VER-CMB-RETREAT",
-    "VER-REN-RESCUE"
-   ],
-   "REQ-CMB-007": [
-    "VER-CMB-DRAFT"
-   ],
-   "REQ-CMB-010": [
-    "VER-CMB-ENDURE"
-   ],
-   "REQ-REN-001": [
-    "VER-REN-ART",
-    "VER-REN-WALK",
-    "VER-REN-RESCUE",
-    "VER-REN-COMBAT"
-   ],
-   "REQ-REN-003": [
-    "VER-REN-RESCUE"
+   "REQ-REC-001": [
+    "VER-REC-001"
    ],
    "REQ-REC-002": [
-    "VER-REC-KIDNAP"
+    "VER-REC-002"
    ],
    "REQ-REC-003": [
-    "VER-REC-CARRIER"
+    "VER-REC-003"
+   ],
+   "REQ-CBT-001": [
+    "VER-CBT-001"
+   ],
+   "REQ-CBT-002": [
+    "VER-CBT-002"
+   ],
+   "REQ-CBT-003": [
+    "VER-CBT-003"
+   ],
+   "REQ-CBT-004": [
+    "VER-CBT-004"
+   ],
+   "REQ-CBT-005": [
+    "VER-CBT-005"
+   ],
+   "REQ-CBT-006": [
+    "VER-CBT-006"
+   ],
+   "REQ-RID-001": [
+    "VER-RID-001"
+   ],
+   "REQ-RND-001": [
+    "VER-RND-001"
+   ],
+   "REQ-REM-001": [
+    "VER-REM-001"
+   ],
+   "REQ-TST-001": [
+    "VER-TST-001"
+   ],
+   "REQ-TST-002": [
+    "VER-TST-002"
+   ],
+   "REQ-FND-001": [
+    "VER-TST-002"
+   ],
+   "REQ-TST-003": [
+    "VER-TST-003"
+   ],
+   "REQ-TST-004": [
+    "VER-TST-004"
    ]
   },
   "flows_for_node": {
-   "comp.net-node": [
-    "flow.dispatch",
-    "flow.charge",
-    "flow.combat"
-   ],
-   "comp.discovery": [
-    "flow.dispatch"
-   ],
-   "comp.work-job": [
-    "flow.dispatch"
-   ],
-   "ext.vanilla": [
-    "flow.dispatch",
-    "flow.combat"
-   ],
-   "comp.think-tree": [
-    "flow.dispatch",
-    "flow.charge",
-    "flow.combat"
-   ],
-   "comp.survey": [
-    "flow.dispatch"
-   ],
-   "comp.battery": [
-    "flow.charge",
-    "flow.combat"
-   ],
-   "comp.charge-decision": [
+   "ext.rimworld": [
+    "flow.haul",
+    "flow.war",
     "flow.charge"
    ],
-   "comp.charge-spots": [
+   "comp.comprobodog": [
+    "flow.haul",
+    "flow.war",
     "flow.charge"
    ],
-   "comp.stable": [
-    "flow.charge"
+   "comp.work": [
+    "flow.haul"
    ],
-   "comp.conduit-charge": [
-    "flow.charge"
+   "comp.network": [
+    "flow.haul",
+    "flow.war"
+   ],
+   "comp.combat": [
+    "flow.war"
+   ],
+   "comp.packcombat": [
+    "flow.war"
    ],
    "comp.retrieval": [
+    "flow.war"
+   ],
+   "comp.stable-building": [
+    "flow.war"
+   ],
+   "comp.fabrication": [
+    "flow.war"
+   ],
+   "comp.charging": [
     "flow.charge"
    ],
-   "comp.ping": [
-    "flow.combat"
-   ],
-   "comp.engage": [
-    "flow.combat"
-   ],
-   "comp.tiers": [
-    "flow.combat"
-   ],
-   "comp.patrol": [
-    "flow.combat"
+   "comp.chargespots": [
+    "flow.charge"
    ]
   },
   "children": {
    "sys.quadrunner": [
+    "sub.foundation",
     "sub.stable",
     "sub.pawn",
-    "sub.network",
-    "sub.charging",
-    "sub.work",
+    "sub.power",
+    "sub.dispatch",
     "sub.rescue",
-    "sub.riding",
+    "sub.recovery",
     "sub.combat",
-    "sub.render"
+    "sub.riding",
+    "sub.render",
+    "sub.removal",
+    "sub.verification"
+   ],
+   "sub.foundation": [
+    "comp.bootstrap",
+    "comp.defs",
+    "comp.settings",
+    "comp.stable-ui"
    ],
    "sub.stable": [
-    "comp.stable",
-    "comp.bills",
-    "comp.overview",
-    "comp.retrieval",
-    "comp.fieldfix",
-    "comp.mod-core"
-   ],
-   "sub.pawn": [
-    "comp.race",
-    "comp.battery",
-    "comp.think-tree"
-   ],
-   "sub.network": [
-    "comp.net-node",
-    "comp.discovery",
-    "comp.survey"
-   ],
-   "sub.charging": [
-    "comp.charge-decision",
-    "comp.charge-spots",
-    "comp.conduit-charge"
-   ],
-   "sub.work": [
-    "comp.work-job",
-    "comp.construct-patch",
-    "comp.raid-part"
-   ],
-   "sub.rescue": [
-    "comp.triage",
-    "comp.rescue-job"
-   ],
-   "sub.riding": [
-    "comp.ride-order",
-    "comp.ride-driver",
-    "comp.ride-stats"
-   ],
-   "sub.combat": [
-    "comp.ping",
-    "comp.engage",
-    "comp.patrol",
-    "comp.drafting",
+    "comp.stable-building",
+    "comp.fabrication",
     "comp.tiers"
    ],
+   "sub.pawn": [
+    "comp.comprobodog",
+    "comp.docking",
+    "comp.races"
+   ],
+   "sub.power": [
+    "comp.charging",
+    "comp.chargespots"
+   ],
+   "sub.dispatch": [
+    "comp.network",
+    "comp.work",
+    "comp.survey"
+   ],
+   "sub.rescue": [
+    "comp.rescue",
+    "comp.firefighting",
+    "comp.hose"
+   ],
+   "sub.recovery": [
+    "comp.retrieval",
+    "comp.fieldfix"
+   ],
+   "sub.combat": [
+    "comp.combat",
+    "comp.packcombat",
+    "comp.drafting"
+   ],
+   "sub.riding": [
+    "comp.riding"
+   ],
    "sub.render": [
-    "comp.render-tree",
-    "comp.pose",
-    "comp.gait",
-    "comp.siren"
+    "comp.render-nodes",
+    "comp.art"
+   ],
+   "sub.removal": [
+    "comp.removal"
+   ],
+   "sub.verification": [
+    "comp.autotest",
+    "comp.scenarios",
+    "comp.host-harness",
+    "comp.selftest",
+    "comp.removal-probe"
    ]
   },
   "page_for": {
    "sys.quadrunner": "index.html",
+   "sub.foundation": "sub--sub-foundation.html",
    "sub.stable": "sub--sub-stable.html",
    "sub.pawn": "sub--sub-pawn.html",
-   "sub.network": "sub--sub-network.html",
-   "sub.charging": "sub--sub-charging.html",
-   "sub.work": "sub--sub-work.html",
+   "sub.power": "sub--sub-power.html",
+   "sub.dispatch": "sub--sub-dispatch.html",
    "sub.rescue": "sub--sub-rescue.html",
-   "sub.riding": "sub--sub-riding.html",
+   "sub.recovery": "sub--sub-recovery.html",
    "sub.combat": "sub--sub-combat.html",
+   "sub.riding": "sub--sub-riding.html",
    "sub.render": "sub--sub-render.html",
-   "comp.stable": "sub--sub-stable.html",
-   "comp.bills": "sub--sub-stable.html",
-   "comp.overview": "sub--sub-stable.html",
-   "comp.retrieval": "sub--sub-stable.html",
-   "comp.fieldfix": "sub--sub-stable.html",
-   "comp.mod-core": "sub--sub-stable.html",
-   "comp.race": "sub--sub-pawn.html",
-   "comp.battery": "sub--sub-pawn.html",
-   "comp.think-tree": "sub--sub-pawn.html",
-   "comp.net-node": "sub--sub-network.html",
-   "comp.discovery": "sub--sub-network.html",
-   "comp.survey": "sub--sub-network.html",
-   "comp.charge-decision": "sub--sub-charging.html",
-   "comp.charge-spots": "sub--sub-charging.html",
-   "comp.conduit-charge": "sub--sub-charging.html",
-   "comp.work-job": "sub--sub-work.html",
-   "comp.construct-patch": "sub--sub-work.html",
-   "comp.raid-part": "sub--sub-work.html",
-   "comp.triage": "sub--sub-rescue.html",
-   "comp.rescue-job": "sub--sub-rescue.html",
-   "comp.ride-order": "sub--sub-riding.html",
-   "comp.ride-driver": "sub--sub-riding.html",
-   "comp.ride-stats": "sub--sub-riding.html",
-   "comp.ping": "sub--sub-combat.html",
-   "comp.engage": "sub--sub-combat.html",
-   "comp.patrol": "sub--sub-combat.html",
+   "sub.removal": "sub--sub-removal.html",
+   "sub.verification": "sub--sub-verification.html",
+   "comp.bootstrap": "sub--sub-foundation.html",
+   "comp.defs": "sub--sub-foundation.html",
+   "comp.settings": "sub--sub-foundation.html",
+   "comp.stable-ui": "sub--sub-foundation.html",
+   "comp.stable-building": "sub--sub-stable.html",
+   "comp.fabrication": "sub--sub-stable.html",
+   "comp.tiers": "sub--sub-stable.html",
+   "comp.comprobodog": "sub--sub-pawn.html",
+   "comp.docking": "sub--sub-pawn.html",
+   "comp.races": "sub--sub-pawn.html",
+   "comp.charging": "sub--sub-power.html",
+   "comp.chargespots": "sub--sub-power.html",
+   "comp.network": "sub--sub-dispatch.html",
+   "comp.work": "sub--sub-dispatch.html",
+   "comp.survey": "sub--sub-dispatch.html",
+   "comp.rescue": "sub--sub-rescue.html",
+   "comp.firefighting": "sub--sub-rescue.html",
+   "comp.hose": "sub--sub-rescue.html",
+   "comp.retrieval": "sub--sub-recovery.html",
+   "comp.fieldfix": "sub--sub-recovery.html",
+   "comp.combat": "sub--sub-combat.html",
+   "comp.packcombat": "sub--sub-combat.html",
    "comp.drafting": "sub--sub-combat.html",
-   "comp.tiers": "sub--sub-combat.html",
-   "comp.render-tree": "sub--sub-render.html",
-   "comp.pose": "sub--sub-render.html",
-   "comp.gait": "sub--sub-render.html",
-   "comp.siren": "sub--sub-render.html",
+   "comp.riding": "sub--sub-riding.html",
+   "comp.render-nodes": "sub--sub-render.html",
+   "comp.art": "sub--sub-render.html",
+   "comp.removal": "sub--sub-removal.html",
+   "comp.autotest": "sub--sub-verification.html",
+   "comp.scenarios": "sub--sub-verification.html",
+   "comp.host-harness": "sub--sub-verification.html",
+   "comp.selftest": "sub--sub-verification.html",
+   "comp.removal-probe": "sub--sub-verification.html",
    "actor.player": "index.html",
-   "ext.vanilla": "index.html",
+   "actor.developer": "index.html",
+   "ext.rimworld": "index.html",
    "ext.harmony": "index.html",
-   "ext.harness": "index.html",
    "REQ-SYS-001": "traceability.html",
    "REQ-SYS-002": "traceability.html",
    "REQ-SYS-003": "traceability.html",
@@ -4252,119 +2925,84 @@ window.SYSTEM_MODEL = {
    "REQ-SYS-007": "traceability.html",
    "REQ-SYS-008": "traceability.html",
    "REQ-SYS-009": "traceability.html",
+   "REQ-FND-001": "traceability.html",
+   "REQ-FND-002": "traceability.html",
+   "REQ-DIS-001": "traceability.html",
+   "REQ-DIS-002": "traceability.html",
+   "REQ-DIS-003": "traceability.html",
+   "REQ-DIS-004": "traceability.html",
+   "REQ-DIS-005": "traceability.html",
+   "REQ-DIS-006": "traceability.html",
+   "REQ-WRK-001": "traceability.html",
    "REQ-STB-001": "traceability.html",
-   "REQ-STB-004": "traceability.html",
-   "REQ-STB-006": "traceability.html",
-   "REQ-STB-009": "traceability.html",
-   "REQ-STB-010": "traceability.html",
-   "REQ-PAW-001": "traceability.html",
-   "REQ-PAW-002": "traceability.html",
-   "REQ-NET-001": "traceability.html",
-   "REQ-NET-002": "traceability.html",
-   "REQ-NET-009": "traceability.html",
+   "REQ-STB-002": "traceability.html",
+   "REQ-PWN-001": "traceability.html",
    "REQ-CHG-001": "traceability.html",
    "REQ-CHG-002": "traceability.html",
-   "REQ-WRK-001": "traceability.html",
-   "REQ-WRK-004": "traceability.html",
-   "REQ-RES-001": "traceability.html",
-   "REQ-RID-001": "traceability.html",
-   "REQ-CMB-001": "traceability.html",
-   "REQ-CMB-008": "traceability.html",
-   "REQ-REN-001": "traceability.html",
-   "REQ-STB-002": "traceability.html",
-   "REQ-STB-003": "traceability.html",
-   "REQ-STB-005": "traceability.html",
-   "REQ-STB-007": "traceability.html",
-   "REQ-STB-008": "traceability.html",
+   "REQ-RSC-001": "traceability.html",
+   "REQ-RSC-002": "traceability.html",
+   "REQ-RSC-003": "traceability.html",
+   "REQ-HOS-001": "traceability.html",
    "REQ-REC-001": "traceability.html",
    "REQ-REC-002": "traceability.html",
    "REQ-REC-003": "traceability.html",
-   "REQ-REC-004": "traceability.html",
-   "REQ-PAW-003": "traceability.html",
-   "REQ-PAW-004": "traceability.html",
-   "REQ-NET-003": "traceability.html",
-   "REQ-NET-004": "traceability.html",
-   "REQ-NET-005": "traceability.html",
-   "REQ-NET-006": "traceability.html",
-   "REQ-NET-007": "traceability.html",
-   "REQ-NET-008": "traceability.html",
-   "REQ-NET-010": "traceability.html",
-   "REQ-CHG-003": "traceability.html",
-   "REQ-CHG-004": "traceability.html",
-   "REQ-CHG-005": "traceability.html",
-   "REQ-WRK-002": "traceability.html",
-   "REQ-WRK-003": "traceability.html",
-   "REQ-RES-002": "traceability.html",
-   "REQ-RES-003": "traceability.html",
-   "REQ-RID-002": "traceability.html",
-   "REQ-RID-003": "traceability.html",
-   "REQ-RID-004": "traceability.html",
-   "REQ-RID-005": "traceability.html",
-   "REQ-CMB-002": "traceability.html",
-   "REQ-CMB-003": "traceability.html",
-   "REQ-CMB-005": "traceability.html",
-   "REQ-CMB-006": "traceability.html",
-   "REQ-CMB-007": "traceability.html",
-   "REQ-CMB-009": "traceability.html",
-   "REQ-CMB-010": "traceability.html",
-   "REQ-REN-002": "traceability.html",
-   "REQ-REN-003": "traceability.html",
+   "REQ-CBT-001": "traceability.html",
+   "REQ-CBT-002": "traceability.html",
+   "REQ-CBT-003": "traceability.html",
+   "REQ-CBT-004": "traceability.html",
+   "REQ-CBT-005": "traceability.html",
+   "REQ-CBT-006": "traceability.html",
+   "REQ-RID-001": "traceability.html",
+   "REQ-RND-001": "traceability.html",
+   "REQ-REM-001": "traceability.html",
+   "REQ-TST-001": "traceability.html",
+   "REQ-TST-002": "traceability.html",
+   "REQ-TST-003": "traceability.html",
+   "REQ-TST-004": "traceability.html",
    "VER-SYS-001": "traceability.html",
    "VER-SYS-002": "traceability.html",
    "VER-SYS-003": "traceability.html",
    "VER-SYS-004": "traceability.html",
-   "VER-STB-DOCK": "traceability.html",
-   "VER-STB-FULL": "traceability.html",
-   "VER-STB-ASM": "traceability.html",
-   "VER-STB-CHARGE": "traceability.html",
-   "VER-STB-POWER": "traceability.html",
-   "VER-STB-FIRE": "traceability.html",
-   "VER-STB-UNINSTALL": "traceability.html",
-   "VER-STB-OVERVIEW": "traceability.html",
-   "VER-STB-CARRY": "traceability.html",
-   "VER-STB-FIELD": "traceability.html",
-   "VER-STB-WRECK": "traceability.html",
-   "VER-STB-REMOVAL": "traceability.html",
-   "VER-STB-ALERT": "traceability.html",
-   "VER-PAW-DRAIN": "traceability.html",
-   "VER-NET-COORD": "traceability.html",
-   "VER-NET-DISC": "traceability.html",
-   "VER-NET-SCAN": "traceability.html",
-   "VER-NET-DEDUP": "traceability.html",
-   "VER-NET-NEAR": "traceability.html",
-   "VER-NET-DEATH": "traceability.html",
-   "VER-NET-CLEAR": "traceability.html",
-   "VER-NET-WAR": "traceability.html",
-   "VER-WRK-RAID": "traceability.html",
-   "VER-NET-NOSTABLE": "traceability.html",
-   "VER-NET-MEDIC": "traceability.html",
-   "VER-CHG-SPOT": "traceability.html",
-   "VER-CHG-MAZE": "traceability.html",
-   "VER-CHG-ROOM": "traceability.html",
-   "VER-CHG-DRAIN": "traceability.html",
-   "VER-WRK-HAUL": "traceability.html",
-   "VER-WRK-TWO": "traceability.html",
-   "VER-RES-MASS": "traceability.html",
-   "VER-RES-ORDER": "traceability.html",
-   "VER-RID-EMPTY": "traceability.html",
-   "VER-RID-DISMOUNT": "traceability.html",
-   "VER-RID-POSE": "traceability.html",
-   "VER-CMB-PING": "traceability.html",
-   "VER-CMB-SWEEP": "traceability.html",
-   "VER-CMB-RETREAT": "traceability.html",
-   "VER-CMB-DRAFT": "traceability.html",
-   "VER-CMB-T3": "traceability.html",
-   "VER-CMB-DEMO": "traceability.html",
-   "VER-CMB-ENDURE": "traceability.html",
-   "VER-REN-ART": "traceability.html",
-   "VER-REN-WALK": "traceability.html",
-   "VER-REN-RESCUE": "traceability.html",
-   "VER-REN-COMBAT": "traceability.html",
-   "VER-REC-KIDNAP": "traceability.html",
-   "VER-REC-CARRIER": "traceability.html",
-   "flow.dispatch": "flow--flow-dispatch.html",
-   "flow.charge": "flow--flow-charge.html",
-   "flow.combat": "flow--flow-combat.html"
+   "VER-SYS-005": "traceability.html",
+   "VER-SYS-006": "traceability.html",
+   "VER-SYS-007": "traceability.html",
+   "VER-SYS-008": "traceability.html",
+   "VER-SYS-009": "traceability.html",
+   "VER-DIS-001": "traceability.html",
+   "VER-DIS-002": "traceability.html",
+   "VER-DIS-003": "traceability.html",
+   "VER-DIS-004": "traceability.html",
+   "VER-DIS-005": "traceability.html",
+   "VER-DIS-006": "traceability.html",
+   "VER-WRK-001": "traceability.html",
+   "VER-STB-001": "traceability.html",
+   "VER-STB-002": "traceability.html",
+   "VER-PWN-001": "traceability.html",
+   "VER-CHG-001": "traceability.html",
+   "VER-CHG-002": "traceability.html",
+   "VER-RSC-001": "traceability.html",
+   "VER-RSC-002": "traceability.html",
+   "VER-RSC-003": "traceability.html",
+   "VER-HOS-001": "traceability.html",
+   "VER-REC-001": "traceability.html",
+   "VER-REC-002": "traceability.html",
+   "VER-REC-003": "traceability.html",
+   "VER-CBT-001": "traceability.html",
+   "VER-CBT-002": "traceability.html",
+   "VER-CBT-003": "traceability.html",
+   "VER-CBT-004": "traceability.html",
+   "VER-CBT-005": "traceability.html",
+   "VER-CBT-006": "traceability.html",
+   "VER-RID-001": "traceability.html",
+   "VER-RND-001": "traceability.html",
+   "VER-REM-001": "traceability.html",
+   "VER-TST-001": "traceability.html",
+   "VER-TST-002": "traceability.html",
+   "VER-TST-003": "traceability.html",
+   "VER-TST-004": "traceability.html",
+   "flow.haul": "flow--flow-haul.html",
+   "flow.war": "flow--flow-war.html",
+   "flow.charge": "flow--flow-charge.html"
   }
  }
 };
