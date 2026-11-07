@@ -80,5 +80,6 @@ For native hover checks, cold-start the private display with `QR_SCREEN=1280x900
 - Hearthline lore and tooltip plan: [docs/plans/0002-hearthline-lore.md](docs/plans/0002-hearthline-lore.md)
 - Shared queue, exploration and failover plan: [docs/plans/0003-network-dispatch.md](docs/plans/0003-network-dispatch.md)
 - Area-aware survey implementation: [docs/plans/0004-area-aware-survey.md](docs/plans/0004-area-aware-survey.md)
+- Interactive system diagrams: [docs/diagrams/index.html](docs/diagrams/index.html) — per-subsystem pages, behaviour flows and a requirement-to-test traceability view; [docs/diagrams/model.json](docs/diagrams/model.json) is their source of truth
 - Automated work loop and tool reference: [AGENTS.md](AGENTS.md)
 - Verification evidence: [docs/test-runs.md](docs/test-runs.md)
