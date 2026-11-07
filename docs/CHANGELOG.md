@@ -27,7 +27,8 @@ place on load.
   beds or sleeping spots, and any animal bed previously claimed by a robodog in
   an existing save is released on load. Non-combat robodogs downed by leg
   injuries (with battery remaining) are now also retrieved to a stable for
-  powered repair and offer right-click **Carry to stable** (user-reported).
+  powered repair and offer right-click **Carry to stable** (user-reported;
+  package `1bb831f.20261107T082751Z`, 11/11 scenarios, 0 new errors).
 - Docked Medirunners no longer undock speculatively every 2–3 seconds when the
   queues hold only work they cannot take (a downed animal with no reachable
   bed, a reserved or unreachable patient or fire, a powered-down Combatdog
