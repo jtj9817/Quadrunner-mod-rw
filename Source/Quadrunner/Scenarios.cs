@@ -92,6 +92,7 @@ namespace Quadrunner
             ("Mass-casualty raid", MassCasualtyRaid),
             ("Rescue order", RescueOrder),
             ("Manual rescue dispatch", ManualRescueDispatch),
+            ("Medirunner idle deployment guard", MedirunnerIdleDeploymentGuard),
             ("Medirunner legacy migration", MedirunnerLegacyMigration),
             ("Medirunner firefighting", MedirunnerFirefighting),
             ("Medirunner fire continuity", MedirunnerFireContinuity),

@@ -53,6 +53,44 @@ namespace Quadrunner
         public static bool Casualty(Pawn pawn) =>
             pawn != null && !pawn.Dead && (pawn.Downed || CompRobodog.Of(pawn)?.PoweredDown == true);
 
+
+        /// <summary>
+        /// Zero-spawn check before any docked carrier is probed: whether a casualty or wreck is spawned on the map,
+        /// unreserved, not awaiting a colonist field battery, and region-reachable to a receiving stable.
+        /// </summary>
+        public static bool CanPotentiallyRecover(NetworkTask task, Map map)
+        {
+            if (task == null || map == null)
+                return false;
+            Thing target = task.Target(map);
+            if (target == null || target.Destroyed || !target.Spawned || target.Map != map
+                || map.reservationManager.IsReserved(target)
+                || map.physicalInteractionReservationManager.IsReserved(target))
+                return false;
+            TraverseParms passDoors = TraverseParms.For(TraverseMode.PassDoors, Danger.Deadly);
+            List<Building> buildings = map.listerBuildings.allBuildingsColonist;
+            if (task.casualtyDead)
+            {
+                if (!(target is Corpse wreck) || wreck.InnerPawn == null
+                    || wreck.InnerPawn.Faction != Faction.OfPlayer
+                    || RobodogWork.Of(wreck.InnerPawn)?.combat != true)
+                    return false;
+                for (int i = 0; i < buildings.Count; i++)
+                    if (buildings[i] is Building_Stable stable && stable.Spawned
+                        && map.reachability.CanReach(wreck.Position, stable, PathEndMode.InteractionCell, passDoors))
+                        return true;
+                return false;
+            }
+            if (!(target is Pawn casualty) || casualty.Dead || RobodogWork.Of(casualty)?.combat != true
+                || !Casualty(casualty) || casualty.IsForbidden(Faction.OfPlayer) || AwaitsFieldFix(casualty))
+                return false;
+            Building_Stable home = CompRobodog.Of(casualty)?.stable;
+            for (int i = 0; i < buildings.Count; i++)
+                if (buildings[i] is Building_Stable stable && stable.Spawned && (home == stable || stable.HasFreeSlot)
+                    && map.reachability.CanReach(casualty.Position, stable, PathEndMode.InteractionCell, passDoors))
+                    return true;
+            return false;
+        }
         /// <summary>
         /// The job for one central casualty order: the real living dog, or the real wreck it left. Null when that
         /// body is gone, forbidden, reserved or out of reach, or when no stable will receive it; the order stays queued.

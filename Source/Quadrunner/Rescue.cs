@@ -31,14 +31,44 @@ namespace Quadrunner
         /// <summary>Downed, out of bed, and ours to rescue (vanilla's float menu also skips "no medical care").</summary>
         public static IEnumerable<Pawn> Patients(Map map) =>
             map.mapPawns.SpawnedDownedPawns.Where(p => Rank(p) >= 0 && HealthAIUtility.WantsToBeRescued(p)
-                && p.playerSettings?.medCare != MedicalCareCategory.NoCare);
-
+                && HealthAIUtility.ShouldEverReceiveMedicalCareFromPlayer(p));
         public static bool AnyPatient(Map map) => Patients(map).Any();
 
         public static Building_Bed BedFor(Pawn patient, Pawn rescuer) =>
             RestUtility.FindBedFor(patient, rescuer, checkSocialProperness: false, ignoreOtherReservations: false,
                 patient.GuestStatus);
 
+
+        /// <summary>
+        /// Zero-spawn check before any docked Medirunner is probed: whether the patient itself is eligible, unreserved,
+        /// and has at least one usable bed on the map.
+        /// </summary>
+        public static bool CanPotentiallyRescue(Pawn patient)
+        {
+            Map map = patient?.Map;
+            if (map == null || patient.Dead || !patient.Spawned || !patient.Downed || Rank(patient) < 0
+                || !HealthAIUtility.WantsToBeRescued(patient)
+                || !HealthAIUtility.ShouldEverReceiveMedicalCareFromPlayer(patient)
+                || patient.IsForbidden(Faction.OfPlayer)
+                || map.reservationManager.IsReserved(patient)
+                || map.physicalInteractionReservationManager.IsReserved(patient))
+                return false;
+            GuestStatus? guest = patient.GuestStatus;
+            bool prisonerOrSlave = guest == GuestStatus.Prisoner || guest == GuestStatus.Slave;
+            TraverseParms passDoors = TraverseParms.For(TraverseMode.PassDoors, Danger.Deadly);
+            List<Thing> beds = map.listerThings.ThingsInGroup(ThingRequestGroup.Bed);
+            for (int i = 0; i < beds.Count; i++)
+            {
+                if (!(beds[i] is Building_Bed bed) || bed.IsForbidden(Faction.OfPlayer)
+                    || !prisonerOrSlave && bed.Faction != Faction.OfPlayer
+                    || !RestUtility.CanUseBedNow(bed, patient, checkSocialProperness: false, guestStatusOverride: guest)
+                    || bed.SleepingSlotsCount == 1 && !patient.HasReserved(bed) && map.reservationManager.IsReserved(bed)
+                    || !map.reachability.CanReach(patient.Position, bed, PathEndMode.OnCell, passDoors))
+                    continue;
+                return true;
+            }
+            return false;
+        }
         /// <summary>
         /// The job for that one patient only — the network picks which (rank, then bleeding, then the nearest
         /// available medic). Null if it is not eligible, not ours to take (forbidden, reserved or unreachable), or
@@ -48,7 +78,7 @@ namespace Quadrunner
         {
             if (patient == null || patient.Dead || !patient.Spawned || !patient.Downed || Rank(patient) < 0
                 || !HealthAIUtility.WantsToBeRescued(patient)
-                || patient.playerSettings?.medCare == MedicalCareCategory.NoCare
+                || !HealthAIUtility.ShouldEverReceiveMedicalCareFromPlayer(patient)
                 || patient.IsForbidden(dog) || !dog.CanReserveAndReach(patient, PathEndMode.OnCell, Danger.Deadly))
                 return null;
             Building_Bed bed = BedFor(patient, dog);

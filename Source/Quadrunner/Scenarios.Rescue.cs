@@ -301,5 +301,217 @@ namespace Quadrunner
                 .Summary(() => "start ticks " + string.Join(", ", rankIds.Select(id => started[id])))
                 .Start();
         }
+
+        /// <summary>
+        /// Regression: unassignable queue entries (a downed colony animal with no bed, a powered-down Combatdog
+        /// awaiting an in-stock field battery, and a walled-in Home fire) must never repeatedly deploy docked
+        /// Medirunners in front of the stable every retry cycle; once one task becomes actionable, only the single
+        /// needed Medirunner deploys while surplus docked Medirunners stay inside.
+        /// </summary>
+        private static void MedirunnerIdleDeploymentGuard()
+        {
+            var s = new Scenario("Medirunner idle deployment guard", 35000);
+            string stableId = null, huskyId = null, combatId = null, wallToOpenId = null, failure = null;
+            var medicIds = new List<string>();
+            var jobStarts = new List<string>();
+            CellRect fireBox = default;
+            int startedAt = 0;
+            bool zeroSpawnPhase = true, allowSingleDeploy = false, allowFireDeploy = false;
+            string deployedForAnimal = null, deployedForFire = null, forbiddenDoorId = null;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Medic(int i) => (Pawn)Scenario.ById(medicIds[i]);
+            Pawn Husky() => (Pawn)Scenario.ById(huskyId);
+            Pawn Combat() => (Pawn)Scenario.ById(combatId);
+            void CheckGuard()
+            {
+                if (failure != null)
+                    throw new InvalidOperationException(failure);
+                for (int i = 0; i < medicIds.Count; i++)
+                {
+                    Pawn m = Medic(i);
+                    if (m == null)
+                        continue;
+                    int dt = Find.TickManager.TicksGame - startedAt;
+                    if (!allowSingleDeploy && !allowFireDeploy && (m.Spawned || zeroSpawnPhase && m.TickSpawned >= 0))
+                        throw new InvalidOperationException(
+                            $"spurious Medirunner deployment at +{dt} ticks with no actionable emergency: {m} spawned={m.Spawned} tickSpawned={m.TickSpawned} job={m.CurJob}");
+                    if (allowSingleDeploy && !allowFireDeploy && m.Spawned)
+                    {
+                        deployedForAnimal ??= m.ThingID;
+                        if (m.ThingID != deployedForAnimal)
+                            throw new InvalidOperationException(
+                                $"surplus Medirunner {m} also deployed for a single rescue (already handled by {deployedForAnimal}) at +{dt} ticks");
+                    }
+                    if (allowFireDeploy && m.Spawned)
+                    {
+                        deployedForFire ??= m.ThingID;
+                        if (m.ThingID != deployedForFire)
+                            throw new InvalidOperationException(
+                                $"surplus Medirunner {m} also deployed for a single fire (already handled by {deployedForFire}) at +{dt} ticks");
+                    }
+                }
+            }
+            void AttachObserver()
+            {
+                ObservePackJobs(s, (pawn, job) =>
+                {
+                    // Docked pawns inside the stable receive vanilla's Despawned Carried job; observe spawned field jobs.
+                    if (!pawn.Spawned || !medicIds.Contains(pawn.ThingID))
+                        return;
+                    int dt = Find.TickManager.TicksGame - startedAt;
+                    jobStarts.Add($"+{dt} {pawn.ThingID}:{job.def.defName}");
+                    if (!allowSingleDeploy && !allowFireDeploy)
+                        failure ??= $"spurious Medirunner job at +{dt} ticks with no actionable emergency: {pawn} -> {job}";
+                    else if (allowSingleDeploy && !allowFireDeploy)
+                    {
+                        deployedForAnimal ??= pawn.ThingID;
+                        if (pawn.ThingID != deployedForAnimal)
+                            failure ??= $"surplus Medirunner {pawn} took job {job} during single animal rescue by {deployedForAnimal} at +{dt} ticks";
+                    }
+                    else if (allowFireDeploy)
+                    {
+                        deployedForFire ??= pawn.ThingID;
+                        if (pawn.ThingID != deployedForFire)
+                            failure ??= $"surplus Medirunner {pawn} took job {job} during single fire response by {deployedForFire} at +{dt} ticks";
+                    }
+                });
+            }
+            s.Do("two docked Medirunners, a no-bed downed animal, a battery-awaiting Combatdog, and a sealed Home fire", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    WeatherDef priorCur = map.weatherManager.curWeather, priorLast = map.weatherManager.lastWeather;
+                    map.weatherDecider.DisableRainFor(GenDate.TicksPerDay);
+                    map.weatherManager.curWeather = map.weatherManager.lastWeather = WeatherDefOf.Clear;
+                    s.OnFinish(() =>
+                    {
+                        Map now = Find.CurrentMap;
+                        if (now == null)
+                            return;
+                        now.weatherManager.curWeather = priorCur;
+                        now.weatherManager.lastWeather = priorLast;
+                        foreach (Fire f in now.listerThings.ThingsOfDef(ThingDefOf.Fire).OfType<Fire>().ToList())
+                            f.Destroy();
+                        foreach (Thing foam in now.listerThings.ThingsOfDef(ThingDefOf.Filth_FireFoam).ToList())
+                            foam.Destroy();
+                    });
+                    DraftColonists(s);
+                    // Ensure no stray animal beds exist on the quicktest map.
+                    foreach (Building_Bed bed in map.listerThings.ThingsInGroup(ThingRequestGroup.Bed)
+                                 .OfType<Building_Bed>().Where(b => !b.def.building.bed_humanlike).ToList())
+                        bed.Destroy();
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    for (int i = 0; i < 2; i++)
+                        medicIds.Add(s.Track(stable.AddNewDog(QR_DefOf.QR_Medirunner)).ThingID);
+                    IntVec3 door = stable.InteractionCell;
+                    // 1) Downed colony animal with no animal bed anywhere on the map.
+                    Pawn husky = SpawnPawn(s, DefDatabase<PawnKindDef>.GetNamed("Husky"), Faction.OfPlayer,
+                        OpenCell(map, door, 16f, 24f));
+                    husky.health.AddHediff(HediffDefOf.Anesthetic);
+                    huskyId = husky.ThingID;
+                    // 2) Powered-down Combatdog while a robodog battery is in stock (AwaitsFieldFix == true).
+                    IntVec3 stockCell = OpenCell(map, door, 6f, 10f);
+                    Zone_Stockpile stock = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                    map.zoneManager.RegisterZone(stock);
+                    stock.AddCell(stockCell);
+                    s.OnFinish(() => { if (Find.CurrentMap?.zoneManager.AllZones.Contains(stock) == true) stock.Delete(); });
+                    SpawnStack(s, QR_DefOf.QR_RobodogBattery, 1, stockCell);
+                    Pawn combat = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog));
+                    combatId = combat.ThingID;
+                    stable.TryUndock(combat);
+                    Teleport(combat, OpenCell(map, door, 20f, 28f));
+                    CompRobodog.Of(combat).SetBattery(0f);
+                    if (!Retrieval.AwaitsFieldFix(combat))
+                        throw new InvalidOperationException("fixture: powered-down Combatdog is not awaiting a field battery");
+                    // 3) Burning Home fire sealed inside a non-flammable 5x5 stone room so flames cannot spread to walls.
+                    ThingDef granite = DefDatabase<ThingDef>.GetNamed("BlocksGranite");
+                    fireBox = ClearRect(map, door, 5, 1, 12f, 20f);
+                    foreach (IntVec3 c in fireBox.ExpandedBy(2).ClipInsideMap(map))
+                    {
+                        bool was = map.areaManager.Home[c];
+                        map.areaManager.Home[c] = true;
+                        s.OnFinish(() => { if (Find.CurrentMap != null) Find.CurrentMap.areaManager.Home[c] = was; });
+                    }
+                    foreach (IntVec3 c in fireBox)
+                        foreach (Thing plant in c.GetThingList(map).Where(t => t.def.category == ThingCategory.Plant).ToList())
+                            plant.Destroy();
+                    foreach (IntVec3 c in fireBox.EdgeCells)
+                    {
+                        Thing wall = SpawnBuilding(s, ThingDefOf.Wall, granite, c, Rot4.North);
+                        if (wallToOpenId == null && (c.x == fireBox.CenterCell.x || c.z == fireBox.CenterCell.z))
+                            wallToOpenId = wall.ThingID;
+                    }
+                    SpawnStack(s, ThingDefOf.WoodLog, 75, fireBox.CenterCell);
+                    if (!FireUtility.TryStartFireIn(fireBox.CenterCell, map, 1f, null))
+                        throw new InvalidOperationException("fixture: could not start the sealed Home fire");
+                    startedAt = Find.TickManager.TicksGame;
+                    AttachObserver();
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    Net().Tick(force: true);
+                    if (!Net().WarQueue.Any(t => t.kind == NetworkTaskKind.Rescue && t.targetId == huskyId)
+                        || !Net().WarQueue.Any(t => t.kind == NetworkTaskKind.Fire)
+                        || !Net().NormalQueue.Any(t => t.kind == NetworkTaskKind.Recover && t.casualtyId == combatId))
+                        throw new InvalidOperationException("fixture: expected queued unassignable rescue, fire, and recovery tasks");
+                    CheckGuard();
+                })
+                .Wait(450)
+                .Do("check neither Medirunner deployed across multiple retry cycles", CheckGuard)
+                .SaveAndReload()
+                .Do("keep normal speed and guard checks after reload", () =>
+                {
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    CheckGuard();
+                })
+                .Wait(240)
+                .Do("still docked after reload; now place one animal sleeping spot", () =>
+                {
+                    CheckGuard();
+                    zeroSpawnPhase = false;
+                    allowSingleDeploy = true;
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Ultrafast;
+                    SpawnBuilding(s, DefDatabase<ThingDef>.GetNamed("AnimalSleepingSpot"), null,
+                        OpenCell(Find.CurrentMap, Stable().InteractionCell, 4f, 9f), Rot4.North);
+                })
+                .Expect("exactly one Medirunner deploys and rescues the Husky while the second stays docked", () =>
+                {
+                    CheckGuard();
+                    Pawn surplus = medicIds.Select(id => (Pawn)Scenario.ById(id)).FirstOrDefault(m => m.ThingID != deployedForAnimal);
+                    if (deployedForAnimal != null && surplus != null && surplus.TickSpawned >= 0)
+                        throw new InvalidOperationException($"surplus Medirunner {surplus} spawned at tick {surplus.TickSpawned}");
+                    return Husky().InBed() && Stable().Docked.Contains(Medic(0)) && Stable().Docked.Contains(Medic(1));
+                })
+                .Do("clear the battery-awaiting Combatdog before its 2500-tick field-fix window expires, then test a forbidden door", () =>
+                {
+                    allowSingleDeploy = false;
+                    CompRobodog.Of(Combat()).SetBattery(1f);
+                    Stable().TryDock(Combat());
+                    Thing wall = Scenario.ById(wallToOpenId);
+                    IntVec3 doorCell = wall.Position;
+                    wall.Destroy();
+                    Building_Door door = (Building_Door)SpawnBuilding(s, ThingDefOf.Door,
+                        DefDatabase<ThingDef>.GetNamed("BlocksGranite"), doorCell, Rot4.North);
+                    door.SetForbidden(true);
+                    forbiddenDoorId = door.ThingID;
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    Net().Tick(force: true);
+                    CheckGuard();
+                })
+                .Wait(200)
+                .Do("unforbid the door to make the Home fire reachable", () =>
+                {
+                    CheckGuard();
+                    allowFireDeploy = true;
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Ultrafast;
+                    ((Building_Door)Scenario.ById(forbiddenDoorId)).SetForbidden(false);
+                })
+                .Expect("one Medirunner extinguishes the newly reachable fire and redocks while the other stays docked", () =>
+                {
+                    CheckGuard();
+                    return !FireIn(fireBox) && Stable().Docked.Contains(Medic(0)) && Stable().Docked.Contains(Medic(1));
+                })
+                .Do("restore Combatdog battery for clean teardown", () => CompRobodog.Of(Combat())?.SetBattery(1f))
+                .Summary(() => $"animal medic={deployedForAnimal ?? "none"}, fire medic={deployedForFire ?? "none"}, jobs=[{string.Join(", ", jobStarts)}]")
+                .Start();
+        }
     }
 }

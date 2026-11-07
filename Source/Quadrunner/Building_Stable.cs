@@ -158,7 +158,7 @@ namespace Quadrunner
         /// <summary>Docks <paramref name="dog"/>, assigning it to this stable first if it isn't yet.</summary>
         public bool TryDock(Pawn dog) => TryDock(dog, log: true);
 
-        private bool TryDock(Pawn dog, bool log)
+        internal bool TryDock(Pawn dog, bool log)
         {
             CompRobodog comp = CompRobodog.Of(dog);
             if (comp == null || docked.Contains(dog))
@@ -183,7 +183,9 @@ namespace Quadrunner
             return true;
         }
 
-        public bool TryUndock(Pawn dog)
+        public bool TryUndock(Pawn dog) => TryUndock(dog, log: true);
+
+        internal bool TryUndock(Pawn dog, bool log)
         {
             if (!docked.Contains(dog) || !docked.TryDrop(dog, InteractionCell, Map, ThingPlaceMode.Near, out Thing _))
                 return false;
@@ -192,7 +194,8 @@ namespace Quadrunner
             // Integrated equipment (the Medirunner's foam sprayer) is fitted on the way out, older saves included.
             if (RobodogWork.Of(dog)?.builtInGun != null)
                 Tiers.Arm(dog, Tiers.Gun(dog, 0));
-            QR.Log($"{dog} undocked from {this}");
+            if (log)
+                QR.Log($"{dog} undocked from {this}");
             return true;
         }
 

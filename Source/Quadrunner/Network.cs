@@ -105,6 +105,7 @@ namespace Quadrunner
         private readonly Dictionary<string, DogReport> reports = new Dictionary<string, DogReport>();
         private readonly List<NetworkTask> ordered = new List<NetworkTask>();
         private readonly List<string> goneReports = new List<string>();
+        private readonly List<(Building_Stable stable, Area area)> triedFireDocks = new List<(Building_Stable, Area)>();
         private readonly Comparison<NetworkTask> taskComparison;
         private readonly PackCombat packs;
         private List<(int id, int firstTick)> pathAreas;
@@ -465,27 +466,16 @@ namespace Quadrunner
                             if (threat.Thing is Pawn enemy && GenHostility.IsActiveThreatToPlayer(threat))
                                 Report(NetworkTaskKind.Combat, enemy);
                 }
-                // After this tick's reports, so a fire or patient found now meets a medic already out. Medics deploy
-                // only for work assignable this tick: one undocked during a retry backoff has no order, docks again,
-                // and its despawn forces another tick that undocks it again, until the backoff ends.
-                bool hasCombat = false, hasRescueWork = false;
+                // Docked workers step out in peacetime to survey; Combatdogs deploy for active war or due captures.
+                // Docked Medirunners never deploy speculatively: they undock only when an assignment claims them.
+                bool hasCombat = false;
                 foreach (NetworkTask task in State.war)
-                {
                     if (task.kind == NetworkTaskKind.Combat && task.assigneeId == null && Now >= task.retryAt)
                         hasCombat = true;
-                    else if (task.kind != NetworkTaskKind.Combat && task.assigneeId == null && Now >= task.retryAt)
-                        hasRescueWork = true;
-                }
-                // Casualty recovery is ordinary-queue work: its carriers deploy only outside a war.
-                bool hasRecovery = !War && State.normal.Any(t => t.kind == NetworkTaskKind.Recover
-                    && t.assigneeId == null && Now >= t.retryAt);
-                // Docked workers must step out before vanilla scanners/pathfinders can inspect them. Idle workers
-                // survey anyway; medical/combat models leave only for their dedicated work.
                 foreach (Pawn dog in dogs)
                 {
                     RobodogWork work = RobodogWork.Of(dog);
-                    bool deploy = (IsWorker(dog) && !War) || (work.rescue && (hasRescueWork || hasRecovery))
-                        || (work.combat && (War || hasCombat));
+                    bool deploy = (IsWorker(dog) && !War) || (work.combat && (War || hasCombat));
                     if (deploy && !dog.Spawned && IsAvailable(dog)) CompRobodog.Of(dog).stable.TryUndock(dog);
                 }
                 // Packs re-form after new reports and undock decisions, before one-assignee assignment: members are
@@ -496,12 +486,7 @@ namespace Quadrunner
                 ordered.Sort(taskComparison);
                 if (AssignAll(ordered, hasPatient))
                 {
-                    // Each deployed medic chooses from the fire backlog, not the oldest fire choosing a medic.
-                    foreach (Pawn dog in dogs)
-                    {
-                        Job fire = TakeFireOrder(dog);
-                        if (fire != null) dog.jobs.StartJob(fire, JobCondition.InterruptForced);
-                    }
+                    DispatchFires();
                     if (!War)
                     {
                         ordered.Clear(); ordered.AddRange(State.normal);
@@ -755,7 +740,7 @@ namespace Quadrunner
             // Let the ordinary triage scheduler take a waiting patient before claiming another fire.
             foreach (NetworkTask task in State.war)
                 if (task.kind == NetworkTaskKind.Rescue && task.assigneeId == null && Now >= task.retryAt
-                    && !Finished(task))
+                    && !Finished(task) && task.Target(Map) is Pawn patient && Rescue.CanPotentiallyRescue(patient))
                     return null;
             NetworkTask nearest = null;
             Job selected = null;
@@ -780,6 +765,154 @@ namespace Quadrunner
             return selected;
         }
 
+        private bool HasDueFire()
+        {
+            foreach (NetworkTask task in State.war)
+                if (task.kind == NetworkTaskKind.Fire && task.assigneeId == null && Now >= task.retryAt
+                    && task.Target(Map) is Fire fire && Firefighting.Eligible(fire, Map))
+                    return true;
+            return false;
+        }
+
+        private bool HasDueRescue()
+        {
+            foreach (NetworkTask task in State.war)
+                if (task.kind == NetworkTaskKind.Rescue && task.assigneeId == null && Now >= task.retryAt
+                    && !Finished(task) && task.Target(Map) is Pawn patient && Rescue.CanPotentiallyRescue(patient))
+                    return true;
+            return false;
+        }
+
+        private int NearestReachableFireDistanceSquared(IntVec3 from, Pawn dog, TraverseParms passDoors)
+        {
+            int best = int.MaxValue;
+            foreach (NetworkTask task in State.war)
+            {
+                if (task.kind != NetworkTaskKind.Fire || task.assigneeId != null || Now < task.retryAt
+                    || !(task.Target(Map) is Fire fire) || !Firefighting.Eligible(fire, Map)
+                    || !fire.Position.InAllowedArea(dog))
+                    continue;
+                int dist = (fire.Position - from).LengthHorizontalSquared;
+                if (dist < best && Map.reachability.CanReach(from, fire, PathEndMode.Touch, passDoors))
+                    best = dist;
+            }
+            return best;
+        }
+
+        private void DispatchFires()
+        {
+            // Already-deployed medics choose from the fire backlog first without undocking anyone else.
+            foreach (Pawn dog in dogs)
+                if (dog.Spawned)
+                {
+                    Job fire = TakeFireOrder(dog);
+                    if (fire != null) dog.jobs.StartJob(fire, JobCondition.InterruptForced);
+                }
+            if (!HasDueFire() || HasDueRescue())
+                return;
+            triedFireDocks.Clear();
+            bool anyDeferred = false;
+            TraverseParms passDoors = TraverseParms.For(TraverseMode.PassDoors, Danger.Deadly);
+            while (HasDueFire())
+            {
+                Pawn best = null;
+                Building_Stable bestStable = null;
+                Area bestArea = null;
+                int bestDist = int.MaxValue;
+                foreach (Pawn dog in dogs)
+                {
+                    if (dog.Spawned || RobodogWork.Of(dog)?.rescue != true || !IsAvailable(dog)
+                        || assignments.ContainsKey(dog.ThingID))
+                        continue;
+                    Building_Stable stable = CompRobodog.Of(dog).stable;
+                    if (stable == null || !stable.Spawned || stable.Map != Map)
+                        continue;
+                    Area area = PathUtility.GetAllowedArea(dog);
+                    bool alreadyTried = false;
+                    for (int i = 0; i < triedFireDocks.Count; i++)
+                        if (triedFireDocks[i].stable == stable && triedFireDocks[i].area == area)
+                        {
+                            alreadyTried = true;
+                            break;
+                        }
+                    if (alreadyTried || !IsDockedFireRepresentative(stable, dog, area))
+                        continue;
+                    if (!PathInputsReady(dog)) { anyDeferred = true; continue; }
+                    int dist = NearestReachableFireDistanceSquared(stable.InteractionCell, dog, passDoors);
+                    if (dist == int.MaxValue)
+                        continue;
+                    if (dist < bestDist || dist == bestDist && best != null && dog.thingIDNumber < best.thingIDNumber)
+                    {
+                        best = dog;
+                        bestStable = stable;
+                        bestArea = area;
+                        bestDist = dist;
+                    }
+                }
+                if (best == null)
+                    break;
+                if (!bestStable.TryUndock(best, log: false))
+                {
+                    triedFireDocks.Add((bestStable, bestArea));
+                    continue;
+                }
+                Job fire = TakeFireOrder(best);
+                if (fire != null)
+                {
+                    QR.Log($"{best} undocked from {bestStable}");
+                    best.jobs.StartJob(fire, JobCondition.InterruptForced);
+                }
+                else
+                {
+                    bestStable.TryDock(best, log: false);
+                    triedFireDocks.Add((bestStable, bestArea));
+                }
+            }
+            if (anyDeferred || !HasIdleMedic())
+                return;
+            foreach (NetworkTask task in State.war)
+                if (task.kind == NetworkTaskKind.Fire && task.assigneeId == null && Now >= task.retryAt)
+                    task.retryAt = Now + Tuning.scanInterval;
+        }
+
+        private bool HasIdleMedic()
+        {
+            foreach (Pawn dog in dogs)
+                if (RobodogWork.Of(dog)?.rescue == true && IsAvailable(dog) && !assignments.ContainsKey(dog.ThingID))
+                    return true;
+            return false;
+        }
+
+        private bool IsDockedFireRepresentative(Building_Stable stable, Pawn dog, Area area)
+        {
+            IReadOnlyList<Pawn> docked = stable.Docked;
+            for (int i = 0; i < docked.Count; i++)
+            {
+                Pawn other = docked[i];
+                if (other == dog || other.def != dog.def || other.thingIDNumber >= dog.thingIDNumber)
+                    continue;
+                if (RobodogWork.Of(other)?.rescue == true && IsAvailable(other)
+                    && !assignments.ContainsKey(other.ThingID) && PathUtility.GetAllowedArea(other) == area)
+                    return false;
+            }
+            return true;
+        }
+
+        private bool IsDockedRepresentative(Building_Stable stable, Pawn dog, Area area, NetworkTask task, bool hasPatient)
+        {
+            IReadOnlyList<Pawn> docked = stable.Docked;
+            for (int i = 0; i < docked.Count; i++)
+            {
+                Pawn other = docked[i];
+                if (other == dog || other.def != dog.def || other.thingIDNumber >= dog.thingIDNumber)
+                    continue;
+                if (IsAvailable(other) && !assignments.ContainsKey(other.ThingID) && !packs.Has(other)
+                    && Capable(other, task, hasPatient) && PathUtility.GetAllowedArea(other) == area)
+                    return false;
+            }
+            return true;
+        }
+
         private void Assign(Pawn dog, NetworkTask task, Job job, float cost)
         {
             task.assigneeId = dog.ThingID; task.jobId = job.loadID;
@@ -791,29 +924,70 @@ namespace Quadrunner
 
         private bool AssignAll(List<NetworkTask> tasks, bool hasPatient)
         {
+            TraverseParms passDoors = TraverseParms.For(TraverseMode.PassDoors, Danger.Deadly);
             foreach (NetworkTask task in tasks)
             {
-                if (task.kind == NetworkTaskKind.Fire) continue;
+                if (task.kind == NetworkTaskKind.Fire || task.assigneeId != null || Now < task.retryAt) continue;
                 Thing target = task.Target(Map);
-                if (task.assigneeId != null || Now < task.retryAt || target == null || !target.Spawned) continue;
+                if (target == null || !target.Spawned
+                    || task.kind == NetworkTaskKind.Rescue && !Rescue.CanPotentiallyRescue(target as Pawn)
+                    || task.kind == NetworkTaskKind.Recover && !Retrieval.CanPotentiallyRecover(task, Map))
+                {
+                    task.retryAt = Now + Tuning.scanInterval;
+                    continue;
+                }
                 Pawn nearest = null;
                 Job selected = null;
                 float cost = float.MaxValue;
-                bool deferred = false, docked = false;
+                bool deferred = false;
                 foreach (Pawn dog in dogs)
                 {
                     if (!IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || packs.Has(dog) || !Capable(dog, task, hasPatient)) continue;
-                    if (!dog.Spawned) { docked = true; continue; }
                     if (!PathInputsReady(dog)) { deferred = true; continue; }
-                    Job candidate = JobFor(dog, task, Map);
+                    Job candidate = null;
+                    float route = float.MaxValue;
+                    if (!dog.Spawned)
+                    {
+                        Building_Stable dockStable = CompRobodog.Of(dog).stable;
+                        Area area = PathUtility.GetAllowedArea(dog);
+                        if (dockStable == null || !dockStable.Spawned || dockStable.Map != Map
+                            || !IsDockedRepresentative(dockStable, dog, area, task, hasPatient)
+                            || !target.Position.InAllowedArea(dog)
+                            || !Map.reachability.CanReach(dockStable.InteractionCell, target, DogWork.EndMode(task), passDoors)
+                            || !dockStable.TryUndock(dog, log: false))
+                            continue;
+                        try
+                        {
+                            candidate = JobFor(dog, task, Map);
+                            if (candidate != null)
+                            {
+                                LocalTargetInfo destination = target;
+                                PathEndMode mode = DogWork.EndMode(task);
+                                if ((task.kind == NetworkTaskKind.Frame || task.kind == NetworkTaskKind.Blueprint)
+                                    && candidate.targetA.HasThing) { destination = candidate.targetA; mode = PathEndMode.ClosestTouch; }
+                                using (PawnPath path = Map.pathFinder.FindPathNow(dog.Position, destination, TraverseParms.For(dog, Danger.Deadly), peMode: mode))
+                                    route = path.Found ? path.TotalCost : float.MaxValue;
+                            }
+                        }
+                        finally
+                        {
+                            dockStable.TryDock(dog, log: false);
+                        }
+                    }
+                    else
+                    {
+                        candidate = JobFor(dog, task, Map);
+                        if (candidate != null)
+                        {
+                            LocalTargetInfo destination = target;
+                            PathEndMode mode = DogWork.EndMode(task);
+                            if ((task.kind == NetworkTaskKind.Frame || task.kind == NetworkTaskKind.Blueprint)
+                                && candidate.targetA.HasThing) { destination = candidate.targetA; mode = PathEndMode.ClosestTouch; }
+                            using (PawnPath path = Map.pathFinder.FindPathNow(dog.Position, destination, TraverseParms.For(dog, Danger.Deadly), peMode: mode))
+                                route = path.Found ? path.TotalCost : float.MaxValue;
+                        }
+                    }
                     if (candidate == null) continue;
-                    LocalTargetInfo destination = target;
-                    PathEndMode mode = DogWork.EndMode(task);
-                    if ((task.kind == NetworkTaskKind.Frame || task.kind == NetworkTaskKind.Blueprint)
-                        && candidate.targetA.HasThing) { destination = candidate.targetA; mode = PathEndMode.ClosestTouch; }
-                    float route;
-                    using (PawnPath path = Map.pathFinder.FindPathNow(dog.Position, destination, TraverseParms.For(dog, Danger.Deadly), peMode: mode))
-                        route = path.Found ? path.TotalCost : float.MaxValue;
                     if (route < cost || route == cost && nearest != null && dog.thingIDNumber < nearest.thingIDNumber)
                     {
                         if (selected != null) JobMaker.ReturnToPool(selected);
@@ -829,8 +1003,13 @@ namespace Quadrunner
                 }
                 if (nearest == null)
                 {
-                    // A capable dog still docked is not a failed attempt: it undocks on the next tick.
-                    if (!docked) task.retryAt = Now + Tuning.scanInterval;
+                    task.retryAt = Now + Tuning.scanInterval;
+                    continue;
+                }
+                if (!nearest.Spawned && CompRobodog.Of(nearest)?.stable?.TryUndock(nearest) != true)
+                {
+                    JobMaker.ReturnToPool(selected);
+                    task.retryAt = Now + Tuning.scanInterval;
                     continue;
                 }
                 Assign(nearest, task, selected, cost);
