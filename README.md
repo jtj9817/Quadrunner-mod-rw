@@ -76,6 +76,7 @@ Automated quicktest starts use flat, low-swampiness, inland temperate forest wit
 For native hover checks, cold-start the private display with `QR_SCREEN=1280x900` after `tools/autotest.py stop`. Changing the game window's resolution alone does not enlarge Xvfb's pointer bounds. Artwork captures are evidence only after the actual cards/tooltips have been visually inspected.
 
 - Design snapshot: [docs/design.md](docs/design.md)
+- Changelog: [docs/CHANGELOG.md](docs/CHANGELOG.md) — dated, player-facing changes per shipped package
 - Plan and decisions: [docs/plans/0001-quadrunner.md](docs/plans/0001-quadrunner.md)
 - Hearthline lore and tooltip plan: [docs/plans/0002-hearthline-lore.md](docs/plans/0002-hearthline-lore.md)
 - Shared queue, exploration and failover plan: [docs/plans/0003-network-dispatch.md](docs/plans/0003-network-dispatch.md)
