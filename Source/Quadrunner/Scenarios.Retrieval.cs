@@ -400,5 +400,170 @@ namespace Quadrunner
                 .Summary(() => $"rebuilt {name}")
                 .Start();
         }
+
+        /// <summary>
+        /// Downed and powered-down robodogs are never rescued into animal beds by doctors, legacy animal-bed ownership
+        /// is cleared on load, and leg-downed workers are retrieved to the stable and repaired (colonist Carry to stable too).
+        /// </summary>
+        private static void NoAnimalBedRescue()
+        {
+            var s = new Scenario("No animal-bed rescue", 30000);
+            string stableId = null, carrierId = null, emptyId = null, injuredId = null, doctorId = null;
+            string medBedId = null, ownBedId = null, huskyId = null;
+            int guardStart = 0;
+            string observedRescue = null;
+            Game gameBeforeLoad = null;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            Pawn Carrier() => (Pawn)Scenario.ById(carrierId);
+            Pawn EmptyDog() => (Pawn)Scenario.ById(emptyId);
+            Pawn InjuredDog() => (Pawn)Scenario.ById(injuredId);
+            Pawn Doctor() => (Pawn)Scenario.ById(doctorId);
+            Building_Bed MedBed() => (Building_Bed)Scenario.ById(medBedId);
+            Building_Bed OwnBed() => (Building_Bed)Scenario.ById(ownBedId);
+            Pawn Husky() => (Pawn)Scenario.ById(huskyId);
+            void SampleGuard()
+            {
+                Pawn doc = Doctor();
+                if (observedRescue == null && doc?.CurJobDef == JobDefOf.Rescue
+                    && CompRobodog.IsRobodog(doc.CurJob.targetA.Thing))
+                    observedRescue = $"{doc} took {doc.CurJob} -> {doc.CurJob.targetB.Thing}";
+            }
+            s.Do("a stable with a charging carrier, animal beds, a doctor colonist, and powered-down + leg-downed Quadrunners", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    Pawn carrier = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner));
+                    carrierId = carrier.ThingID;
+                    CompRobodog.Of(carrier).SetBattery(0.01f);
+
+                    ThingDef animalBedDef = DefDatabase<ThingDef>.GetNamed("AnimalBed");
+                    var medBed = (Building_Bed)SpawnBuilding(s, animalBedDef, ThingDefOf.Cloth,
+                        OpenCell(map, stable.InteractionCell, 4f, 7f), Rot4.North);
+                    medBed.Medical = true;
+                    medBedId = medBed.ThingID;
+                    var ownBed = (Building_Bed)SpawnBuilding(s, animalBedDef, ThingDefOf.Cloth,
+                        OpenCell(map, stable.InteractionCell, 4f, 7f, c => c != medBed.Position), Rot4.North);
+                    ownBedId = ownBed.ThingID;
+                    SpawnBuilding(s, DefDatabase<ThingDef>.GetNamed("AnimalSleepingSpot"), null,
+                        OpenCell(map, stable.InteractionCell, 4f, 7f), Rot4.North);
+
+                    Pawn empty = DownDog(s, stable, 9f, 13f);
+                    emptyId = empty.ThingID;
+                    Pawn injured = SpawnDog(s, OpenCell(map, stable.InteractionCell, 9f, 13f,
+                        c => c.DistanceTo(empty.Position) > 3f));
+                    CompRobodog.Of(injured).stable = stable;
+                    CompRobodog.Of(injured).SetBattery(0.8f);
+                    DownByInjury(injured);
+                    injuredId = injured.ThingID;
+
+                    Pawn doctor = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.Downed
+                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
+                        && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation));
+                    while (doctor == null || doctor.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
+                        || !doctor.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+                        doctor = SpawnPawn(s, PawnKindDefOf.Colonist, Faction.OfPlayer,
+                            OpenCell(map, stable.InteractionCell, 6f, 10f));
+                    doctorId = doctor.ThingID;
+                    bool prevManual = Current.Game.playSettings.useWorkPriorities;
+                    int prevPriority = doctor.workSettings.GetPriority(WorkTypeDefOf.Doctor);
+                    Current.Game.playSettings.useWorkPriorities = true;
+                    doctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
+                    s.OnFinish(() =>
+                    {
+                        if (!doctor.Destroyed && doctor.workSettings != null)
+                            doctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, prevPriority);
+                        Current.Game.playSettings.useWorkPriorities = prevManual;
+                    });
+                    doctor.drafter.Drafted = false;
+                    Teleport(doctor, OpenCell(map, empty.Position, 1.5f, 3.5f));
+                    doctor.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    guardStart = Find.TickManager.TicksGame;
+                })
+                .Expect("doctor ticks beside both downed Quadrunners", () =>
+                {
+                    SampleGuard();
+                    return EmptyDog().InBed() || InjuredDog().InBed()
+                        || Find.TickManager.TicksGame - guardStart >= 240;
+                })
+                .Do("neither Quadrunner was rescued or matched to a bed; Carry to stable is offered without Rescue", () =>
+                {
+                    SampleGuard();
+                    if (observedRescue != null || EmptyDog().InBed() || InjuredDog().InBed()
+                        || EmptyDog().ownership?.OwnedBed != null || InjuredDog().ownership?.OwnedBed != null)
+                        throw new InvalidOperationException(
+                            $"robodog routed to animal bed: {observedRescue ?? "none"}; "
+                            + $"empty(inBed={EmptyDog().InBed()}, owned={EmptyDog().ownership?.OwnedBed}); "
+                            + $"injured(inBed={InjuredDog().InBed()}, owned={InjuredDog().ownership?.OwnedBed}); "
+                            + $"medBed={MedBed()}; ownBed={OwnBed()}");
+                    foreach (Pawn dog in new[] { EmptyDog(), InjuredDog() })
+                    {
+                        if (HealthAIUtility.WantsToBeRescued(dog)
+                            || RestUtility.FindBedFor(dog, Doctor(), checkSocialProperness: false) != null)
+                            throw new InvalidOperationException($"{dog} still eligible for vanilla bed rescue");
+                        List<FloatMenuOption> opts = FloatMenuMakerMap.GetOptions(new List<Pawn> { Doctor() },
+                            dog.DrawPos, out FloatMenuContext _);
+                        string carryLabel = $"Carry {dog.LabelShort} to {Stable().LabelShort}";
+                        FloatMenuOption carry = opts.FirstOrDefault(o => o.Label == carryLabel);
+                        if (carry == null || carry.Disabled)
+                            throw new InvalidOperationException($"missing/disabled '{carryLabel}': "
+                                + string.Join(" | ", opts.Select(o => o.Label)));
+                        if (opts.Any(o => o.Label.IndexOf("Rescue", StringComparison.OrdinalIgnoreCase) >= 0))
+                            throw new InvalidOperationException($"unexpected Rescue option on {dog}: "
+                                + string.Join(" | ", opts.Select(o => o.Label)));
+                    }
+                })
+                .Do("spawn a downed colony Husky: real animal rescue to an animal bed still works", () =>
+                {
+                    Pawn husky = SpawnPawn(s, DefDatabase<PawnKindDef>.GetNamed("Husky"), Faction.OfPlayer,
+                        OpenCell(Find.CurrentMap, Doctor().Position, 2f, 5f));
+                    husky.health.AddHediff(HediffDefOf.Anesthetic);
+                    huskyId = husky.ThingID;
+                })
+                .Expect("the doctor rescues the Husky into an animal bed", () => Husky().InBed())
+                .Do("stage legacy animal-bed ownership on the powered-down dog and release the carrier", () =>
+                {
+                    Doctor().drafter.Drafted = true;
+                    Doctor().jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    EmptyDog().ownership.ClaimBedIfNonMedical(OwnBed());
+                    if (EmptyDog().ownership.OwnedBed != OwnBed() || !OwnBed().OwnersForReading.Contains(EmptyDog()))
+                        throw new InvalidOperationException("fixture: failed to stage legacy animal-bed ownership");
+                    CompRobodog.Of(Carrier()).SetBattery(1f);
+                    DebugActions.ForceDispatchAt(Stable().Position);
+                    gameBeforeLoad = Current.Game;
+                })
+                .SaveAndReload()
+                .Do("legacy animal-bed ownership is cleared on load", () =>
+                {
+                    if (Current.Game != gameBeforeLoad
+                        && (EmptyDog().ownership?.OwnedBed != null || OwnBed().OwnersForReading.Contains(EmptyDog())))
+                        throw new InvalidOperationException(
+                            $"legacy OwnedBed survived load: {EmptyDog().ownership?.OwnedBed}");
+                })
+                .Expect("the carrier retrieves both the powered-down and leg-downed Quadrunners to the stable", () =>
+                    Stable().Docked.Contains(EmptyDog()) && Stable().Docked.Contains(InjuredDog()))
+                .Expect("docking cleared any remaining bed ownership and powered repair heals the leg-downed Quadrunner", () =>
+                    EmptyDog().ownership?.OwnedBed == null && !OwnBed().OwnersForReading.Contains(EmptyDog())
+                    && InjurySeverity(InjuredDog()) == 0f && !InjuredDog().Downed)
+                .Do("hold the carrier at 1%, down the repaired dog by leg injury again, and order colonist Carry to stable", () =>
+                {
+                    CompRobodog.Of(Carrier()).SetBattery(0.01f);
+                    if (Stable().Docked.Contains(InjuredDog()))
+                        Stable().TryUndock(InjuredDog());
+                    Teleport(InjuredDog(), OpenCell(Find.CurrentMap, Stable().InteractionCell, 8f, 12f));
+                    CompRobodog.Of(InjuredDog()).SetBattery(0.8f);
+                    DownByInjury(InjuredDog());
+                    Pawn doc = Doctor();
+                    List<FloatMenuOption> opts = FloatMenuMakerMap.GetOptions(new List<Pawn> { doc },
+                        InjuredDog().DrawPos, out FloatMenuContext _);
+                    FloatMenuOption carry = opts.First(o => o.Label == $"Carry {InjuredDog().LabelShort} to {Stable().LabelShort}");
+                    carry.action();
+                })
+                .Expect("the colonist carries and docks the leg-downed Quadrunner at the stable", () =>
+                    Stable().Docked.Contains(InjuredDog()))
+                .Summary(() => $"Husky in bed={Husky()?.InBed()}, repaired health={InjuredDog()?.health.summaryHealth.SummaryHealthPercent:P0}")
+                .Start();
+        }
     }
 }

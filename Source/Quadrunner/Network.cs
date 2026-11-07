@@ -580,7 +580,7 @@ namespace Quadrunner
                     foreach (ThingDefCountClass cost in c.TotalMaterialCost())
                         if (c.ThingCountNeeded(cost.thingDef) > 0) return false;
                     return true;
-                case NetworkTaskKind.Retrieve: return !(target is Pawn down) || !CompRobodog.Of(down).PoweredDown;
+                case NetworkTaskKind.Retrieve: return !(target is Pawn down) || down.Faction != Faction.OfPlayer || !Retrieval.Casualty(down);
                 case NetworkTaskKind.Rescue: return !(target is Pawn patient) || !Rescue.Patients(Map).Contains(patient);
                 case NetworkTaskKind.Combat:
                     return !(target is Pawn hostile) || hostile.Dead || hostile.IsPrisonerOfColony || !hostile.HostileTo(Faction.OfPlayer);
@@ -931,7 +931,8 @@ namespace Quadrunner
                 Thing target = task.Target(Map);
                 if (target == null || !target.Spawned
                     || task.kind == NetworkTaskKind.Rescue && !Rescue.CanPotentiallyRescue(target as Pawn)
-                    || task.kind == NetworkTaskKind.Recover && !Retrieval.CanPotentiallyRecover(task, Map))
+                    || task.kind == NetworkTaskKind.Recover && !Retrieval.CanPotentiallyRecover(task, Map)
+                    || task.kind == NetworkTaskKind.Retrieve && !Retrieval.CanPotentiallyRetrieve(target as Pawn, Map))
                 {
                     task.retryAt = Now + Tuning.scanInterval;
                     continue;

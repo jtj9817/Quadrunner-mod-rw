@@ -78,6 +78,7 @@ namespace Quadrunner
             ("Stable fire with docked dogs", StableFire),
             ("Stable uninstall and reinstall", StableUninstall),
             ("Carry home", CarryHome),
+            ("No animal-bed rescue", NoAnimalBedRescue),
             ("Field battery and repair kit", FieldBatteryAndRepairKit),
             ("Carrier runs low", CarrierRunsLow),
             ("Retrieval under fire", RetrievalUnderFire),

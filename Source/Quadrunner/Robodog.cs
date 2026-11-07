@@ -143,9 +143,20 @@ namespace Quadrunner
         /// <summary>Adds <paramref name="amount"/> (0–1) of charge.</summary>
         public void Charge(float amount) => SetBattery(battery + amount);
 
+        public void ClearBedOwnership()
+        {
+            Building_Bed owned = Dog.ownership?.OwnedBed;
+            if (owned == null)
+                return;
+            Dog.ownership.UnclaimBed();
+            if (owned.Spawned)
+                owned.NotifyRoomAssignedPawnsChanged();
+        }
+
         public override void PostSpawnSetup(bool respawningAfterLoad)
         {
             base.PostSpawnSetup(respawningAfterLoad);
+            ClearBedOwnership();
             carried = Dog.carryTracker?.CarriedThing;
         }
 
@@ -245,7 +256,10 @@ namespace Quadrunner
             Scribe_Values.Look(ref nextSmokeAt, "nextSmokeAt");
             Scribe_Values.Look(ref fireStandbyUntil, "fireStandbyUntil", -1);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
                 Tiers.MigrateLoadout(Dog);
+                ClearBedOwnership();
+            }
             // Pre-sprayer Medirunners were Animal-intelligence pawns, saved without ToolUser trackers. The load
             // traversal reaches held/world pawns too; these vanilla components persist, making this a one-time migration.
             if (Scribe.mode == LoadSaveMode.PostLoadInit && parent.def == QR_DefOf.QR_Medirunner.race

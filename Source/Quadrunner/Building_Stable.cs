@@ -175,6 +175,7 @@ namespace Quadrunner
                 QR.Error($"{this} couldn't take {dog} into its dock");
                 return false;
             }
+            comp.ClearBedOwnership();
             comp.fireStandbyUntil = -1;
             if (wasSelected)
                 Find.Selector.Select(this, playSound: false);

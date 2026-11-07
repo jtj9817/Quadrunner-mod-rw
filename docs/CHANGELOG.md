@@ -23,6 +23,11 @@ place on load.
 ## [2026-11-07] — Medirunner deployment fix
 
 ### Fixed
+- Colonists no longer rescue downed or powered-down Quadrunners into animal
+  beds or sleeping spots, and any animal bed previously claimed by a robodog in
+  an existing save is released on load. Non-combat robodogs downed by leg
+  injuries (with battery remaining) are now also retrieved to a stable for
+  powered repair and offer right-click **Carry to stable** (user-reported).
 - Docked Medirunners no longer undock speculatively every 2–3 seconds when the
   queues hold only work they cannot take (a downed animal with no reachable
   bed, a reserved or unreachable patient or fire, a powered-down Combatdog

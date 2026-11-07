@@ -8,14 +8,14 @@ using Verse.AI;
 namespace Quadrunner
 {
     /// <summary>
-    /// Powered-down dogs lie like downed pawns until someone carries them to the nearest stable with a free slot (its
-    /// own stable always has its slot): a healthy dog sent by the network, or a colonist ordered to. A dog with a field
-    /// fix in stock is left to the colonists for <see cref="CompProperties_Robodog.fieldFixWaitTicks"/> first.
+    /// Downed or powered-down dogs lie on the ground until someone carries them to the nearest stable with a free slot
+    /// (its own stable always has its slot): a healthy dog sent by the network, or a colonist ordered to. A dog with a
+    /// field fix in stock is left to the colonists for <see cref="CompProperties_Robodog.fieldFixWaitTicks"/> first.
     /// </summary>
     public static class Retrieval
     {
         public static IEnumerable<Pawn> DownDogs(Map map) =>
-            map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer).Where(p => CompRobodog.Of(p)?.PoweredDown == true);
+            map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer).Where(Casualty);
 
         /// <summary>The stable nearest <paramref name="takee"/> that takes it and <paramref name="carrier"/> can reach.</summary>
         public static Building_Stable StableFor(Pawn takee, Pawn carrier) =>
@@ -49,9 +49,36 @@ namespace Quadrunner
             return job;
         }
 
-        /// <summary>A living Combatdog casualty: injured down or out of battery.</summary>
+        /// <summary>A living robodog needing retrieval: downed by injury or out of battery.</summary>
         public static bool Casualty(Pawn pawn) =>
-            pawn != null && !pawn.Dead && (pawn.Downed || CompRobodog.Of(pawn)?.PoweredDown == true);
+            pawn != null && CompRobodog.IsRobodog(pawn) && !pawn.Dead
+            && (pawn.Downed || CompRobodog.Of(pawn).PoweredDown);
+
+        /// <summary>
+        /// Zero-spawn check before any docked worker is probed: whether a downed or powered-down robodog is spawned on
+        /// the map, unreserved, not awaiting a colonist field battery, and region-reachable to a receiving stable.
+        /// </summary>
+        public static bool CanPotentiallyRetrieve(Pawn takee, Map map)
+        {
+            if (takee == null || map == null || takee.Destroyed || !takee.Spawned || takee.Map != map
+                || takee.Faction != Faction.OfPlayer || !Casualty(takee)
+                || takee.IsForbidden(Faction.OfPlayer) || AwaitsFieldFix(takee)
+                || map.reservationManager.IsReserved(takee)
+                || map.physicalInteractionReservationManager.IsReserved(takee))
+                return false;
+            return HasReachableReceivingStable(takee, map, TraverseParms.For(TraverseMode.PassDoors, Danger.Deadly));
+        }
+
+        private static bool HasReachableReceivingStable(Pawn takee, Map map, TraverseParms passDoors)
+        {
+            Building_Stable home = CompRobodog.Of(takee)?.stable;
+            List<Building> buildings = map.listerBuildings.allBuildingsColonist;
+            for (int i = 0; i < buildings.Count; i++)
+                if (buildings[i] is Building_Stable stable && stable.Spawned && (home == stable || stable.HasFreeSlot)
+                    && map.reachability.CanReach(takee.Position, stable, PathEndMode.InteractionCell, passDoors))
+                    return true;
+            return false;
+        }
 
 
         /// <summary>
@@ -84,12 +111,7 @@ namespace Quadrunner
             if (!(target is Pawn casualty) || casualty.Dead || RobodogWork.Of(casualty)?.combat != true
                 || !Casualty(casualty) || casualty.IsForbidden(Faction.OfPlayer) || AwaitsFieldFix(casualty))
                 return false;
-            Building_Stable home = CompRobodog.Of(casualty)?.stable;
-            for (int i = 0; i < buildings.Count; i++)
-                if (buildings[i] is Building_Stable stable && stable.Spawned && (home == stable || stable.HasFreeSlot)
-                    && map.reachability.CanReach(casualty.Position, stable, PathEndMode.InteractionCell, passDoors))
-                    return true;
-            return false;
+            return HasReachableReceivingStable(casualty, map, passDoors);
         }
         /// <summary>
         /// The job for one central casualty order: the real living dog, or the real wreck it left. Null when that
@@ -158,14 +180,14 @@ namespace Quadrunner
                 .FirstOrDefault(f => f != null && carrier.CanReach(f, PathEndMode.Touch, Danger.Deadly));
 
         /// <summary>
-        /// For a working dog given one powered-down dog: a fire on or next to it is beaten out first, else it is
-        /// carried home — unless it awaits its field fix or is not ours to take (forbidden, reserved, unreachable,
+        /// For a working dog given one downed or powered-down dog: a fire on or next to it is beaten out first, else it
+        /// is carried home — unless it awaits its field fix or is not ours to take (forbidden, reserved, unreachable,
         /// or no stable will receive it: null, and the network keeps it queued).
         /// </summary>
         public static Job JobFor(Pawn dog, Pawn takee)
         {
-            if (takee == null || takee == dog || takee.Dead || !takee.Spawned
-                || CompRobodog.Of(takee)?.PoweredDown != true || takee.IsForbidden(dog) || !dog.CanReserve(takee)
+            if (takee == null || takee == dog || takee.Dead || !takee.Spawned || takee.Faction != Faction.OfPlayer
+                || !Casualty(takee) || takee.IsForbidden(dog) || !dog.CanReserve(takee)
                 || !dog.CanReach(takee, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(takee)
                 || StableFor(takee, dog) == null)
                 return null;
@@ -274,7 +296,7 @@ namespace Quadrunner
         }
     }
 
-    /// <summary>Right-click a powered-down dog with a colonist: "Carry to stable".</summary>
+    /// <summary>Right-click a downed or powered-down robodog with a colonist: "Carry to stable".</summary>
     public class FloatMenuOptionProvider_CarryToStable : FloatMenuOptionProvider
     {
         protected override bool Drafted => true;
@@ -288,7 +310,7 @@ namespace Quadrunner
         protected override FloatMenuOption GetSingleOptionFor(Pawn clickedPawn, FloatMenuContext context)
         {
             Pawn carrier = context.FirstSelectedPawn;
-            if (CompRobodog.Of(clickedPawn)?.PoweredDown != true || clickedPawn.Faction != Faction.OfPlayer
+            if (!Retrieval.Casualty(clickedPawn) || clickedPawn.Faction != Faction.OfPlayer
                 || CompRobodog.IsRobodog(carrier)
                 || !carrier.CanReserveAndReach(clickedPawn, PathEndMode.ClosestTouch, Danger.Deadly, ignoreOtherReservations: true))
                 return null;
@@ -301,7 +323,7 @@ namespace Quadrunner
         }
     }
 
-    /// <summary>A powered-down dog that no stable can reach.</summary>
+    /// <summary>A downed or powered-down robodog that no stable can reach.</summary>
     public class Alert_RobodogUnreachable : Alert
     {
         private readonly List<Thing> culprits = new List<Thing>();
@@ -309,7 +331,7 @@ namespace Quadrunner
         public Alert_RobodogUnreachable()
         {
             defaultLabel = "Robodog out of reach";
-            defaultExplanation = "A powered-down robodog lies where no stable can reach it. Open a path, or bring it a robodog battery.";
+            defaultExplanation = "A downed or powered-down robodog lies where no stable can reach it. Open a path, or bring it a robodog battery or repair kit.";
             defaultPriority = AlertPriority.Medium;
         }
 
@@ -343,6 +365,39 @@ namespace Quadrunner
                 t => t is Pawn p && p.Faction == Faction.OfPlayer && CompRobodog.Of(p)?.PoweredDown == true
                     && kidnapper.CanReserve(p) && (disallowed == null || !disallowed.Contains(p)));
             __result = victim != null;
+        }
+    }
+
+    /// <summary>
+    /// Harmony patch 7: robodogs never ask for vanilla bed rescue. Vanilla excludes only Biotech mechs via
+    /// <see cref="RestUtility.IsDeactivated"/>, so <see cref="WorkGiver_RescueDowned"/> and the rescue float menu
+    /// would otherwise treat downed <c>QR_Robotic</c> dogs as rescue patients.
+    /// </summary>
+    [HarmonyPatch(typeof(HealthAIUtility), nameof(HealthAIUtility.WantsToBeRescued))]
+    public static class Patch_HealthAIUtility_WantsToBeRescued
+    {
+        public static bool Prefix(Pawn pawn, ref bool __result)
+        {
+            if (!CompRobodog.IsRobodog(pawn))
+                return true;
+            __result = false;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Harmony patch 8: robodogs can never use beds. Vanilla excludes only <c>RaceProps.IsMechanoid</c> and matches
+    /// non-humanlikes to animal beds (<c>Humanlike == bed_humanlike</c>), which routed downed dogs into animal beds.
+    /// </summary>
+    [HarmonyPatch(typeof(RestUtility), nameof(RestUtility.CanUseBedEver))]
+    public static class Patch_RestUtility_CanUseBedEver
+    {
+        public static bool Prefix(Pawn p, ref bool __result)
+        {
+            if (!CompRobodog.IsRobodog(p))
+                return true;
+            __result = false;
+            return false;
         }
     }
 }

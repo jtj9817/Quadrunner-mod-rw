@@ -103,15 +103,16 @@ namespace Quadrunner
                 {
                     if (thing.IsForbidden(Faction.OfPlayer))
                         continue;
-                    if (CompRobodog.Of(thing)?.PoweredDown == true && thing != observer)
+                    if (thing is Pawn downDog && downDog != observer && downDog.Faction == Faction.OfPlayer
+                        && Retrieval.Casualty(downDog))
                     {
                         // Combatdog casualties are owned by the central reports (death, downing, empty battery);
                         // a local scan must not queue a second, ordinary retrieval for the same dog.
-                        if (RobodogWork.Of(thing)?.combat == true)
+                        if (RobodogWork.Of(downDog)?.combat == true)
                             continue;
                         // Recently powered down with its field fix in stock: the colonists bring it.
-                        if (!Retrieval.AwaitsFieldFix((Pawn)thing))
-                            network.Report(NetworkTaskKind.Retrieve, thing);
+                        if (!Retrieval.AwaitsFieldFix(downDog))
+                            network.Report(NetworkTaskKind.Retrieve, downDog);
                         continue;
                     }
                     foreach (WorkGiverDef giver in work.workGivers)
