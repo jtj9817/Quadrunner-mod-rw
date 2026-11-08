@@ -16,9 +16,12 @@ place on load.
   firefighting) is deferred until a trap-free route exists. In wartime a pursuing
   Combatdog stops one tile short of the first trap on its route and holds there calmly,
   re-checking every second, instead of charging through; patrol waypoints across traps
-  are skipped and captures/rescues through them are deferred (user-reported; development
-  focused 2/2 PASS, affected integration 15/15 PASS, 0 new errors; package
-  `766344e.20261108T081318Z`, 2/2 Trap scenarios, 0 new errors).
+  are skipped and captures/rescues through them are deferred. Code review tightened two
+  edges after the first package: an idle dog whose only wander destinations crossed a
+  trap now waits in place instead of logging an internal think-tree error, and a
+  firefighter whose approach walk is rebuilt mid-fight respects traps on every rebuild,
+  not only when the fire is first claimed (development 8/8 affected scenarios PASS,
+  0 new errors; packaged verification below).
 
 ### Added
 - Interactive system diagrams at [docs/diagrams/index.html](diagrams/index.html):

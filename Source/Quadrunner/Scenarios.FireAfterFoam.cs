@@ -248,6 +248,13 @@ namespace Quadrunner
                             map.fogGrid.Unfog(cell);
                             revealedFog.Add(cell);
                         }
+                    // Firefoam left by an earlier fire scenario on the same map blocks ignition inside this pad
+                    // (both variants can claim overlapping ground); the pad is ours to control, so sweep it — the
+                    // untreated-cell assertion further down still guards against this run's own sprays.
+                    foreach (IntVec3 cell in pad.Cells)
+                        foreach (Filth filth in cell.GetThingList(map).OfType<Filth>().ToList())
+                            if (filth.def == ThingDefOf.Filth_FireFoam)
+                                filth.Destroy();
                     s.OnFinish(() =>
                     {
                         Map now = Find.CurrentMap;
