@@ -9,6 +9,16 @@ place on load.
 
 ## [Unreleased]
 
+### Fixed
+- Robodogs no longer walk into known traps (spike traps, IEDs, and Vanilla Furniture
+  Expanded - Security's razor wire). In peacetime their paths, work dispatch and survey
+  route around traps, and work whose only route crosses one (hauling, cleaning, rescue,
+  firefighting) is deferred until a trap-free route exists. In wartime a pursuing
+  Combatdog stops one tile short of the first trap on its route and holds there calmly,
+  re-checking every second, instead of charging through; patrol waypoints across traps
+  are skipped and captures/rescues through them are deferred (user-reported; development
+  focused 2/2 PASS, affected integration 15/15 PASS, 0 new errors).
+
 ### Added
 - Interactive system diagrams at [docs/diagrams/index.html](diagrams/index.html):
   per-subsystem pages, three behaviour flows (haul, raid, charge decision) and a

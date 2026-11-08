@@ -32,6 +32,7 @@ All paths are under `Source/Quadrunner/`. Scenarios use `Scenarios*.cs` partials
 | Stable and fabrication | `Building_Stable.cs`, `Assembly.cs`, `Tiers.cs` | Docking container and capacity, charge/repair tick, bills, assemble/rebuild/upgrade recipe workers, per-dog upgrade bills, built-in gun selection |
 | Dog pawn | `Robodog.cs`, `Docking.cs` | `CompRobodog` battery/affiliation/guns/siren, powered-down hediff, dock/undock drivers, idle return, wait-in-room fallback |
 | Dispatch | `Network.cs`, `Work.cs`, `Survey.cs`, `Survey.Geometry.cs` | `DogNetwork`, `NetworkState`/`NetworkTask`, task lifecycle, local discovery scanner, coordinator-owned job construction, scan-certified area surveying |
+| Trap avoidance | `Traps.cs` | Known-trap path cost grid (patch 7), peacetime dispatch/survey/target deferral, wartime one-tile standoff cell, trap-shy wander fallback (plan 0011) |
 | Charging | `Charging.cs`, `ChargeSpots.cs` | Stable-vs-conduit decision, conduit charge driver, spot cache, spot eligibility |
 | Rescue, firefighting, hose, retrieval, field fixes | `Rescue.cs`, `Firefighting.cs`, `Hose.cs`, `Retrieval.cs`, `FieldFix.cs` | Patient ranking and vanilla rescue jobs; foam sprayer and Home-fire response; the worker hose for blood/foam patches; carrying powered-down dogs home; colonist-delivered batteries/repair kits |
 | Riding | `Riding.cs` | Ride order and float menu, rider and dog job drivers, ridden-speed stat part, rider draw patch |

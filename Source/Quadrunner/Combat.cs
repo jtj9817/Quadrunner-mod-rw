@@ -102,13 +102,24 @@ namespace Quadrunner
                              wantCoverFromTarget = false,
                          }, out IntVec3 cell))
                 {
-                    job = JobMaker.MakeJob(JobDefOf.Goto, cell);
+                    // Wartime trap standoff (plan 0011): never walk into a trap for a shot; hold one tile short
+                    // of the first one and re-check while the fight develops.
+                    job = TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out IntVec3 hold)
+                        ? HoldJob(dog, hold, target)
+                        : JobMaker.MakeJob(JobDefOf.Goto, cell);
                     job.targetB = target; // Retain combat intent across travel, retargeting and save/load.
                 }
             }
-            job = job ?? JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+            // Claws never cross a trap either: hold one tile short of it and re-check (plan 0011).
+            job = job ?? (TrapAvoidance.RouteEntersTrap(dog, target, PathEndMode.Touch, out IntVec3 meleeHold)
+                ? HoldJob(dog, meleeHold, target)
+                : JobMaker.MakeJob(JobDefOf.AttackMelee, target));
             job.expiryInterval = RecheckTicks;
-            job.checkOverrideOnExpire = true;
+            // A hold Wait must not checkOverrideOnExpire: returning the expiring job from the think tree leaves
+            // the dog ticking jobless for several ticks (vanilla NREs on a null CurJob). Like GuardJob's wait, it
+            // simply ends and the next think request issues a fresh one.
+            if (job.def != JobDefOf.Wait)
+                job.checkOverrideOnExpire = true;
             return job;
         }
 
@@ -116,11 +127,14 @@ namespace Quadrunner
         {
             if (!dog.CanReserveAndReach(target, PathEndMode.ClosestTouch, Danger.Deadly))
                 return null;
+            // A capture reached only through a trap is deferred, not taken through it (plan 0011).
+            if (TrapAvoidance.RouteEntersTrap(dog, target, PathEndMode.ClosestTouch, out _))
+                return null;
             if (target.RaceProps.Humanlike && target.guest != null)
             {
                 Building_Bed bed = RestUtility.FindBedFor(target, dog, checkSocialProperness: false,
                     ignoreOtherReservations: false, GuestStatus.Prisoner);
-                if (bed != null)
+                if (bed != null && !TrapAvoidance.RouteEntersTrap(dog, bed, PathEndMode.ClosestTouch, out _))
                 {
                     Job capture = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
                     capture.count = 1;
@@ -135,6 +149,8 @@ namespace Quadrunner
             }
             IntVec3 cell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), EmptyRoom);
             if (!cell.IsValid)
+                return null;
+            if (TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out _))
                 return null;
             Job carry = JobMaker.MakeJob(QR_DefOf.QR_CarryToRoom, target, cell);
             carry.count = 1;
@@ -160,9 +176,11 @@ namespace Quadrunner
             {
                 int i = comp.waypointsReached % points.Count;
                 IntVec3 cell = points[i];
-                if (dog.Position.InHorDistOf(cell, 1.5f) || !dog.CanReach(cell, PathEndMode.OnCell, Danger.Deadly))
+                bool trapped = TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out _);
+                if (dog.Position.InHorDistOf(cell, 1.5f) || !dog.CanReach(cell, PathEndMode.OnCell, Danger.Deadly)
+                    || trapped)
                 {
-                    QR.Log($"{dog} {(dog.Position.InHorDistOf(cell, 1.5f) ? "reached" : "can't reach")} patrol waypoint {i + 1} at {cell}");
+                    QR.Log($"{dog} {(dog.Position.InHorDistOf(cell, 1.5f) ? "reached" : "can't take")} patrol waypoint {i + 1} at {cell}{(trapped ? " (traps the way)" : "")}");
                     comp.waypointsReached++;
                     continue;
                 }
@@ -193,8 +211,16 @@ namespace Quadrunner
             }
             if (WalkingTo(dog, post, out Job walking))
                 return walking;
-            return dog.CanReach(post, PathEndMode.OnCell, Danger.Deadly)
-                ? JobMaker.MakeJob(JobDefOf.Goto, post) : null;
+            if (!dog.CanReach(post, PathEndMode.OnCell, Danger.Deadly))
+                return null;
+            // Guarding never crosses a trap either: hold one tile short of the first one (plan 0011).
+            if (TrapAvoidance.RouteEntersTrap(dog, post, PathEndMode.OnCell, out IntVec3 hold))
+            {
+                Job holdJob = HoldJob(dog, hold, null);
+                holdJob.expiryInterval = RecheckTicks;
+                return holdJob;
+            }
+            return JobMaker.MakeJob(JobDefOf.Goto, post);
         }
 
         /// <summary>A walk to <paramref name="cell"/> already under way (not player-ordered): keep it, don't restart it.</summary>
@@ -204,6 +230,35 @@ namespace Quadrunner
             return job != null && job.def == JobDefOf.Goto && !job.playerForced && !job.targetA.HasThing
                 && job.targetA.Cell == cell;
         }
+
+        /// <summary>
+        /// The wartime trap standoff (plan 0011): walk to <paramref name="cell"/> — the last safe cell before the
+        /// first trap on the route, one tile short of the wire — and hold there, calmly re-checking every
+        /// <see cref="RecheckTicks"/>; the next request fights <paramref name="target"/> once it can be reached
+        /// without crossing a trap. The jobs keep the target, so an equivalent one under way is not restarted.
+        /// </summary>
+        private static Job HoldJob(Pawn dog, IntVec3 cell, Pawn target)
+        {
+            // Always fresh jobs: a helper that returns the dog's current job makes TakeOrder's continuation branch
+            // pool that live job (ReturnToPool clears its def), leaving the dog running a def-less job. Walk and
+            // wait continuity is preserved by the caller's IsContinuation check on the fresh job instead.
+            if (dog.Position != cell)
+            {
+                QR.Log($"{dog} holds one tile short of the trap at {cell}, watching {target}");
+                Job walk = JobMaker.MakeJob(JobDefOf.Goto, cell);
+                walk.targetB = target;
+                return walk;
+            }
+            QR.Log($"{dog} holds at {cell}, one tile short of the trap, watching {target}");
+            Job wait = JobMaker.MakeJob(JobDefOf.Wait);
+            wait.targetB = target;
+            return wait;
+        }
+
+        /// <summary>Whether the dog already holds its standoff for <paramref name="target"/> (pack refreshes keep it).</summary>
+        public static bool HoldingFor(Pawn dog, Pawn target) =>
+            dog != null && !dog.Drafted && dog.CurJobDef == JobDefOf.Wait && !dog.CurJob.playerForced
+            && dog.CurJob.targetB.Thing == target;
     }
 
     /// <summary>

@@ -39,7 +39,7 @@
         <li Class="ThinkNode_Tagger">
           <tagToGive>Idle</tagToGive>
           <subNodes>
-            <li Class="JobGiver_WanderAnywhere">
+            <li Class="Quadrunner.JobGiver_WanderAvoidTraps">
               <maxDanger>Deadly</maxDanger>
               <ticksBetweenWandersRange>120~240</ticksBetweenWandersRange>
             </li>

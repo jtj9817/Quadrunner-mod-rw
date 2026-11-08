@@ -215,11 +215,13 @@ namespace Quadrunner
         }
 
         private bool Usable(Pawn dog, IntVec3 cell) => cell.InBounds(map) && cell.Standable(map)
-            && !cell.Fogged(map) && !cell.IsForbidden(dog);
+            && !cell.Fogged(map) && !cell.IsForbidden(dog) && !TrapAvoidance.KnownTrapAt(cell, map, dog);
 
         private bool Accepted(Pawn dog, PawnPath path)
         {
-            if (!path.Found) return false;
+            // Trap avoidance (plan 0011): a survey never goals or crosses a known trap; a target only reachable
+            // through one is simply not a candidate.
+            if (!path.Found || TrapAvoidance.PathEntersTrap(path, dog)) return false;
             foreach (IntVec3 node in path.NodesReversed)
                 if (node.Fogged(map) || node.IsForbidden(dog) || node.GetDoor(map)?.IsForbidden(dog) == true) return false;
             return true;

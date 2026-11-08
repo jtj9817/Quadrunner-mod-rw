@@ -101,6 +101,8 @@ namespace Quadrunner
             ("Medirunner hot fires after foam", MedirunnerHotFiresAfterFoam),
             ("Medirunner storm weather standby", MedirunnerStormWeatherStandby),
             ("Medirunner storm condition standby", MedirunnerStormConditionStandby),
+            ("Trap avoidance: peacetime work", TrapAvoidanceWork),
+            ("Trap standoff: wartime pursuit", TrapStandoffWar),
             ("Medirunner storm charge priority", MedirunnerStormChargePriority),
             ("Ride until 0%", RideUntilEmpty),
             ("Ride and dismount", RideAndDismount),

@@ -165,21 +165,27 @@ namespace Quadrunner
         public static DogNetwork For(Map map)
         {
             if (map == null) return null;
-            if (!networks.TryGetValue(map, out DogNetwork network))
+            // Fast path first: the trap-cost postfix asks on every peacetime robodog path request, and a hit
+            // allocates nothing. The prune below only runs for a map not seen before.
+            if (networks.TryGetValue(map, out DogNetwork network))
+                return network;
+            foreach (Map gone in networks.Keys.Where(m => !Find.Maps.Contains(m)).ToList())
             {
-                foreach (Map gone in networks.Keys.Where(m => !Find.Maps.Contains(m)).ToList())
-                {
-                    networks[gone].Survey.Dispose();
-                    networks.Remove(gone);
-                }
-                networks[map] = network = new DogNetwork(map);
+                networks[gone].Survey.Dispose();
+                TrapAvoidance.Forget(gone);
+                networks.Remove(gone);
             }
+            networks[map] = network = new DogNetwork(map);
             return network;
         }
 
         public static void ClearAll()
         {
-            foreach (DogNetwork network in networks.Values) network.Survey.Dispose();
+            foreach (DogNetwork gone in networks.Values)
+            {
+                gone.Survey.Dispose();
+                TrapAvoidance.Forget(gone.Map);
+            }
             networks.Clear();
         }
         public static bool IsWorker(Pawn dog) => RobodogWork.Of(dog) is RobodogWork w && !w.rescue && !w.combat;
@@ -755,6 +761,14 @@ namespace Quadrunner
                     || !dog.CanReach(fire, PathEndMode.Touch, Danger.Deadly))
                     continue;
                 Job candidate = Firefighting.JobFor(dog, fire);
+                // A fire whose walk to the spray position crosses a trap is not ours to take (plan 0011): leave it
+                // queued and try the next one.
+                if (candidate != null && candidate.def == JobDefOf.Goto
+                    && TrapAvoidance.RouteEntersTrap(dog, candidate.targetA.Cell, PathEndMode.OnCell, out _))
+                {
+                    JobMaker.ReturnToPool(candidate);
+                    candidate = null;
+                }
                 if (candidate == null) continue;
                 if (selected != null) JobMaker.ReturnToPool(selected);
                 nearest = task; selected = candidate; distance = local; targetId = fire.thingIDNumber;
@@ -967,7 +981,15 @@ namespace Quadrunner
                                 if ((task.kind == NetworkTaskKind.Frame || task.kind == NetworkTaskKind.Blueprint)
                                     && candidate.targetA.HasThing) { destination = candidate.targetA; mode = PathEndMode.ClosestTouch; }
                                 using (PawnPath path = Map.pathFinder.FindPathNow(dog.Position, destination, TraverseParms.For(dog, Danger.Deadly), peMode: mode))
+                                {
                                     route = path.Found ? path.TotalCost : float.MaxValue;
+                                    // Trap avoidance (plan 0011): work whose route wades through a known trap is
+                                    // not ours now; combat is exempt — Combat.JobFor turns a blocked approach into
+                                    // a standoff instead.
+                                    if (route < float.MaxValue && task.kind != NetworkTaskKind.Combat
+                                        && TrapAvoidance.PathEntersTrap(path, dog))
+                                        route = float.MaxValue;
+                                }
                             }
                         }
                         finally
@@ -985,7 +1007,15 @@ namespace Quadrunner
                             if ((task.kind == NetworkTaskKind.Frame || task.kind == NetworkTaskKind.Blueprint)
                                 && candidate.targetA.HasThing) { destination = candidate.targetA; mode = PathEndMode.ClosestTouch; }
                             using (PawnPath path = Map.pathFinder.FindPathNow(dog.Position, destination, TraverseParms.For(dog, Danger.Deadly), peMode: mode))
+                            {
                                 route = path.Found ? path.TotalCost : float.MaxValue;
+                                // Trap avoidance (plan 0011): work whose route wades through a known trap is not
+                                // ours now; combat is exempt — Combat.JobFor turns a blocked approach into a
+                                // standoff instead.
+                                if (route < float.MaxValue && task.kind != NetworkTaskKind.Combat
+                                    && TrapAvoidance.PathEntersTrap(path, dog))
+                                    route = float.MaxValue;
+                            }
                         }
                     }
                     if (candidate == null) continue;

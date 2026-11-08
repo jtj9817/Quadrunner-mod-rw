@@ -242,7 +242,7 @@ namespace Quadrunner
         /// <summary>Keeps an attack already aimed at the shared target; restarts only when the dog has another job.</summary>
         private void StartFighting(Pawn dog, Pawn target)
         {
-            if (AimedAt(dog.CurJob, target))
+            if (AimedAt(dog.CurJob, target) || Combat.HoldingFor(dog, target))
                 return;
             // Same deferral as ordinary assignment after an allowed-area change: do not path on a stale grid.
             if (!network.PathInputsReady(dog))
