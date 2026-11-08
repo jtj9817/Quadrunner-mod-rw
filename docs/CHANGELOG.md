@@ -17,7 +17,8 @@ place on load.
   Combatdog stops one tile short of the first trap on its route and holds there calmly,
   re-checking every second, instead of charging through; patrol waypoints across traps
   are skipped and captures/rescues through them are deferred (user-reported; development
-  focused 2/2 PASS, affected integration 15/15 PASS, 0 new errors).
+  focused 2/2 PASS, affected integration 15/15 PASS, 0 new errors; package
+  `766344e.20261108T081318Z`, 2/2 Trap scenarios, 0 new errors).
 
 ### Added
 - Interactive system diagrams at [docs/diagrams/index.html](diagrams/index.html):
