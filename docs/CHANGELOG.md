@@ -20,8 +20,8 @@ place on load.
   edges after the first package: an idle dog whose only wander destinations crossed a
   trap now waits in place instead of logging an internal think-tree error, and a
   firefighter whose approach walk is rebuilt mid-fight respects traps on every rebuild,
-  not only when the fire is first claimed (development 8/8 affected scenarios PASS,
-  0 new errors; packaged verification below).
+  not only when the fire is first claimed. Development 8/8 affected scenarios PASS,
+  0 new errors; both fixes ship in package `a43e7f7.20261108T094607Z`.
 
 ### Added
 - Interactive system diagrams at [docs/diagrams/index.html](diagrams/index.html):
