@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -83,7 +84,7 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// A granite box whose only door is a spike trap holds gold; dirt waits outside near the stable. The dirt is
+        /// A granite box whose only door is a spike trap holds gold; dirt waits outside near the worker. The dirt is
         /// cleaned (its routes cross no trap), the gold inside is never hauled through the trap, and no dog ever
         /// stands on the trap (plan 0011: peacetime dispatch defers trap-locked work and routes around traps). Two
         /// fallbacks are proven directly in the same fixture: the idle wander node, offered only trap-crossing
@@ -99,8 +100,9 @@ namespace Quadrunner
             var filthIds = new List<string>();
             var traps = new List<IntVec3>();
             CellRect pile = default;
-            IntVec3 farGoldCell = default, workerStart = default;
-            int windowStart = 0;
+            IntVec3 farGoldCell = default, workerStart = default, gap = default, fireCell = default, corridorTrap = default;
+            Building_Stable stable = null;
+            int windowStart = 0, setupTick = 0;
             bool enteredTrap = false, wanderBad = false, firePlumbingOk = false, fireWalkRefused = false;
             Pawn Dog() => (Pawn)Scenario.ById(dogId);
             Pawn Medic() => (Pawn)Scenario.ById(medicId);
@@ -109,14 +111,14 @@ namespace Quadrunner
                 if (OnTrapCell(Dog(), traps) || OnTrapCell(Medic(), traps))
                     enteredTrap = true;
             }
-            s.Do("a stable with one worker beside a trapped box of gold, one medic, a trapped fire corridor, and dirt near the stable", () =>
+            s.Do("a stable with one worker beside a trapped box of gold, one medic, a trapped fire corridor, and dirt near the worker", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
-                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stable = SpawnStable(s, powered: true);
                     dogId = s.Track(stable.AddNewDog(QR_DefOf.QR_Quadrunner)).ThingID;
                     CellRect box = ClearRect(map, stable.InteractionCell, 9, 2, 14f, 28f);
-                    IntVec3 gap = TrapBox(s, map, box);
+                    gap = TrapBox(s, map, box);
                     traps.Add(gap);
                     var gold = ThingMaker.MakeThing(ThingDefOf.Gold);
                     gold.stackCount = 30;
@@ -127,13 +129,36 @@ namespace Quadrunner
                     workerStart = OpenCell(map, gap, 3f, 4f, c => c.z < gap.z - 2);
                     Teleport(Dog(), workerStart);
                     Dog().jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    IntVec3 sealedPocket = new IntVec3(gap.x, 0, gap.z - 1);
+                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, sealedPocket + IntVec3.West, Rot4.North);
+                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, sealedPocket + IntVec3.East, Rot4.North);
+                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, sealedPocket + IntVec3.South, Rot4.North);
+                    pile = ClearRect(map, stable.InteractionCell, 3, 1, 6f, 12f);
+                    Stockpile(s, pile, ThingDefOf.Gold);
+                    // The fire corridor: in sprayer range the medic is handed the fire (the plumbing works); from
+                    // the far side of the trap every cast position is across it, so the walk must be refused.
+                    CellRect corridor = ClearRect(map, stable.InteractionCell, 24, 2, 16f, 60f);
+                    fireCell = TrapCorridor(s, map, corridor, out corridorTrap);
+                    traps.Add(corridorTrap);
+                    // Within the worker's 15-cell scan and aged past the work scan's 600-tick fresh-filth rule, so the
+                    // first scan finds it instead of a later survey that may not come back in time; clear of the corridor.
+                    for (int i = 0; i < 2; i++)
+                    {
+                        filthIds.Add(SpawnFilth(s, OpenCell(map, workerStart, 3f, 9f,
+                            c => c.z < gap.z - 2 && !corridor.ExpandedBy(1).Contains(c))));
+                        Traverse.Create(Scenario.ById(filthIds[i])).Field("growTick").SetValue(Find.TickManager.TicksGame - 1000);
+                    }
+                    setupTick = Find.TickManager.TicksGame;
+                })
+                // Path data is gathered once per tick: a route asked in the tick that built the walls can run through them.
+                .Expect("the pathfinder has seen the new walls and traps", () => Find.TickManager.TicksGame > setupTick)
+                .Do("probe the wander and fire-walk fallbacks", () =>
+                {
+                    Map map = Find.CurrentMap;
                     // The idle wander fallback, exercised directly on the loaded tree's own node (the network's Wait
                     // standby usually shadows it in the tree): sealed in a pocket whose only exit is the trap, every
                     // destination it can be offered crosses the trap.
                     IntVec3 pocket = new IntVec3(gap.x, 0, gap.z - 1);
-                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, pocket + IntVec3.West, Rot4.North);
-                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, pocket + IntVec3.East, Rot4.North);
-                    SpawnBuilding(s, ThingDefOf.Wall, ThingDefOf.BlocksGranite, pocket + IntVec3.South, Rot4.North);
                     Teleport(Dog(), pocket);
                     Dog().jobs.EndCurrentJob(JobCondition.InterruptForced);
                     var wander = (JobGiver_WanderAvoidTraps)FindNode(
@@ -146,15 +171,6 @@ namespace Quadrunner
                     }
                     Teleport(Dog(), workerStart);
                     Dog().jobs.EndCurrentJob(JobCondition.InterruptForced);
-                    pile = ClearRect(map, stable.InteractionCell, 3, 1, 6f, 12f);
-                    Stockpile(s, pile, ThingDefOf.Gold);
-                    for (int i = 0; i < 2; i++)
-                        filthIds.Add(SpawnFilth(s, OpenCell(map, stable.InteractionCell, 4f, 10f)));
-                    // The fire corridor: in sprayer range the medic is handed the fire (the plumbing works); from
-                    // the far side of the trap every cast position is across it, so the walk must be refused.
-                    CellRect corridor = ClearRect(map, stable.InteractionCell, 24, 2, 16f, 60f);
-                    IntVec3 fireCell = TrapCorridor(s, map, corridor, out IntVec3 corridorTrap);
-                    traps.Add(corridorTrap);
                     Pawn medic = s.Track(stable.AddNewDog(QR_DefOf.QR_Medirunner));
                     medicId = medic.ThingID;
                     CompRobodog.Of(medic).SetBattery(1f);
@@ -179,7 +195,7 @@ namespace Quadrunner
                     Teleport(medic, OpenCell(map, stable.InteractionCell, 3f, 8f));
                 })
                 .Do("observe at normal speed", () => Find.TickManager.CurTimeSpeed = TimeSpeed.Normal)
-                .Expect("the dirt near the stable is cleaned (its routes cross no trap)", () =>
+                .Expect("the dirt near the worker is cleaned (its routes cross no trap)", () =>
                 {
                     LatchTrap();
                     return filthIds.All(id => Scenario.ById(id) == null);
