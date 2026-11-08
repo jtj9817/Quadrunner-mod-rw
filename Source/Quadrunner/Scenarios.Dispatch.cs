@@ -248,6 +248,49 @@ namespace Quadrunner
         /// dog running at raid speed and raid drain as it stands by — and no normal work until the raid is over,
         /// across a reload. The raider leaving hands the backlog back at normal speed and drain.
         /// </summary>
+        /// <summary>
+        /// A <see cref="Blueprint_Install"/> has no material cost and vanilla logs an error if asked for one, so the local
+        /// scan must skip it. A new-construction blueprint beside it, reported by the same scan, proves the scan ran.
+        /// </summary>
+        private static void InstallBlueprintScan()
+        {
+            var s = new Scenario("Install blueprint scan", 3000);
+            int errors = 0;
+            bool buildQueued = false, installQueued = true;
+            void Count(string message, string trace, UnityEngine.LogType type)
+            {
+                if (message.Contains("Blueprint_Install"))
+                    errors++;
+            }
+            s.Do("a worker scans an install blueprint beside a new-construction blueprint", () =>
+                {
+                    UnityEngine.Application.logMessageReceived += Count;
+                    s.OnFinish(() => UnityEngine.Application.logMessageReceived -= Count);
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    (Building_Stable stable, Pawn dog) = SpawnHoseWorker(s);
+                    IntVec3 home = stable.InteractionCell;
+                    PlaceHoseWorker(dog, OpenCell(map, home, 2f, 5f));
+                    IntVec3 stoolCell = OpenCell(map, dog.Position, 8f, 12f);
+                    var stool = (Building)SpawnBuilding(s, DefDatabase<ThingDef>.GetNamed("Stool"), ThingDefOf.Steel,
+                        stoolCell, Rot4.North);
+                    IntVec3 installCell = OpenCell(map, dog.Position, 2f, 6f);
+                    IntVec3 wallCell = OpenCell(map, dog.Position, 2f, 6f, c => c != installCell);
+                    Thing install = s.Track(GenConstruct.PlaceBlueprintForReinstall(stool, installCell, map, Rot4.North,
+                        Faction.OfPlayer));
+                    Thing wall = s.Track(GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, wallCell, map, Rot4.North,
+                        Faction.OfPlayer, ThingDefOf.Steel));
+                    DogWork.ReportLocal(dog, Net());
+                    installQueued = NetQueued(install.ThingID);
+                    buildQueued = NetQueued(wall.ThingID);
+                })
+                .Expect("the scan reported the new-construction blueprint", () => buildQueued)
+                .Expect("the scan did not report the install blueprint", () => !installQueued)
+                .Wait(300)
+                .Expect("no Blueprint_Install cost error was logged", () => errors == 0);
+            s.Start();
+        }
+
         private static void RaidSuspendAndResume()
         {
             var s = new Scenario("Raid: suspend and resume", 40000);

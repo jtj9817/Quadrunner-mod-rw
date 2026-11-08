@@ -27,6 +27,7 @@ namespace Quadrunner
             ("Batteries drain mid-charge", BatteriesDrainMidCharge),
             ("Stable or conduit", StableOrConduit),
             ("Haul and clean", HaulAndClean),
+            ("Install blueprint scan", InstallBlueprintScan),
             ("Two stables", TwoStables),
             ("Hose: single blood and foam", HoseSingleBloodAndFoam),
             ("Hose: three-tile patch", HoseThreeTilePatch),

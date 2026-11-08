@@ -151,7 +151,8 @@ namespace Quadrunner
                 case WorkGiver_ConstructDeliverResourcesToFrames _:
                     return thing is Frame frame && frame.Faction == Faction.OfPlayer && NeedsMaterials(frame);
                 case WorkGiver_ConstructDeliverResourcesToBlueprints _:
-                    return thing is Blueprint print && print.Faction == Faction.OfPlayer
+                    // An install blueprint has no material cost; vanilla logs an error if TotalMaterialCost is called on one.
+                    return thing is Blueprint print && !(print is Blueprint_Install) && print.Faction == Faction.OfPlayer
                         && !(print.def.entityDefToBuild is ThingDef { plant: not null }) && NeedsMaterials(print);
                 case WorkGiver_CleanFilth _:
                     // Vanilla also skips fresh filth (600 ticks) and filth outside the Home area.
