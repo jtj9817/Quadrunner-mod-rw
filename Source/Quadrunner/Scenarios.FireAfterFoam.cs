@@ -366,7 +366,14 @@ namespace Quadrunner
                             if (center.DistanceTo(rect.CenterCell) < 20f)
                                 throw new InvalidOperationException($"fixture: {name} is only {center.DistanceTo(rect.CenterCell):F1} cells from {other}");
                     }
-                    newAt = Now();
+                    // This run's own sprays scatter firefoam far beyond the targeted clusters (hundreds of filth
+                    // cells, 40+ cells out), so the new sites are swept before staging: they must catch fire
+                    // fresh (asserted right below), which foam would prevent.
+                    foreach ((string _, IntVec3 center) in clusters)
+                        foreach (IntVec3 c in new CellRect(center.x - 3, center.z - 3, 7, 7).ClipInsideMap(Find.CurrentMap))
+                            foreach (Filth filth in c.GetThingList(Find.CurrentMap).OfType<Filth>().ToList())
+                                if (filth.def == ThingDefOf.Filth_FireFoam)
+                                    filth.Destroy();
                     foreach ((string name, IntVec3 center) in clusters)
                     {
                         staged.Add((name, SpawnHomeBonfireAt(s, Find.CurrentMap, center, revealedFog)));
