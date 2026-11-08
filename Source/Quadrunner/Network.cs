@@ -761,14 +761,6 @@ namespace Quadrunner
                     || !dog.CanReach(fire, PathEndMode.Touch, Danger.Deadly))
                     continue;
                 Job candidate = Firefighting.JobFor(dog, fire);
-                // A fire whose walk to the spray position crosses a trap is not ours to take (plan 0011): leave it
-                // queued and try the next one.
-                if (candidate != null && candidate.def == JobDefOf.Goto
-                    && TrapAvoidance.RouteEntersTrap(dog, candidate.targetA.Cell, PathEndMode.OnCell, out _))
-                {
-                    JobMaker.ReturnToPool(candidate);
-                    candidate = null;
-                }
                 if (candidate == null) continue;
                 if (selected != null) JobMaker.ReturnToPool(selected);
                 nearest = task; selected = candidate; distance = local; targetId = fire.thingIDNumber;

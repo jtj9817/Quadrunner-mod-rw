@@ -63,7 +63,9 @@ namespace Quadrunner
 
         /// <summary>
         /// That one fire only — the network picks which. Vanilla AttackStatic with the sprayer from where the dog
-        /// stands if it can hit, else a walk to a cast position; null if it has no sprayer or no position reaches.
+        /// stands if it can hit, else a walk to a cast position; null if it has no sprayer, no position reaches, or
+        /// the walk to the spray position crosses a known trap (plan 0011) — the fire stays queued for another dog
+        /// or a later attempt, on claim and on every mid-fight rebuild of the walk leg alike.
         /// </summary>
         public static Job JobFor(Pawn dog, Fire fire)
         {
@@ -85,6 +87,9 @@ namespace Quadrunner
                          wantCoverFromTarget = false,
                      }, out IntVec3 cell))
             {
+                // A fire whose walk to the spray position crosses a trap is not ours to take (plan 0011).
+                if (TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out _))
+                    return null;
                 job = JobMaker.MakeJob(JobDefOf.Goto, cell);
                 job.targetB = fire; // Retain fire intent across travel, retargeting and save/load.
             }

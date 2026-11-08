@@ -60,10 +60,10 @@ to — spike traps, IEDs, VFES razor wire) as ground to avoid:
 
 - [x] Both new scenarios PASS with 0 new errors; reproduction run on unchanged gameplay
       failed first.
-- [ ] Affected integration (dispatch, survey, combat, rescue, firefighting) passes with
+- [x] Affected integration (dispatch, survey, combat, rescue, firefighting) passes with
       0 new errors (shared dispatch/combat code changed; full Run all is not claimed —
       its Artwork-showcase stall is a known open issue).
-- [ ] Package rebuilt, `pkg-run` trap scenarios PASS from `dist/Quadrunner`, records
+- [x] Package rebuilt, `pkg-run` trap scenarios PASS from `dist/Quadrunner`, records
       committed, pushed to origin.
 
 ## Open questions

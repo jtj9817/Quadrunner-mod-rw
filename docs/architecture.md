@@ -218,7 +218,7 @@ Two kinds of numbers deliberately are **not** in XML: the mod setting `turbineDi
 
 ## Harmony patches and XML stat parts
 
-Harmony is applied once from the static bootstrap (`QR.cs:15-21`). Six patches ship; the design budgeted "about six" (`docs/design.md:218`, list at `216-227`), and each exists because vanilla has no virtual or hook for the job.
+Harmony is applied once from the static bootstrap (`QR.cs:15-21`). Seven patches ship; the design budgeted "about six" (`docs/design.md:218`, list at `216-227`), and each exists because vanilla has no virtual or hook for the job.
 
 | # | Patch | Where | Why it exists |
 | --- | --- | --- | --- |
@@ -228,8 +228,9 @@ Harmony is applied once from the static bootstrap (`QR.cs:15-21`). Six patches s
 | 4 | `PawnComponentsUtility.AddAndRemoveDynamicComponents`, postfix | `Drafting.cs:47-55` | Vanilla creates a `Pawn_DraftController` only for humanlikes, colony mechanoids and mutants; player Combatdogs need one to be drafted |
 | 5 | `Pawn.IsColonySubhumanPlayerControlled` getter, postfix | `Drafting.cs:62-70` | Vanilla gates move/attack orders and drafted gizmos on this check; a drafted Combatdog must pass it (only while drafted, so it stays out of player-controlled lists otherwise) |
 | 6 | `PawnRenderer.BodyAngle`, postfix | `Rendering.cs:290-298` | A carried pawn's angle is fixed for a humanlike carrier; this lies a patient along the dog's back and flips it during the scoop |
+| 7 | `PathFinder.CreateRequest` (8-arg overload), postfix | `Traps.cs:162-175` | Vanilla has no traverse flag for trap avoidance and no virtual on `CreateRequest`; every undrafted peacetime robodog path request carries the per-map trap-cost grid so movement, dispatch and survey route around known traps |
 
-There is a seventh patch class, `Root_Play.SetupForQuickTestPlay` (`AutoTest.cs:213-233`). It is **always applied** by `PatchAll`, but returns immediately unless `AutoTest.Enabled` (i.e. the game was launched with `-quadrunner-autotest`); it chooses the fixture tile and `-quadrunner-mapsize`. It cannot affect a normal game.
+There is an eighth patch class, `Root_Play.SetupForQuickTestPlay` (`AutoTest.cs:213-233`). It is **always applied** by `PatchAll`, but returns immediately unless `AutoTest.Enabled` (i.e. the game was launched with `-quadrunner-autotest`); it chooses the fixture tile and `-quadrunner-mapsize`. It cannot affect a normal game.
 
 Two more hooks are XML `StatPart`s on vanilla `MoveSpeed`, not Harmony: `Patches/QR_Stats.xml:5-18` appends `StatPart_RobodogRaid` (`Work.cs:239-267`) and then `StatPart_Riding` (`Riding.cs:229-241`). Order matters: the raid part multiplies deployed/raid speed factors, and the riding part comes last and *replaces* the value, so a rider's speed is exactly `riddenMoveSpeed` rather than a multiplier on the colonist's.
 

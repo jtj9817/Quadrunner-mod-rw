@@ -176,17 +176,20 @@ namespace Quadrunner
 
     /// <summary>
     /// The think tree's last resort, made trap-shy (plan 0011): a wander destination whose route crosses a known
-    /// trap is refused — the dog stays where it is and wanders again later, instead of wading through the wire to a
-    /// spot that is only region-reachable that way. Idle fallback only; charging and docking may still cross when
-    /// nothing else keeps the dog alive.
+    /// trap is refused — the dog waits where it is and samples a new destination on the next wander tick, instead
+    /// of wading through the wire to a spot that is only region-reachable that way. Idle fallback only; charging
+    /// and docking may still cross when nothing else keeps the dog alive.
     /// </summary>
     public class JobGiver_WanderAvoidTraps : JobGiver_WanderAnywhere
     {
         protected override IntVec3 GetExactWanderDest(Pawn pawn)
         {
             IntVec3 dest = base.GetExactWanderDest(pawn);
+            // Refuse by naming the dog's own cell: JobGiver_Wander turns that into its wait-here job
+            // (Wait_Wander, the giver's own tick range), while IntVec3.Invalid makes it hand back no job at
+            // all, which falls through the think tree to JobGiver_IdleError's Log.ErrorOnce.
             return dest.IsValid && TrapAvoidance.RouteEntersTrap(pawn, dest, PathEndMode.OnCell, out _)
-                ? IntVec3.Invalid
+                ? pawn.Position
                 : dest;
         }
     }
