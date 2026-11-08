@@ -1,10 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using RimWorld;
 using RimWorld.Planet;
@@ -27,6 +29,9 @@ namespace Quadrunner
         internal const string MapSizeArg = "quadrunner-mapsize";
 
         private static string dir;
+        private static readonly object eventLock = new object();
+        private static readonly HashSet<string> reportedErrors = new HashSet<string>();
+        private const int MaxReportedErrors = 200, MaxErrorText = 2000;
         private static readonly int Pid = Process.GetCurrentProcess().Id;
 
         /// <summary>One id per process: an in-game restart starts a new process, so a new launch.</summary>
@@ -54,6 +59,7 @@ namespace Quadrunner
                 return;
             dir = value;
             Directory.CreateDirectory(dir);
+            Application.logMessageReceivedThreaded += OnLogMessage;
             QR.Log($"autotest: launch {LaunchId}, control dir {dir}");
             Event("launched", ("build", QR.BuildId));
         }
@@ -116,6 +122,8 @@ namespace Quadrunner
             switch (verb)
             {
                 case "run":
+                    lock (eventLock)
+                        reportedErrors.Clear();
                     Scenarios.RunAll(arg, testSaveLoad: true, (passed, verdicts) =>
                         Event("result", ("id", id), ("passed", passed), ("total", verdicts.Count), ("verdicts", verdicts)));
                     break;
@@ -150,6 +158,31 @@ namespace Quadrunner
                 Thread.Sleep(1000);
         }
 
+        /// <summary>
+        /// Reports every red error by Unity's own severity, once per distinct message and run: Player.log carries no
+        /// severity, so the harness's text matching alone misses errors worded without a keyword. Threaded, because
+        /// path jobs and other workers log too; it must never log, or it would call itself.
+        /// </summary>
+        private static void OnLogMessage(string message, string trace, LogType type)
+        {
+            if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert)
+                return;
+            try
+            {
+                lock (eventLock)
+                    if (reportedErrors.Count >= MaxReportedErrors || !reportedErrors.Add(Regex.Replace(message, "[0-9]+", "N")))
+                        return;
+                Event("log_error", ("severity", type.ToString()), ("message", Clip(message)), ("trace", Clip(trace)));
+            }
+            catch (Exception)
+            {
+                // Logging must not fail the logger; the Player.log scan still sees the message.
+            }
+        }
+
+        private static string Clip(string text) =>
+            text == null || text.Length <= MaxErrorText ? text ?? "" : text.Substring(0, MaxErrorText);
+
         /// <summary>Appends one JSON line to events.jsonl. No-op without the launch argument.</summary>
         public static void Event(string ev, params (string key, object value)[] fields)
         {
@@ -160,7 +193,8 @@ namespace Quadrunner
             foreach ((string key, object value) in fields)
                 sb.Append(',').Append(Json(key)).Append(':').Append(Json(value));
             sb.Append("}\n");
-            File.AppendAllText(Path.Combine(dir, "events.jsonl"), sb.ToString());
+            lock (eventLock)
+                File.AppendAllText(Path.Combine(dir, "events.jsonl"), sb.ToString());
         }
 
         private static string Json(object value)

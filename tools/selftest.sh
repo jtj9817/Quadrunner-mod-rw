@@ -16,7 +16,7 @@ mkdir -p "$SELF/devlog" "$SELF/game/Mods" "$SELF/harmony/About" "$SELF/harmony/1
 echo "1.6.4871 rev598" > "$SELF/game/Version.txt"
 ln -s "$HERE/selftest/RimWorldLinux" "$SELF/game/RimWorldLinux"
 export QR_DEVLOG="$SELF/devlog" RW_DIR="$SELF/game" HARMONY_DIR="$SELF/harmony" FAKE_EXE="$SELF/game/RimWorldLinux"
-unset RW_DATA FAKE_FAIL FAKE_STARTUP_ERROR FAKE_REMOVAL_ERRORS FAKE_LOAD_FAIL FAKE_WRONG_MOD_SOURCE
+unset RW_DATA FAKE_FAIL FAKE_STARTUP_ERROR FAKE_LOG_ERROR FAKE_REMOVAL_ERRORS FAKE_LOAD_FAIL FAKE_WRONG_MOD_SOURCE
 echo "selftest.1" > "$QR_DEVLOG/last-build"
 
 # The user's real game may be open; the fake instance doesn't care.
@@ -76,11 +76,20 @@ expect 0 "stopped Xvfb" at stop
 export FAKE_FAIL="Save and reload" FAKE_STARTUP_ERROR=1
 expect 1 "1/2 PASS, 0 new error(s)" at run --no-build
 expect 0 "stopped Xvfb" at stop
+unset FAKE_FAIL FAKE_STARTUP_ERROR
+# A red error reported by severity: hidden when the baseline knows it, counted when its wording has no keyword.
+export FAKE_LOG_ERROR="Exception in fake startup: NullReferenceException"
+expect 0 "2/2 PASS, 0 new error(s)" at run --no-build
+expect 0 "stopped Xvfb" at stop
+export FAKE_LOG_ERROR="Called Fake on a Blueprint 123."
+expect 1 "2/2 PASS, 1 new error(s)" at run --no-build
+expect 0 "stopped Xvfb" at stop
+export FAKE_FAIL="" FAKE_STARTUP_ERROR=1 FAKE_LOG_ERROR="Exception in fake startup: NullReferenceException"
 # ... and the same error without the baseline (counted).
 rm "$QR_DEVLOG/baseline-errors.txt"
 unset FAKE_FAIL
 expect 1 "2/2 PASS, 1 new error(s)" at run --no-build
-unset FAKE_STARTUP_ERROR
+unset FAKE_STARTUP_ERROR FAKE_LOG_ERROR
 expect 2 "watchdog: OK" at --hang-after 5 hang
 expect 0 "2/2 PASS" at run --no-build
 expect 0 "stopped Xvfb" at stop

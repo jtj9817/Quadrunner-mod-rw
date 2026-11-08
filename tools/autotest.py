@@ -516,6 +516,23 @@ def new_errors(path, start=0, show_all=False):
     return [b for b in log_blocks(path, start) if b.error and (b.ours or b.sig not in known)]
 
 
+def reported_errors(launch, event_offset, found):
+    """Errors the game reported by Unity severity (`log_error`) that the Player.log scan did not already find: the
+    log carries no severity, so a red error worded without an ERROR_RE keyword is invisible to the scan."""
+    known, have, extra = known_signatures(), {b.sig for b in found}, []
+    for _, e in read_events(event_offset):
+        if e.get("ev") != "log_error" or e.get("launch") != launch:
+            continue
+        lines = e.get("message", "").splitlines() or [""]
+        b = Block(0, lines[0])
+        b.error = "GL_" not in lines[0]
+        b.lines += lines[1:] + e.get("trace", "").splitlines()
+        if b.error and b.sig not in have and (b.ours or b.sig not in known):
+            have.add(b.sig)
+            extra.append(b)
+    return extra
+
+
 # --- commands --------------------------------------------------------------------------------------------------
 
 def run_harness(expected_build, args, build_first):
@@ -683,6 +700,8 @@ def report(cur, result, offset, log_start, seconds, filt):
     for e in scen:
         print(f"SCENARIO {e['name']}: {e['verdict']}  {e.get('detail', '')}".rstrip())
     errors = new_errors(RW_LOG, log_start)
+    # A fresh launch's log is read from its start, so its startup events count too.
+    errors += reported_errors(cur["launch"], 0 if log_start == 0 else offset, errors)
     for b in errors:
         print("\n".join(b.lines[:20]) + ("\n  ..." if len(b.lines) > 20 else ""))
     passed, total = result.get("passed", 0), result.get("total", 0)

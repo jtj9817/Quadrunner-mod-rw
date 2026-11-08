@@ -3,6 +3,7 @@ game. Launched through ./RimWorldLinux with the real game's arguments.
 
   FAKE_STARTUP_ERROR=1   log one red error at startup (autotest.py must count it)
   FAKE_FAIL=<name>       that scenario FAILs
+  FAKE_LOG_ERROR=<text>  during a run, report <text> as a log_error event without writing it to Player.log
 Without -quadrunner-autotest (a baseline or removal-check launch) it idles; when a Saves/autostart.rws exists it
 logs the load line and, with FAKE_REMOVAL_ERRORS=1, the errors a removed mod leaves, or with FAKE_LOAD_FAIL=1 the
 "long event" exception of a failed load.
@@ -91,6 +92,8 @@ while True:
     log.write(f"[Quadrunner] autotest: command {text}\n")
     if verb == "run":
         verdicts = []
+        if os.environ.get("FAKE_LOG_ERROR"):
+            event("log_error", severity="Error", message=os.environ["FAKE_LOG_ERROR"], trace="")
         for name in ("Smoke", "Save and reload"):
             if arg and not any(p.strip().lower() in name.lower() for p in arg.split(",")):
                 continue
