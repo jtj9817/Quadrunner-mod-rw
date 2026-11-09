@@ -60,6 +60,8 @@ User request (2026-11-08): put blood and foam patches that are tasks at the top 
 
 Development evidence: `Hose: patch priority` failed on the unchanged scheduler with `recover > haul` (2026-11-09 02:37, 0/1) and passed with the fix, `recover > hose > haul > clean` (02:38, 1/1, zero new errors, build `ee8ccbe-dirty.20261109T023751Z`). See [test runs](../test-runs.md).
 
+Package evidence: actual `dist/Quadrunner` build `7d2b20b.20261109T023903Z`, the same scenario 1/1 PASS with zero new errors (2026-11-09 02:40), BUILD and modRoot verified. The launch before it passed the scenario but logged a map-generated colonist relation error at the save step, as on 2026-10-24; it is recorded and not counted as clean.
+
 Known follow-up: `Hose: dirt-first fallback` asserts the old order (older dirt assigned ahead of a newer patch), so it is expected to fail until its fixture is updated. It was neither changed nor run, per the single-scenario request. The batch fallback in `DogWork.JobFor` now fires only when a patch's own tasks are in retry backoff.
 
 ## Open questions
