@@ -139,15 +139,19 @@ namespace Quadrunner
         /// Runs the scenarios whose names contain any comma-separated part of <paramref name="filter"/>
         /// (case-insensitive; empty = all), then calls <paramref name="done"/> with the PASS count and verdicts.
         /// Live Run all omits dedicated persistence fixtures and isolated benchmarks; select those explicitly instead.
+        /// An empty filter also omits the showcase and weapon demos, which run only when named.
         /// </summary>
         public static void RunAll(string filter, bool testSaveLoad, Action<int, List<string>> done)
         {
             string[] parts = (filter ?? "").Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToArray();
             Scenario.RunAll(All.Where(s => (testSaveLoad || (s.setUp != SaveAndReload && s.setUp != SurveyLegacySave
                 && s.setUp != MedirunnerLegacyMigration && s.setUp != CombatTierLegacyMigration
-                && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ||
+                && !s.name.StartsWith("Survey bench:", StringComparison.Ordinal))) && (parts.Length == 0 ? !IsDemo(s.name) :
                 parts.Any(p => s.name.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0))), testSaveLoad, done);
         }
+
+        private static bool IsDemo(string name) =>
+            name == "Artwork showcase" || name.EndsWith(" weapon demo", StringComparison.Ordinal);
 
         private static IntVec3 FreeCellNearCenter(Map map)
         {
