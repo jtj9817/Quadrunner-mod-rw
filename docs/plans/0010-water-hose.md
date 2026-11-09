@@ -62,8 +62,8 @@ Development evidence: `Hose: patch priority` failed on the unchanged scheduler w
 
 Package evidence: actual `dist/Quadrunner` build `7d2b20b.20261109T023903Z`, the same scenario 1/1 PASS with zero new errors (2026-11-09 02:40), BUILD and modRoot verified. The launch before it passed the scenario but logged a map-generated colonist relation error at the save step, as on 2026-10-24; it is recorded and not counted as clean.
 
-Known follow-up: `Hose: dirt-first fallback` asserts the old order (older dirt assigned ahead of a newer patch), so it is expected to fail until its fixture is updated. It was neither changed nor run, per the single-scenario request. The batch fallback in `DogWork.JobFor` now fires only when a patch's own tasks are in retry backoff.
+Follow-up (user, 2026-11-08): the batch fallback in `DogWork.JobFor` now fires only when a patch's own tasks are in retry backoff, so `Hose: dirt-first fallback` holds them there for its dispatch. It passes alone, 1/1 with zero new errors (2026-11-09 04:04, build `c8bc710-dirty.20261109T040344Z`). Fixture-only change, no new package.
 
 ## Open questions
 
-- Should `Hose: dirt-first fallback` be rewritten for the new order (for example, by holding the patch's tasks in retry backoff so the dirt still goes first)?
+None.

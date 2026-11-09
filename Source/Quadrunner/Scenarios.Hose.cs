@@ -408,10 +408,10 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// The dispatch scheduler takes the oldest discovered task first. A patch discovered behind an older ordinary
-        /// dirt task must still get the hose: the dirt task is assigned, but the job it builds is the hose for the
-        /// four-tile patch queued behind it. This is asserted from the real task ids and the network's assignee, not
-        /// by reordering the task list.
+        /// A qualifying patch normally outranks dirt (H3), so the dirt can only go first while the patch's own tasks are
+        /// in retry backoff. A patch in that state must still get the hose: the dirt task is assigned, but the job it
+        /// builds is the hose for the four-tile patch queued behind it. This is asserted from the real task ids, the
+        /// real backoff field and the network's assignee, not by reordering the task list.
         /// </summary>
         private static void HoseDirtFirstFallback()
         {
@@ -424,7 +424,7 @@ namespace Quadrunner
             string dogId = null, dirtId = null, assignedTargetId = null, assignedJob = null;
             Pawn Dog() => Scenario.ById(dogId) as Pawn;
             int Remaining() => patch.Count(id => Scenario.ById(id) != null);
-            s.Do("a powered stable and worker; Home dirt is discovered before a four-tile patch behind it", () =>
+            s.Do("a powered stable and worker; Home dirt is discovered before a four-tile patch held in retry backoff", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
@@ -486,6 +486,8 @@ namespace Quadrunner
                         if (task.id <= dirtTaskId)
                             throw new InvalidOperationException(
                                 $"patch task #{task.id} is not newer than the dirt task #{dirtTaskId}");
+                        // Backoff for this dispatch only: the patch would otherwise outrank the dirt.
+                        task.retryAt = Find.TickManager.TicksGame + 600;
                     }
                     Net().Tick(force: true);
                     NetworkTask assigned = Net().State.normal.FirstOrDefault(t => t.assigneeId == dogId);
