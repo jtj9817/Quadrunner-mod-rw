@@ -107,6 +107,8 @@ namespace Quadrunner
         private readonly List<string> goneReports = new List<string>();
         private readonly List<(Building_Stable stable, Area area)> triedFireDocks = new List<(Building_Stable, Area)>();
         private readonly Comparison<NetworkTask> taskComparison;
+        // Rebuilt before every normal-queue sort, never saved: the queue and the filth on the map decide it.
+        private readonly HashSet<int> hosePatchTasks = new HashSet<int>();
         private readonly PackCombat packs;
         private List<(int id, int firstTick)> pathAreas;
         private NetworkState state;
@@ -496,6 +498,7 @@ namespace Quadrunner
                     if (!War)
                     {
                         ordered.Clear(); ordered.AddRange(State.normal);
+                        Hose.PriorityTasks(Map, State.normal, hosePatchTasks);
                         ordered.Sort(taskComparison);
                         AssignAll(ordered, hasPatient);
                     }
@@ -524,7 +527,7 @@ namespace Quadrunner
                     if (bleeding != 0) return bleeding;
                 }
             }
-            int kind = Rank(a.kind).CompareTo(Rank(b.kind));
+            int kind = Rank(a).CompareTo(Rank(b));
             if (kind != 0) return kind;
             // A downed enemy is one ordinary capture trip, not a focus-fire target: dispatch it before standing fights
             // so a pack's keeper can take the capture while the rest of the pack moves on.
@@ -537,8 +540,12 @@ namespace Quadrunner
             return a.id.CompareTo(b.id);
         }
 
-        /// <summary>Casualty recovery outranks every ordinary kind once the war is over; war work keeps its own order.</summary>
-        private static int Rank(NetworkTaskKind kind) => kind == NetworkTaskKind.Recover ? -1 : (int)kind;
+        /// <summary>
+        /// Casualty recovery outranks every ordinary kind once the war is over, followed by hose-qualifying blood/foam
+        /// patches (plan 0010 / H3); war work keeps its own order.
+        /// </summary>
+        private int Rank(NetworkTask task) =>
+            task.kind == NetworkTaskKind.Recover ? -2 : hosePatchTasks.Contains(task.id) ? -1 : (int)task.kind;
 
         private static void Reset(NetworkTask task)
         {

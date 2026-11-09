@@ -32,7 +32,7 @@ namespace Quadrunner
                 || !(target is Filth first) || !StillEligible(first, dog) || !Mature(first))
                 return null;
             List<IntVec3> patch = PatchCells(dog.Map, first.Position, work);
-            int minimum = work.hoseMinTiles > 0 ? work.hoseMinTiles : 4;
+            int minimum = MinTiles(work);
             HashSet<string> discovered = Discovered(DogNetwork.For(dog.Map), dog);
             if (discovered.Count == 0)
                 return null;
@@ -55,6 +55,45 @@ namespace Quadrunner
             return job;
         }
 
+        private static int MinTiles(RobodogWork work) => work.hoseMinTiles > 0 ? work.hoseMinTiles : 4;
+
+        /// <summary>
+        /// The queued Clean tasks whose filth sits in a patch that earns the hose, for dispatch ranking (plan 0010 / H3).
+        /// No dog is chosen yet, so this is <see cref="JobFor"/>'s test without its per-dog reservation and reach checks,
+        /// which assignment still applies. Ordinary dirt on or beside a patch is never included.
+        /// </summary>
+        internal static void PriorityTasks(Map map, List<NetworkTask> queue, HashSet<int> priority)
+        {
+            priority.Clear();
+            RobodogWork work = RobodogWork.Utility;
+            if (work == null || work.hoseFilth.NullOrEmpty())
+                return;
+            var cells = new Dictionary<int, IntVec3>();
+            var tiles = new HashSet<IntVec3>();
+            foreach (NetworkTask task in queue)
+                if (task.kind == NetworkTaskKind.Clean && task.assigneeId == null && task.Target(map) is Filth filth
+                    && Sprayable(filth, work) && !filth.Position.Fogged(map) && map.areaManager.Home[filth.Position])
+                {
+                    cells[task.id] = filth.Position;
+                    tiles.Add(filth.Position);
+                }
+            int minimum = MinTiles(work);
+            if (tiles.Count < minimum)
+                return;
+            var qualifying = new HashSet<IntVec3>();
+            foreach (IntVec3 tile in tiles)
+            {
+                if (qualifying.Contains(tile))
+                    continue;
+                List<IntVec3> patch = PatchCells(map, tile, work);
+                if (patch.Count(tiles.Contains) >= minimum)
+                    qualifying.UnionWith(patch);
+            }
+            foreach (KeyValuePair<int, IntVec3> task in cells)
+                if (qualifying.Contains(task.Value))
+                    priority.Add(task.Key);
+        }
+
         /// <summary>Still a hose filth this dog may spray here: right def, spawned, Home, revealed, not forbidden.</summary>
         internal static bool StillEligible(Filth filth, Pawn dog)
         {
@@ -67,6 +106,9 @@ namespace Quadrunner
         }
 
         private static bool Mature(Filth filth) => filth.TicksSinceThickened >= MinTicksSinceThickened;
+
+        private static bool Sprayable(Filth filth, RobodogWork work) =>
+            filth.Spawned && work.hoseFilth.Contains(filth.def) && Mature(filth) && !filth.IsForbidden(Faction.OfPlayer);
 
         /// <summary>
         /// Target IDs the network has discovered in its normal queue and that this dog may still take: unassigned,
@@ -156,8 +198,7 @@ namespace Quadrunner
             if (!cell.InBounds(map) || cell.Fogged(map) || !map.areaManager.Home[cell])
                 return false;
             foreach (Thing thing in cell.GetThingList(map))
-                if (thing is Filth filth && filth.Spawned && work.hoseFilth.Contains(filth.def)
-                    && Mature(filth) && !filth.IsForbidden(Faction.OfPlayer))
+                if (thing is Filth filth && Sprayable(filth, work))
                     return true;
             return false;
         }

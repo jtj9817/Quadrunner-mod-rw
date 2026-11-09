@@ -15,6 +15,7 @@ Give worker Quadrunners an integrated water hose to clean clusters of blood and 
 | Design reference | Reuse the relevant continuous selection and handoff ideas from Medirunner foam response, adapted to cleaning rather than treating filth as fire (user, 2026-11-05). |
 | Patch and speed | Eight-neighbor connected, discovered and queueable Home cells, bounded to 12 cells from the first target and 256 cells per job. The hose cleans at 1.5 times normal cleaning work; bounds and rate are XML tunables. |
 | Broad application (H2) | Match the Medirunner's `Verb_ArcSpray` band: 5.5-cell half-width, `4 / 2 + 1.5 = 3.5`-cell half-depth, oriented dog-to-aim. Every eligible reserved queue target in the band receives cleaning work per application, with line of sight checked per tile. Per-tile partial layer work is saved; triggered water flecks cover the affected cells. No equipment migration or new Harmony patch. |
+| Queue priority (H3) | A blood/firefoam patch that qualifies for the hose ranks in the normal queue directly below Combatdog casualty recovery (plans 0003 and 0007 keep that first) and above every other normal kind, oldest task first within the rank (user, 2026-11-08). Ranking counts discovered, unassigned, mature Home tiles; per-dog reservation and reach stay at assignment. Dirt and patches of one to three tiles keep the ordinary `Clean` rank. Raids still suspend the normal queue, and a running job is not interrupted. The rank is rebuilt each dispatch and never saved. |
 
 ## Targets
 
@@ -50,6 +51,17 @@ Development evidence: 2026-11-06 06:06, `835eec3-dirty.20261106T060450Z`, eight 
 
 Package evidence: 2026-11-06 06:09, actual `dist/Quadrunner` build `8f60a1f.20261106T060759Z`, the same eight Hose scenarios 8/8 PASS with zero new errors. BUILD and loaded modRoot verified, actual package spray inspected, private game/Xvfb stopped and release link restored. No other scenarios or full suite run for H2.
 
+### H3 — Patch priority in the normal queue
+
+User request (2026-11-08): put blood and foam patches that are tasks at the top of the queue, with one new scenario and only that scenario run.
+
+- [x] With one worker, the job order is Combatdog recovery, then a newest-discovered qualifying patch, then an older haul, then older dirt and a three-tile blood group, across save/load, zero new errors.
+- [x] The same scenario passes from the actual package, with BUILD and modRoot verified.
+
+Development evidence: `Hose: patch priority` failed on the unchanged scheduler with `recover > haul` (2026-11-09 02:37, 0/1) and passed with the fix, `recover > hose > haul > clean` (02:38, 1/1, zero new errors, build `ee8ccbe-dirty.20261109T023751Z`). See [test runs](../test-runs.md).
+
+Known follow-up: `Hose: dirt-first fallback` asserts the old order (older dirt assigned ahead of a newer patch), so it is expected to fail until its fixture is updated. It was neither changed nor run, per the single-scenario request. The batch fallback in `DogWork.JobFor` now fires only when a patch's own tasks are in retry backoff.
+
 ## Open questions
 
-None.
+- Should `Hose: dirt-first fallback` be rewritten for the new order (for example, by holding the patch's tasks in retry backoff so the dirt still goes first)?

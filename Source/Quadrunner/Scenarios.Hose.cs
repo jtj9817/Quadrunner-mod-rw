@@ -547,6 +547,119 @@ namespace Quadrunner
                 .Start();
         }
 
+        /// <summary>
+        /// Plan 0010 / H3: with one worker and real task ids, a Combatdog wreck still goes first, then a qualifying
+        /// patch discovered last, then the older haul, and ordinary cleaning (dirt and a three-tile blood group) last.
+        /// The order is read from the worker's actual job starts, so only the scheduler can satisfy it.
+        /// </summary>
+        private static void HosePatchPriority()
+        {
+            var s = new Scenario("Hose: patch priority", 60000);
+            var patch = new HashSet<string>();
+            var small = new HashSet<string>();
+            var jobOrder = new List<string>();
+            string stableId = null, dogId = null, casualtyId = null, goldId = null, dirtId = null;
+            CellRect pile = default;
+            Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
+            int Left(IEnumerable<string> ids) => ids.Count(id => Scenario.ById(id) != null);
+            void CheckOrder()
+            {
+                int hose = jobOrder.IndexOf("hose"), haul = jobOrder.IndexOf("haul"), clean = jobOrder.IndexOf("clean");
+                string order = string.Join(" > ", jobOrder);
+                if (jobOrder.IndexOf("recover") != 0)
+                    throw new InvalidOperationException("the Combatdog recovery was not the first job: " + order);
+                if (haul >= 0 && (hose < 0 || haul < hose))
+                    throw new InvalidOperationException("the older haul started before the hose: " + order);
+                if (clean >= 0 && (hose < 0 || haul < 0 || clean < hose || clean < haul))
+                    throw new InvalidOperationException("ordinary cleaning started too early: " + order);
+            }
+            s.Do("one worker; older gold, dirt and three blood tiles, then a four-tile patch, then a Combatdog wreck", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    ClearStagedFilth(map);
+                    (Building_Stable stable, Pawn dog) = SpawnHoseWorker(s);
+                    stableId = stable.ThingID;
+                    dogId = dog.ThingID;
+                    IntVec3 home = stable.InteractionCell;
+                    CellRect area = ClearRect(map, home, 9, 1, 8f, 20f);
+                    pile = ClearRect(map, home, 3, 1, 6f, 24f, r => !r.Overlaps(area.ExpandedBy(2)));
+                    Stockpile(s, pile, ThingDefOf.Gold);
+                    PlaceHoseWorker(dog, new IntVec3(area.minX + 5, 0, area.minZ + 2));
+
+                    // Everything but the patch is reported first, so a plain id order would put the patch behind it.
+                    Thing gold = NetStack(s, ThingDefOf.Gold, 30, new IntVec3(area.maxX, 0, area.minZ));
+                    goldId = gold.ThingID;
+                    gold.SetForbidden(false);
+                    if (!Net().Report(NetworkTaskKind.Haul, gold, NetHaulGiver))
+                        throw new InvalidOperationException("the gold report was refused");
+                    for (int i = 0; i < 3; i++)
+                        small.Add(SpawnHoseFilth(s, new IntVec3(area.minX + i, 0, area.minZ + 5), ThingDefOf.Filth_Blood));
+                    dirtId = SpawnHoseFilth(s, new IntVec3(area.minX + 7, 0, area.minZ + 7), ThingDefOf.Filth_Dirt);
+                    DogWork.ReportLocal(dog, Net());
+                    int newestOlder = small.Concat(new[] { goldId, dirtId })
+                        .Max(id => (NetTask(id) ?? throw new InvalidOperationException("not discovered: " + id)).id);
+                    foreach (string id in SpawnHosePatch(s, new CellRect(area.minX, area.minZ, 2, 2)))
+                        patch.Add(id);
+                    DogWork.ReportLocal(dog, Net());
+                    foreach (string id in patch)
+                    {
+                        NetworkTask task = NetTask(id) ?? throw new InvalidOperationException("not discovered: " + id);
+                        if (task.id <= newestOlder)
+                            throw new InvalidOperationException($"patch task #{task.id} is not newer than #{newestOlder}");
+                    }
+
+                    Pawn casualty = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog));
+                    casualtyId = casualty.ThingID;
+                    stable.TryUndock(casualty);
+                    Teleport(casualty, OpenCell(map, home, 10f, 18f,
+                        c => !area.ExpandedBy(2).Contains(c) && !pile.ExpandedBy(1).Contains(c)));
+                    casualty.Kill(null);
+                    s.Track(casualty.Corpse ?? throw new InvalidOperationException("no wreck"));
+
+                    ObservePackJobs(s, (pawn, job) =>
+                    {
+                        if (pawn.ThingID != dogId)
+                            return;
+                        string name = job.def == QR_DefOf.QR_CarryToStable ? "recover"
+                            : IsHoseJob(job) ? "hose"
+                            : job.def == JobDefOf.HaulToCell || job.def == JobDefOf.HaulToContainer ? "haul"
+                            : job.def == JobDefOf.Clean ? "clean" : null;
+                        if (name != null && jobOrder.LastOrDefault() != name)
+                            jobOrder.Add(name);
+                    });
+                    Net().Tick(force: true);
+                    NetworkTask recover = CasualtyTask(casualtyId) ?? throw new InvalidOperationException("no recovery order");
+                    if (recover.assigneeId != dogId)
+                        throw new InvalidOperationException($"the recovery went to {recover.assigneeId ?? "nobody"}");
+                    if (patch.Concat(small).Concat(new[] { goldId, dirtId }).Any(id => NetTask(id)?.assigneeId != null))
+                        throw new InvalidOperationException("other work was assigned ahead of the recovery");
+                })
+                .SaveAndReload()
+                .Expect("the wreck reaches the stable first", () =>
+                {
+                    CheckOrder();
+                    return Stable().RecoveredWrecks.Any(c => c.InnerPawn?.ThingID == casualtyId);
+                })
+                .Expect("the hose clears the newest patch before the older haul or ordinary cleaning", () =>
+                {
+                    CheckOrder();
+                    return Left(patch) == 0 && jobOrder.Contains("hose");
+                })
+                .Expect("the older haul is delivered next", () =>
+                {
+                    CheckOrder();
+                    return CountIn(pile, ThingDefOf.Gold) == 30;
+                })
+                .Expect("the three blood tiles and the dirt stay ordinary cleaning, last", () =>
+                {
+                    CheckOrder();
+                    return Left(small) == 0 && Scenario.ById(dirtId) == null && jobOrder.Contains("clean");
+                })
+                .Summary(() => "job order: " + string.Join(" > ", jobOrder))
+                .Start();
+        }
+
         private static void HoseLargerMixedPatch()
         {
             var s = new Scenario("Hose: larger mixed patch", 120000);

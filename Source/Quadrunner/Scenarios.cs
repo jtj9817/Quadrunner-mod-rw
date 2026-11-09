@@ -33,6 +33,7 @@ namespace Quadrunner
             ("Hose: three-tile patch", HoseThreeTilePatch),
             ("Hose: four-tile patch", HoseFourTilePatch),
             ("Hose: dirt-first fallback", HoseDirtFirstFallback),
+            ("Hose: patch priority", HosePatchPriority),
             ("Hose: larger mixed patch", HoseLargerMixedPatch),
             ("Hose: two-worker boundaries", HoseTwoWorkerBoundaries),
             ("Hose: broad spray footprint", HoseBroadSprayFootprint),
