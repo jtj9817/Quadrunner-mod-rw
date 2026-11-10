@@ -124,6 +124,7 @@
           <li>Filth_BloodSmear</li>
           <li>Filth_BloodInsect</li>
           <li>Filth_FireFoam</li>
+          <li>Filth_AnimalFilth</li>
         </hoseFilth>
         <hoseMinTiles>4</hoseMinTiles>
         <hosePatchRadius>12</hosePatchRadius>

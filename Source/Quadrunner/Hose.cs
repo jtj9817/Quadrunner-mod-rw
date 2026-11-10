@@ -9,10 +9,10 @@ namespace Quadrunner
 {
     /// <summary>
     /// The worker Quadrunner's integrated water hose (plan 0010). A network Clean task whose target belongs to a
-    /// contiguous patch of more than <see cref="RobodogWork.hoseMinTiles"/> blood/firefoam tiles becomes one hose job
-    /// that walks the patch and sprays a native <see cref="Verb_ArcSpray"/>-shaped band around each aimed tile, so
-    /// one application cleans every eligible queued tile in that band and the last few tiles keep the hose instead of
-    /// falling back to normal cleaning. The hose never targets any other filth (plan 0010: blood and firefoam only).
+    /// contiguous patch of at least <see cref="RobodogWork.hoseMinTiles"/> blood/firefoam or animal-filth tiles becomes
+    /// one hose job that walks the patch and sprays a native <see cref="Verb_ArcSpray"/>-shaped band around each aimed
+    /// tile. Animal filth forms separate, lower-priority patches; one application cleans every eligible queued tile in
+    /// that band and the last few tiles keep the hose instead of falling back to normal cleaning.
     /// </summary>
     public static class Hose
     {
@@ -31,7 +31,8 @@ namespace Quadrunner
             if (dog == null || !dog.Spawned || dog.Map == null || work == null || work.hoseFilth.NullOrEmpty()
                 || !(target is Filth first) || !StillEligible(first, dog) || !Mature(first))
                 return null;
-            List<IntVec3> patch = PatchCells(dog.Map, first.Position, work);
+            bool animal = IsAnimal(first);
+            List<IntVec3> patch = PatchCells(dog.Map, first.Position, work, animal);
             int minimum = MinTiles(work);
             HashSet<string> discovered = Discovered(DogNetwork.For(dog.Map), dog);
             if (discovered.Count == 0)
@@ -43,7 +44,8 @@ namespace Quadrunner
                          .OrderBy(c => (c - first.Position).LengthHorizontalSquared)
                          .ThenBy(c => c.x).ThenBy(c => c.z))
                 foreach (Thing thing in cell.GetThingList(dog.Map))
-                    if (thing is Filth filth && filth != first && Queueable(filth, dog, discovered))
+                    if (thing is Filth filth && filth != first && IsAnimal(filth) == animal
+                        && Queueable(filth, dog, discovered))
                         targets.Add(filth);
             // The threshold counts only distinct tiles the network actually discovered and assigned or left free for
             // this dog — the same rules TrimQueue applies to a vanilla Clean job's batch.
@@ -62,37 +64,45 @@ namespace Quadrunner
         /// No dog is chosen yet, so this is <see cref="JobFor"/>'s test without its per-dog reservation and reach checks,
         /// which assignment still applies. Ordinary dirt on or beside a patch is never included.
         /// </summary>
-        internal static void PriorityTasks(Map map, List<NetworkTask> queue, HashSet<int> priority)
+        internal static void PriorityTasks(Map map, List<NetworkTask> queue, Dictionary<int, int> priority)
         {
             priority.Clear();
             RobodogWork work = RobodogWork.Utility;
             if (work == null || work.hoseFilth.NullOrEmpty())
                 return;
-            var cells = new Dictionary<int, IntVec3>();
-            var tiles = new HashSet<IntVec3>();
+            var targets = new Dictionary<int, Filth>();
+            var primaryTiles = new HashSet<IntVec3>();
+            var animalTiles = new HashSet<IntVec3>();
             foreach (NetworkTask task in queue)
                 if (task.kind == NetworkTaskKind.Clean && task.assigneeId == null && task.Target(map) is Filth filth
                     && Sprayable(filth, work) && !filth.Position.Fogged(map) && map.areaManager.Home[filth.Position])
                 {
-                    cells[task.id] = filth.Position;
-                    tiles.Add(filth.Position);
+                    targets[task.id] = filth;
+                    (IsAnimal(filth) ? animalTiles : primaryTiles).Add(filth.Position);
                 }
             int minimum = MinTiles(work);
-            if (tiles.Count < minimum)
-                return;
-            var qualifying = new HashSet<IntVec3>();
-            foreach (IntVec3 tile in tiles)
+            var primaryPatches = new HashSet<IntVec3>();
+            var animalPatches = new HashSet<IntVec3>();
+            foreach (Filth filth in targets.Values)
             {
-                if (qualifying.Contains(tile))
+                bool animal = IsAnimal(filth);
+                HashSet<IntVec3> tiles = animal ? animalTiles : primaryTiles;
+                HashSet<IntVec3> qualifying = animal ? animalPatches : primaryPatches;
+                if (tiles.Count < minimum || qualifying.Contains(filth.Position))
                     continue;
-                List<IntVec3> patch = PatchCells(map, tile, work);
+                List<IntVec3> patch = PatchCells(map, filth.Position, work, animal);
                 if (patch.Count(tiles.Contains) >= minimum)
                     qualifying.UnionWith(patch);
             }
-            foreach (KeyValuePair<int, IntVec3> task in cells)
-                if (qualifying.Contains(task.Value))
-                    priority.Add(task.Key);
+            foreach (KeyValuePair<int, Filth> task in targets)
+            {
+                bool animal = IsAnimal(task.Value);
+                if ((animal ? animalPatches : primaryPatches).Contains(task.Value.Position))
+                    priority[task.Key] = animal ? -1 : -2;
+            }
         }
+
+        private static bool IsAnimal(Filth filth) => filth.def == ThingDefOf.Filth_AnimalFilth;
 
         /// <summary>Still a hose filth this dog may spray here: right def, spawned, Home, revealed, not forbidden.</summary>
         internal static bool StillEligible(Filth filth, Pawn dog)
@@ -159,14 +169,14 @@ namespace Quadrunner
 
         /// <summary>
         /// Distinct affected cells of the contiguous 8-neighbour patch containing <paramref name="origin"/>. A cell
-        /// belongs when it is revealed, in Home and holds at least one mature, unforbidden hose filth. The search is
-        /// bounded by <see cref="RobodogWork.hosePatchRadius"/> and <see cref="RobodogWork.hoseMaxTiles"/> so a
+        /// belongs when it holds mature, unforbidden hose filth of the same priority group (blood/foam or animal).
+        /// The search is bounded by <see cref="RobodogWork.hosePatchRadius"/> and <see cref="RobodogWork.hoseMaxTiles"/> so a
         /// pathological map-wide spill cannot turn every dispatch into a whole-map walk.
         /// </summary>
-        private static List<IntVec3> PatchCells(Map map, IntVec3 origin, RobodogWork work)
+        private static List<IntVec3> PatchCells(Map map, IntVec3 origin, RobodogWork work, bool animal)
         {
             List<IntVec3> patch = new List<IntVec3>();
-            if (!Affected(map, origin, work))
+            if (!Affected(map, origin, work, animal))
                 return patch;
             int cap = work.hoseMaxTiles > 0 ? work.hoseMaxTiles : 256;
             float radius = work.hosePatchRadius > 0 ? work.hosePatchRadius : 12f;
@@ -186,19 +196,19 @@ namespace Quadrunner
                         || !neighbour.InHorDistOf(origin, radius))
                         continue;
                     seen.Add(neighbour);
-                    if (Affected(map, neighbour, work))
+                    if (Affected(map, neighbour, work, animal))
                         open.Enqueue(neighbour);
                 }
             }
             return patch;
         }
 
-        private static bool Affected(Map map, IntVec3 cell, RobodogWork work)
+        private static bool Affected(Map map, IntVec3 cell, RobodogWork work, bool animal)
         {
             if (!cell.InBounds(map) || cell.Fogged(map) || !map.areaManager.Home[cell])
                 return false;
             foreach (Thing thing in cell.GetThingList(map))
-                if (thing is Filth filth && Sprayable(filth, work))
+                if (thing is Filth filth && IsAnimal(filth) == animal && Sprayable(filth, work))
                     return true;
             return false;
         }

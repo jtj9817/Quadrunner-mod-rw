@@ -34,6 +34,8 @@ namespace Quadrunner
             ("Hose: four-tile patch", HoseFourTilePatch),
             ("Hose: dirt-first fallback", HoseDirtFirstFallback),
             ("Hose: patch priority", HosePatchPriority),
+            ("Hose: animal filth patches", () => HoseAnimalFilth(false)),
+            ("Hose: animal blood foam priority", () => HoseAnimalFilth(true)),
             ("Hose: larger mixed patch", HoseLargerMixedPatch),
             ("Hose: two-worker boundaries", HoseTwoWorkerBoundaries),
             ("Hose: broad spray footprint", HoseBroadSprayFootprint),

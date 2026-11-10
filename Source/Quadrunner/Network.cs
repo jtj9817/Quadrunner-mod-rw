@@ -108,7 +108,7 @@ namespace Quadrunner
         private readonly List<(Building_Stable stable, Area area)> triedFireDocks = new List<(Building_Stable, Area)>();
         private readonly Comparison<NetworkTask> taskComparison;
         // Rebuilt before every normal-queue sort, never saved: the queue and the filth on the map decide it.
-        private readonly HashSet<int> hosePatchTasks = new HashSet<int>();
+        private readonly Dictionary<int, int> hosePatchTasks = new Dictionary<int, int>();
         private readonly PackCombat packs;
         private List<(int id, int firstTick)> pathAreas;
         private NetworkState state;
@@ -541,11 +541,12 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// Casualty recovery outranks every ordinary kind once the war is over, followed by hose-qualifying blood/foam
-        /// patches (plan 0010 / H3); war work keeps its own order.
+        /// Casualty recovery outranks blood/foam hose patches, then animal-filth hose patches, then other normal work
+        /// (plan 0010 / H4); war work keeps its own order.
         /// </summary>
         private int Rank(NetworkTask task) =>
-            task.kind == NetworkTaskKind.Recover ? -2 : hosePatchTasks.Contains(task.id) ? -1 : (int)task.kind;
+            task.kind == NetworkTaskKind.Recover ? -3
+                : hosePatchTasks.TryGetValue(task.id, out int rank) ? rank : (int)task.kind;
 
         private static void Reset(NetworkTask task)
         {

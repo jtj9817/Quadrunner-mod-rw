@@ -662,6 +662,152 @@ namespace Quadrunner
                 .Start();
         }
 
+        /// <summary>H4's two cases: animal patches alone, and older animal patches beside newer blood/foam patches.</summary>
+        private static void HoseAnimalFilth(bool mixed)
+        {
+            var s = new Scenario(mixed ? "Hose: animal blood foam priority" : "Hose: animal filth patches", 60000);
+            var animals = new HashSet<string>();
+            var primary = new HashSet<string>();
+            var small = new HashSet<string>();
+            var hoseRemoved = new HashSet<string>();
+            var normalRemoved = new HashSet<string>();
+            var order = new List<string>();
+            string dogId = null, goldId = null, dirtId = null, violation = null;
+            bool lastThree = false;
+            CellRect pile = default;
+            Pawn Dog() => Scenario.ById(dogId) as Pawn;
+            int Left(IEnumerable<string> ids) => ids.Count(id => Scenario.ById(id) != null);
+            bool Check()
+            {
+                if (violation != null)
+                    throw new InvalidOperationException(violation + "; order: " + string.Join(" > ", order));
+                return true;
+            }
+            s.Do("one worker; older ordinary work, then animal filth, then optional touching blood and separate foam", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    DraftColonists(s);
+                    ClearStagedFilth(map);
+                    (Building_Stable stable, Pawn dog) = SpawnHoseWorker(s);
+                    dogId = dog.ThingID;
+                    CellRect area = ClearRect(map, stable.InteractionCell, 11, 1, 9f, 28f);
+                    pile = ClearRect(map, stable.InteractionCell, 3, 1, 6f, 30f,
+                        r => !r.Overlaps(area.ExpandedBy(2)));
+                    Stockpile(s, pile, ThingDefOf.Gold);
+                    PlaceHoseWorker(dog, area.CenterCell);
+                    Thing gold = NetStack(s, ThingDefOf.Gold, 30, new IntVec3(area.maxX, 0, area.maxZ));
+                    goldId = gold.ThingID;
+                    gold.SetForbidden(false);
+                    if (!Net().Report(NetworkTaskKind.Haul, gold, NetHaulGiver))
+                        throw new InvalidOperationException("the gold report was refused");
+                    dirtId = SpawnHoseFilth(s, new IntVec3(area.minX + 8, 0, area.minZ + 8), ThingDefOf.Filth_Dirt);
+                    for (int i = 0; i < 3; i++)
+                        small.Add(SpawnHoseFilth(s, new IntVec3(area.minX + i, 0, area.maxZ),
+                            ThingDefOf.Filth_AnimalFilth));
+                    DogWork.ReportLocal(dog, Net());
+                    int older = small.Concat(new[] { goldId, dirtId })
+                        .Max(id => (NetTask(id) ?? throw new InvalidOperationException("not discovered: " + id)).id);
+                    // Uneven thickness leaves a final three-tile tail that must retain the hose.
+                    int tile = 0;
+                    foreach (IntVec3 cell in new CellRect(area.minX, area.minZ, 4, 4).Cells)
+                        animals.Add(SpawnHoseFilth(s, cell, ThingDefOf.Filth_AnimalFilth,
+                            thickness: tile++ < 13 ? 3 : 5));
+                    DogWork.ReportLocal(dog, Net());
+                    foreach (string id in animals)
+                        if ((NetTask(id) ?? throw new InvalidOperationException("not discovered: " + id)).id <= older)
+                            throw new InvalidOperationException("animal filth must be newer than ordinary work");
+                    int newestAnimal = animals.Max(id => NetTask(id).id);
+                    if (mixed)
+                    {
+                        foreach (IntVec3 cell in new CellRect(area.minX + 4, area.minZ, 2, 2).Cells)
+                            primary.Add(SpawnHoseFilth(s, cell, ThingDefOf.Filth_Blood));
+                        foreach (IntVec3 cell in new CellRect(area.minX + 8, area.minZ, 2, 2).Cells)
+                            primary.Add(SpawnHoseFilth(s, cell, ThingDefOf.Filth_FireFoam));
+                        DogWork.ReportLocal(dog, Net());
+                        foreach (string id in primary)
+                            if ((NetTask(id) ?? throw new InvalidOperationException("not discovered: " + id)).id <= newestAnimal)
+                                throw new InvalidOperationException("blood/foam must be newer than animal filth");
+                    }
+                    ObservePackJobs(s, (pawn, job) =>
+                    {
+                        if (pawn.ThingID != dogId)
+                            return;
+                        var ids = new HashSet<string>(JobThingIds(job));
+                        string name = null;
+                        if (IsHoseJob(job))
+                        {
+                            bool animal = ids.Overlaps(animals), urgent = ids.Overlaps(primary);
+                            name = animal ? "animal hose" : urgent ? "blood/foam hose" : "unexpected hose";
+                            if (animal && (urgent || Left(primary) > 0))
+                                violation = "animal hose started before blood/foam were clear";
+                            if (ids.Overlaps(small) || ids.Contains(dirtId))
+                                violation = "the hose included ordinary cleaning";
+                        }
+                        else if (job.def == JobDefOf.HaulToCell || job.def == JobDefOf.HaulToContainer)
+                        {
+                            name = "haul";
+                            if (Left(animals) > 0 || Left(primary) > 0)
+                                violation = "older hauling started before hose patches were clear";
+                        }
+                        else if (job.def == JobDefOf.Clean)
+                        {
+                            name = "clean";
+                            if (Left(animals) > 0 || Left(primary) > 0 || CountIn(pile, ThingDefOf.Gold) != 30)
+                                violation = "ordinary cleaning started ahead of hose work or hauling";
+                        }
+                        if (name != null && order.LastOrDefault() != name)
+                            order.Add(name);
+                    });
+                    ObserveHoseFilth(s, filth =>
+                    {
+                        if (Current.ProgramState != ProgramState.Playing || filth.Map != Find.CurrentMap)
+                            return;
+                        string id = filth.ThingID;
+                        if (animals.Contains(id) || primary.Contains(id))
+                        {
+                            if (animals.Contains(id) && Left(primary) > 0)
+                                violation = "animal filth removed before blood/foam were clear";
+                            if (HoseActive(Dog()))
+                            {
+                                hoseRemoved.Add(id);
+                                if (animals.Contains(id) && Left(animals) <= 3)
+                                    lastThree = true;
+                            }
+                            else
+                                violation = "a qualifying patch tile was removed without the hose";
+                        }
+                        else if (small.Contains(id) || id == dirtId)
+                        {
+                            if (HoseActive(Dog()))
+                                violation = "the hose removed ordinary filth";
+                            else
+                                normalRemoved.Add(id);
+                        }
+                    });
+                    Net().Tick(force: true);
+                })
+                .Expect("blood and foam clear first, then the animal hose starts with filth still present", () =>
+                    Check() && Left(primary) == 0 && HoseActive(Dog())
+                        && JobThingIds(Dog().CurJob).Any(animals.Contains) && Left(animals) > 0)
+                .SaveAndReload()
+                .Expect("all animal filth is hosed after reload, including the last three tiles", () =>
+                {
+                    Check();
+                    if (Left(animals) > 0)
+                        return false;
+                    if (!hoseRemoved.SetEquals(animals.Concat(primary)) || !lastThree)
+                        throw new InvalidOperationException("patch removal or last-three hose continuity was lost");
+                    return true;
+                })
+                .Expect("the older gold is hauled after the animal patch", () =>
+                    Check() && CountIn(pile, ThingDefOf.Gold) == 30)
+                .Expect("three isolated animal tiles and dirt use ordinary cleaning last", () =>
+                    Check() && normalRemoved.SetEquals(small.Concat(new[] { dirtId })))
+                .Summary(() => $"{hoseRemoved.Count} tiles hosed; last-three {lastThree}; "
+                    + $"order: {string.Join(" > ", order)}")
+                .Start();
+        }
+
         private static void HoseLargerMixedPatch()
         {
             var s = new Scenario("Hose: larger mixed patch", 120000);

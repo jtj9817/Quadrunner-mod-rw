@@ -2,13 +2,13 @@
 
 ## Goal
 
-Give worker Quadrunners an integrated water hose to clean clusters of blood and firefoam, following the continuous targeting pattern of Medirunner firefighting (user, 2026-11-05).
+Give worker Quadrunners an integrated water hose to clean clusters of blood and firefoam, following the continuous targeting pattern of Medirunner firefighting (user, 2026-11-05), extended to lower-priority animal-filth patches (user, 2026-11-10).
 
 ## Decisions
 
 | Area | Decision |
 | --- | --- |
-| Eligible filth | The hose cleans only blood and firefoam, including a mixed patch; it must not remove other filth (user, 2026-11-05). |
+| Eligible filth | Blood variants and firefoam form the original hose group. Animal filth (`Filth_AnimalFilth`) forms a separate, lower-priority hose group (user, 2026-11-10, superseding the original blood/foam-only scope). Other filth remains ordinary cleaning. |
 | Threshold | Use the hose for a nearby patch of more than three affected tiles, counting distinct tiles rather than filth objects. One- and three-tile patches use normal cleaning. The four-tile boundary is the minimum hose case (user, 2026-11-05; counting the target tile as part of the patch). |
 | Continuity | Once a qualifying patch is engaged, continue spraying eligible blood and foam in that area until it is clean, rather than stopping as soon as its remaining count falls to three (user, 2026-11-05). |
 | Existing cleaning | Retain the existing Home-area, discovery, reachability and assignment rules and normal cleaning for other filth; the hose is an alternative for qualifying patches, not a replacement for cleaning (existing network contract, plan 0003). |
@@ -16,6 +16,7 @@ Give worker Quadrunners an integrated water hose to clean clusters of blood and 
 | Patch and speed | Eight-neighbor connected, discovered and queueable Home cells, bounded to 12 cells from the first target and 256 cells per job. The hose cleans at 1.5 times normal cleaning work; bounds and rate are XML tunables. |
 | Broad application (H2) | Match the Medirunner's `Verb_ArcSpray` band: 5.5-cell half-width, `4 / 2 + 1.5 = 3.5`-cell half-depth, oriented dog-to-aim. Every eligible reserved queue target in the band receives cleaning work per application, with line of sight checked per tile. Per-tile partial layer work is saved; triggered water flecks cover the affected cells. No equipment migration or new Harmony patch. |
 | Queue priority (H3) | A blood/firefoam patch that qualifies for the hose ranks in the normal queue directly below Combatdog casualty recovery (plans 0003 and 0007 keep that first) and above every other normal kind, oldest task first within the rank (user, 2026-11-08). Ranking counts discovered, unassigned, mature Home tiles; per-dog reservation and reach stay at assignment. Dirt and patches of one to three tiles keep the ordinary `Clean` rank. Raids still suspend the normal queue, and a running job is not interrupted. The rank is rebuilt each dispatch and never saved. |
+| Animal patch priority (H4) | Combatdog recovery → qualifying blood/foam patches → qualifying animal-filth patches → other normal work. Preserve oldest-first ties, the four-distinct-tile threshold, Home/discovery/reservation/reachability gates and uninterrupted running jobs. Count and queue each filth group separately, including when they touch or share cells, so an animal patch cannot promote itself or ride along with a blood/foam hose job. No saved fields or Harmony patches added. |
 
 ## Targets
 
@@ -63,6 +64,16 @@ Development evidence: `Hose: patch priority` failed on the unchanged scheduler w
 Package evidence: actual `dist/Quadrunner` build `7d2b20b.20261109T023903Z`, the same scenario 1/1 PASS with zero new errors (2026-11-09 02:40), BUILD and modRoot verified. The launch before it passed the scenario but logged a map-generated colonist relation error at the save step, as on 2026-10-24; it is recorded and not counted as clean.
 
 Follow-up (user, 2026-11-08): the batch fallback in `DogWork.JobFor` now fires only when a patch's own tasks are in retry backoff, so `Hose: dirt-first fallback` holds them there for its dispatch. It passes alone, 1/1 with zero new errors (2026-11-09 04:04, build `c8bc710-dirty.20261109T040344Z`). Fixture-only change, no new package.
+
+### H4 — Lower-priority animal-filth patches
+
+User request (2026-11-10): hose clustered animal filth below blood and foam. Add exactly two scenarios and run only those two, including package verification; do not run Run all. Commit incrementally.
+
+- [x] `Hose: animal filth patches`: a discovered 16-tile animal patch outranks older hauling/ordinary cleaning; three isolated animal tiles retain ordinary cleaning. All patch tiles and layers are hosed, including the final three, across an active-hose save/load.
+- [x] `Hose: animal blood foam priority`: newer four-tile blood and foam patches both clear before an older animal patch, including when blood touches the animal patch; animal work still beats older hauling and ordinary cleaning. Observe native jobs and actual filth removal, with active-animal-hose save/load.
+- [ ] Both scenarios pass with zero new errors in development and from the actual package; verify package BUILD/modRoot and update the current-package record.
+
+Development evidence: 2026-11-10 10:39, `7dd34dc-dirty.20261110T103836Z`, exactly the two H4 scenarios, **2/2 PASS, zero new errors**. Native job order `animal hose > haul > clean` / `blood/foam hose > animal hose > haul > clean`; 16/24 tiles physically hosed, last-three continuity and active-hose reload pass. No Run all.
 
 ## Open questions
 

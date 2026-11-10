@@ -19,7 +19,7 @@ namespace Quadrunner
         /// <summary>Battery (0–1) each foam burst costs (<see cref="Verb_FoamSpray"/>); foam itself is unlimited.</summary>
         public float foamDrainPerBurst;
         /// <summary>
-        /// The only filth the integrated water hose sprays (plan 0010): blood variants and firefoam, by exact def.
+        /// The only filth the integrated water hose sprays (plan 0010): blood variants, firefoam and animal filth.
         /// Empty on a race without a hose.
         /// </summary>
         public List<ThingDef> hoseFilth = new List<ThingDef>();
