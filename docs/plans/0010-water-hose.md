@@ -71,9 +71,11 @@ User request (2026-11-10): hose clustered animal filth below blood and foam. Add
 
 - [x] `Hose: animal filth patches`: a discovered 16-tile animal patch outranks older hauling/ordinary cleaning; three isolated animal tiles retain ordinary cleaning. All patch tiles and layers are hosed, including the final three, across an active-hose save/load.
 - [x] `Hose: animal blood foam priority`: newer four-tile blood and foam patches both clear before an older animal patch, including when blood touches the animal patch; animal work still beats older hauling and ordinary cleaning. Observe native jobs and actual filth removal, with active-animal-hose save/load.
-- [ ] Both scenarios pass with zero new errors in development and from the actual package; verify package BUILD/modRoot and update the current-package record.
+- [x] Both scenarios pass with zero new errors in development and from the actual package; verify package BUILD/modRoot and update the current-package record.
 
 Development evidence: 2026-11-10 10:39, `7dd34dc-dirty.20261110T103836Z`, exactly the two H4 scenarios, **2/2 PASS, zero new errors**. Native job order `animal hose > haul > clean` / `blood/foam hose > animal hose > haul > clean`; 16/24 tiles physically hosed, last-three continuity and active-hose reload pass. No Run all.
+
+Package evidence: 2026-11-10 10:41, actual `dist/Quadrunner` build `e41f8c2.20261110T104015Z`, the same two scenarios **2/2 PASS, zero new errors**; loaded BUILD/modRoot verified. Both native priority sequences, all-layer physical cleanup, final-three continuity and active-hose save/load pass. Private game/Xvfb stopped and installed release link restored. No other scenarios run.
 
 ## Open questions
 
