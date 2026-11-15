@@ -252,6 +252,9 @@ namespace Quadrunner
         {
             // A wreck may have come from a different, even destroyed stable. Receiving it establishes a fresh
             // assignment; if this stable is full, the rebuilt dog must remain free to adopt a future slot.
+            // Built-in supplemental mounts (T3/T4 tear gas launcher, T4 smoke launcher) are fitted on the way in:
+            // new assemblies, rebuilt wrecks and upgrades all pass through here from now on.
+            Tiers.EnsureSupplementals(dog);
             CompRobodog comp = CompRobodog.Of(dog);
             if (comp != null)
                 comp.stable = null;

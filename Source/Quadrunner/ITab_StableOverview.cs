@@ -116,6 +116,8 @@ namespace Quadrunner
                     tip += "\n\n" + Tiers.Gun(dog, 1).description;
                 if (tier.smokeGun != null)
                     tip += "\n\n" + tier.smokeGun.description;
+                if (tier.tearGasGun != null)
+                    tip += "\n\n" + tier.tearGasGun.description;
                 TooltipHandler.TipRegion(weapons, tip);
             }
             if (tier.upgrade == null)

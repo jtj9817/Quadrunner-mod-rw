@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Tear gas cloud: a lazy yellow-green fog with a darker core, drawn to be read through Graphic_Gas translucency in-game. -->
+  <g fill="none" stroke="#c9c93a" stroke-linecap="round" opacity="0.95">
+    <path d="M18 82C12 62 34 56 44 46C56 34 92 34 102 52C110 66 108 84 92 92C70 101 26 100 18 82Z" stroke-width="7" fill="#d8d94a" fill-opacity="0.55"/>
+    <path d="M34 68C30 56 48 52 56 46C68 38 90 44 94 56C96 64 88 72 74 74" stroke-width="4"/>
+    <path d="M28 80C24 92 46 96 60 92C78 88 96 84 96 74" stroke-width="4"/>
+    <path d="M52 74C48 62 68 58 76 60C86 62 86 74 72 76" stroke-width="3"/>
+  </g>
+</svg>

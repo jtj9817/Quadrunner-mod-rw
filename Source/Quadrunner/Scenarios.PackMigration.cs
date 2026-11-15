@@ -19,6 +19,7 @@ namespace Quadrunner
             var carriers = new string[2];
             var guns = new string[8];
             var smokeGuns = new string[4];
+            var tearGasGuns = new string[8];
             int caravanId = -1;
             int[] fieldJobs = new int[2];
             float[] charges = { 0.61f, 0.72f, 0f, 0.83f };
@@ -73,13 +74,24 @@ namespace Quadrunner
                             comp.PickGun(1, tier == 0 ? QR_DefOf.QR_Gun_Flamethrower : null);
                             Tiers.Arm(dog, oldGun);
                             foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading.ToList())
-                                if (weapon.def == QR_DefOf.QR_Gun_SmokeLauncher) dog.equipment.DestroyEquipment(weapon);
+                                if (weapon.def == QR_DefOf.QR_Gun_SmokeLauncher || weapon.def == QR_DefOf.QR_Gun_TearGasLauncher)
+                                    dog.equipment.DestroyEquipment(weapon);
                             if (holder == 0) continue;
                             stable.TryUndock(dog);
-                            // Undocking equips the current loadout; replace it again to serialize the actual old gun.
-                            Tiers.Arm(dog, oldGun);
+                            if (tier == 0 && holder == 1)
+                            {
+                                // Serialize the old T3 second mount as an equipped flamethrower: load migration must
+                                // destroy it (never leave it for combat), not replace it with anything.
+                                Tiers.Arm(dog, QR_DefOf.QR_Gun_Flamethrower);
+                            }
+                            else
+                            {
+                                // Undocking equips the current loadout; replace it again to serialize the actual old gun.
+                                Tiers.Arm(dog, oldGun);
+                            }
                             foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading.ToList())
-                                if (weapon.def == QR_DefOf.QR_Gun_SmokeLauncher) dog.equipment.DestroyEquipment(weapon);
+                                if (weapon.def == QR_DefOf.QR_Gun_SmokeLauncher || weapon.def == QR_DefOf.QR_Gun_TearGasLauncher)
+                                    dog.equipment.DestroyEquipment(weapon);
                             SurveyHold(dog, 20000);
                             if (holder == 1)
                             {
@@ -120,10 +132,16 @@ namespace Quadrunner
                             || Math.Abs(comp.Battery - charges[i % 4]) > 0.0001f)
                             throw new InvalidOperationException($"legacy dog {i} lost identity, battery or stable");
                         ThingDef wanted = i < 4 ? QR_DefOf.QR_Gun_LMG : QR_DefOf.QR_Gun_DualChargeRifle;
-                        if (dog.equipment.Primary?.def != wanted || dog.equipment.AllEquipmentListForReading.Count != (i < 4 ? 1 : 2))
+                        int wantedCount = i < 4 ? 2 : 3;
+                        if (dog.equipment.Primary?.def != wanted || dog.equipment.AllEquipmentListForReading.Count != wantedCount)
                             throw new InvalidOperationException($"legacy dog {i} has the wrong migrated equipment");
+                        if (dog.equipment.AllEquipmentListForReading.Any(w => w.def == QR_DefOf.QR_Gun_Flamethrower))
+                            throw new InvalidOperationException($"legacy dog {i} still carries the retired flamethrower");
+                        if (dog.equipment.AllEquipmentListForReading.All(w => w.def != QR_DefOf.QR_Gun_TearGasLauncher))
+                            throw new InvalidOperationException($"legacy dog {i} is missing the tear gas launcher");
                         guns[i] = dog.equipment.Primary.ThingID;
                         if (i >= 4) smokeGuns[i - 4] = dog.equipment.AllEquipmentListForReading.Single(w => w.def == QR_DefOf.QR_Gun_SmokeLauncher).ThingID;
+                        tearGasGuns[i] = dog.equipment.AllEquipmentListForReading.Single(w => w.def == QR_DefOf.QR_Gun_TearGasLauncher).ThingID;
                     }
                     for (int tier = 0; tier < 2; tier++)
                     {
@@ -143,8 +161,9 @@ namespace Quadrunner
                 {
                     for (int i = 0; i < ids.Length; i++)
                         if (Dog(i).equipment.Primary.ThingID != guns[i]
-                            || Dog(i).equipment.AllEquipmentListForReading.Count != (i < 4 ? 1 : 2)
-                            || i >= 4 && Dog(i).equipment.AllEquipmentListForReading.Single(w => w.def == QR_DefOf.QR_Gun_SmokeLauncher).ThingID != smokeGuns[i - 4])
+                            || Dog(i).equipment.AllEquipmentListForReading.Count != (i < 4 ? 2 : 3)
+                            || i >= 4 && Dog(i).equipment.AllEquipmentListForReading.Single(w => w.def == QR_DefOf.QR_Gun_SmokeLauncher).ThingID != smokeGuns[i - 4]
+                            || Dog(i).equipment.AllEquipmentListForReading.Single(w => w.def == QR_DefOf.QR_Gun_TearGasLauncher).ThingID != tearGasGuns[i])
                             throw new InvalidOperationException($"second load replaced or duplicated dog {i}'s equipment");
                 })
                 .Do("the migrated field T3 and T4 form a pack against three actual raiders", () =>

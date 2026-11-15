@@ -18,7 +18,9 @@ namespace Quadrunner
         public List<ThingDef> slot2 = new List<ThingDef>();
         public float packRange;
         public ThingDef smokeGun;
+        public ThingDef tearGasGun;
         public int smokeInterval = 900;
+        public int tearGasInterval = 900;
 
         public bool FixedLoadout => smokeGun != null;
 
@@ -77,49 +79,82 @@ namespace Quadrunner
         {
             if (dog.equipment == null)
                 return;
+            EnsureSupplementals(dog);
             ThingWithComps held = dog.equipment.Primary;
             if (held?.def == gun)
                 return;
-            EnsureSmoke(dog);
             if (held != null)
                 dog.equipment.DestroyEquipment(held);
             if (gun != null)
                 dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(gun));
         }
 
-        /// <summary>The supplemental launcher is real, saved equipment, but never the primary attack verb.</summary>
-        private static void EnsureSmoke(Pawn dog)
+        /// <summary>Supplemental mounts are real, saved equipment, but never the primary attack verb.</summary>
+        internal static void EnsureSupplementals(Pawn dog)
         {
-            ThingDef smoke = CombatTier.Of(dog)?.smokeGun;
-            if (smoke == null)
+            CombatTier tier = CombatTier.Of(dog);
+            EnsureSupplementary(dog, tier?.smokeGun);
+            EnsureSupplementary(dog, tier?.tearGasGun);
+        }
+
+        private static void EnsureSupplementary(Pawn dog, ThingDef gun)
+        {
+            if (gun == null || dog.equipment == null)
                 return;
             foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading)
-                if (weapon.def == smoke)
+                if (weapon.def == gun)
                     return;
-            dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(smoke));
+            dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(gun));
+        }
+
+        private static void RemoveBuiltIn(Pawn dog, ThingDef gun)
+        {
+            if (gun == null || dog.equipment == null)
+                return;
+            foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading.ToList())
+                if (weapon.def == gun)
+                    dog.equipment.DestroyEquipment(weapon);
         }
 
         /// <summary>In-place load migration, including docked, carried and world pawns; no pawn is replaced.</summary>
         public static void MigrateLoadout(Pawn dog)
         {
             CombatTier tier = CombatTier.Of(dog);
-            if (tier?.FixedLoadout != true || dog.Dead)
+            if (tier == null || dog.Dead)
                 return;
-            CompRobodog.Of(dog).PickGun(0, null);
-            CompRobodog.Of(dog).PickGun(1, null);
-            ThingDef held = dog.equipment?.Primary?.def;
-            // Modern saves retain their exact equipment and in-flight verb/stance state.
-            if (held != Gun(dog, 0) && held != Gun(dog, 1))
+            if (tier.FixedLoadout)
+            {
+                CompRobodog.Of(dog).PickGun(0, null);
+                CompRobodog.Of(dog).PickGun(1, null);
+                ThingDef held = dog.equipment?.Primary?.def;
+                // Modern saves retain their exact equipment and in-flight verb/stance state.
+                if (held != Gun(dog, 0) && held != Gun(dog, 1))
+                    Arm(dog, Gun(dog, 0));
+            }
+            else if (tier.tearGasGun != null && dog.equipment?.Primary?.def == QR_DefOf.QR_Gun_Flamethrower)
+            {
+                // Plan 0012: the flamethrower is gone; a T3 holding one is armed with its primary instead.
                 Arm(dog, Gun(dog, 0));
-            else
-                EnsureSmoke(dog);
+            }
+            // Pre-0012 saves may still hold a flamethrower instance; destroy it. Stale slot picks naming it are inert,
+            // since no slot lists it anymore. Every tier with an automatic side mount carries it from now on.
+            RemoveBuiltIn(dog, QR_DefOf.QR_Gun_Flamethrower);
+            EnsureSupplementals(dog);
         }
 
-        /// <summary>Independent smoke fire never takes the damaging gun's warmup, cooldown or job.</summary>
-        public static void TickArsenal(Pawn dog, ref int nextSmokeAt)
+        /// <summary>
+        /// The screen cell between <paramref name="dog"/> and <paramref name="target"/>: their midpoint, where both
+        /// launchers shell (user, 2026-11-13). Any cell works for the cast; the explosion spreads the cloud around it.
+        /// </summary>
+        public static IntVec3 ScreenCell(Pawn dog, Thing target)
+            => new IntVec3((dog.Position.x + target.Position.x) / 2, 0, (dog.Position.z + target.Position.z) / 2);
+
+        /// <summary>Independent supplemental fire never takes the damaging gun's warmup, cooldown or job. Smoke: at most
+        /// 3 pops per 900-tick window per cluster of 3+ T4s within the pack radius, others wait; tear gas has no cap.</summary>
+        public static void TickArsenal(Pawn dog, ref int nextSmokeAt, ref int nextTearGasAt)
         {
             CombatTier tier = CombatTier.Of(dog);
-            if (tier?.smokeGun == null || !dog.Spawned || dog.Dead || dog.Downed
+            if (tier == null || (tier.smokeGun == null && tier.tearGasGun == null) || !dog.Spawned || dog.Dead || dog.Downed
                 || CompRobodog.Of(dog).WantsCharge
                 || dog.CurJobDef != JobDefOf.AttackStatic
                 || !(dog.CurJob.targetA.Thing is Pawn target) || target.Dead || target.Downed
@@ -127,15 +162,31 @@ namespace Quadrunner
                 return;
             // Range switching also applies to a player's drafted ranged order, not only network-created jobs.
             Arm(dog, GunFor(dog, target));
-            if (Find.TickManager.TicksGame < nextSmokeAt)
+            IntVec3 screen = ScreenCell(dog, target);
+            FireSupplemental(dog, tier.smokeGun, tier.smokeInterval, ref nextSmokeAt, screen, isSmoke: true);
+            FireSupplemental(dog, tier.tearGasGun, tier.tearGasInterval, ref nextTearGasAt, screen, isSmoke: false);
+        }
+
+        private static void FireSupplemental(Pawn dog, ThingDef gun, int interval, ref int nextAt, IntVec3 screen, bool isSmoke)
+        {
+            if (gun == null)
                 return;
+            int now = Find.TickManager.TicksGame;
+            if (now < nextAt)
+                return;
+            if (isSmoke && !SmokeCoordinator.CanPop(dog))
+                return; // cluster cap: wait for this or a later window; no stamp, so the cluster retries next tick
             foreach (ThingWithComps weapon in dog.equipment.AllEquipmentListForReading)
             {
-                if (weapon.def != tier.smokeGun)
+                if (weapon.def != gun)
                     continue;
                 Verb verb = weapon.TryGetComp<CompEquippable>().AllVerbs[0];
-                if (verb.Available() && verb.TryStartCastOn(target, nonInterruptingSelfCast: true))
-                    nextSmokeAt = Find.TickManager.TicksGame + tier.smokeInterval;
+                if (verb.Available() && verb.TryStartCastOn(screen, nonInterruptingSelfCast: true))
+                {
+                    if (isSmoke)
+                        SmokeCoordinator.NoteFired(dog);
+                    nextAt = now + interval;
+                }
                 return;
             }
         }
@@ -147,7 +198,11 @@ namespace Quadrunner
             if (tier == null || tier.SlotCount == 0)
                 return "claws";
             string guns = string.Join(" + ", Enumerable.Range(0, tier.SlotCount).Select(i => Gun(dog, i).label.Replace("built-in ", "")));
-            return tier.smokeGun == null ? guns : guns + " + smoke launcher";
+            if (tier.smokeGun != null)
+                guns += " + smoke launcher";
+            if (tier.tearGasGun != null)
+                guns += " + tear gas launcher";
+            return guns;
         }
     }
 

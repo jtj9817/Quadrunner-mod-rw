@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- Modeled on vanilla "Smoke" (harmsHealth=false, defaultDamage=0): the damaging part of the copied VWE tear gas
+       stack is the cloud, never the blast. Can't injure, can't kill. combatlog uses Extinguish (like VWE). -->
+  <DamageDef>
+    <defName>QR_TearGasDamage</defName>
+    <label>tear gas</label>
+    <canInterruptJobs>false</canInterruptJobs>
+    <makesBlood>false</makesBlood>
+    <defaultDamage>0</defaultDamage>
+    <explosionCellFleck>BlastExtinguisher</explosionCellFleck>
+    <explosionColorEdge>(134,144,22,0.05)</explosionColorEdge>
+    <soundExplosion>Explosion_Stun</soundExplosion>
+    <harmsHealth>false</harmsHealth>
+    <combatLogRules>Damage_Extinguish</combatLogRules>
+  </DamageDef>
+</Defs>

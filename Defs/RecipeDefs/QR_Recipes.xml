@@ -218,7 +218,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogThree</defName>
     <label>upgrade Combatdog to Tier 3</label>
-    <description>For security problems that survived the first burst.\n\nUpgrade a docked Combatdog to Tier 3: heavy armor, a primary gun and a secondary close-range flamethrower. It keeps its name.</description>
+    <description>For security problems that survived the first burst.\n\nUpgrade a docked Combatdog to Tier 3: heavy armor, a primary gun and an automatic tear gas launcher that fires during combat without interrupting the gun. It keeps its name.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>4000</workAmount>
     <ingredients>
@@ -231,7 +231,7 @@
   <RecipeDef ParentName="QR_UpgradeCombatdogBase">
     <defName>QR_UpgradeCombatdogFour</defName>
     <label>upgrade Combatdog to Tier 4</label>
-    <description>The Hearthline conversion whose brochure stopped calling it a deterrent.\n\nUpgrade a docked Combatdog to Tier 4: extreme armor, a fixed paired arsenal of two charge rifles and two longer-ranged chain shotguns that fire together, and an automatic smoke launcher. Its previous selectable gun and close-range secondary are replaced. It keeps its name.</description>
+    <description>The Hearthline conversion whose brochure stopped calling it a deterrent.\n\nUpgrade a docked Combatdog to Tier 4: extreme armor, a fixed paired arsenal of two charge rifles and two longer-ranged chain shotguns that fire together, and automatic smoke and tear gas launchers. Its previous selectable gun and close-range secondary are replaced. It keeps its name.</description>
     <jobString>Upgrading Combatdog.</jobString>
     <workAmount>5000</workAmount>
     <ingredients>

@@ -41,6 +41,7 @@ namespace Quadrunner
         // Combatdogs: the built-in gun picked for each weapon slot (null: the slot's default), see Tiers.
         private ThingDef gun1, gun2;
         private int nextSmokeAt;
+        private int nextTearGasAt;
         /// <summary>Medic fire response: -1 inactive, 0 working/storm alert, otherwise the saved quiet-period deadline.</summary>
         public int fireStandbyUntil = -1;
         // What the dog carries and since when, for the flip onto its back (RobodogPose). Not saved: a dog loaded or
@@ -195,7 +196,7 @@ namespace Quadrunner
             if (moved > 0f && moved < 1.5f && battery > 0f)
                 SetBattery(battery - Props.drainPerCell * moved * DrainFactor);
             lastCell = cell;
-            Tiers.TickArsenal(Dog, ref nextSmokeAt);
+            Tiers.TickArsenal(Dog, ref nextSmokeAt, ref nextTearGasAt);
         }
 
         /// <summary>Hit by a hostile pawn: alert the current network node, including a dog acting without a stable.</summary>
@@ -254,6 +255,7 @@ namespace Quadrunner
             Scribe_Defs.Look(ref gun1, "gun1");
             Scribe_Defs.Look(ref gun2, "gun2");
             Scribe_Values.Look(ref nextSmokeAt, "nextSmokeAt");
+            Scribe_Values.Look(ref nextTearGasAt, "nextTearGasAt");
             Scribe_Values.Look(ref fireStandbyUntil, "fireStandbyUntil", -1);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {

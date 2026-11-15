@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Built-in TearGasLauncher module: a squat yellow canister drum with hazard striping beside a short wide bore, barrel aiming right. -->
+  <g stroke="#17232c" stroke-width="3" stroke-linejoin="round">
+    <path d="M19 54 29 47H66L74 52V71H28L19 65Z" fill="#9aa63c"/>
+    <path d="M38 69V80H58V70" fill="#5c641e"/>
+    <path d="M41 34H63V47H41Z" fill="#7b8a2c"/>
+    <path d="M41 39H63V44H41Z" fill="#e8e13a"/>
+    <path d="M55 47V52H63V47" fill="#4f5b1e"/>
+    <path d="M63 49H94V74H63Z" fill="#4f5b1e"/>
+    <path d="M70 49V74" stroke="#e8e13a" stroke-width="4"/>
+    <path d="M80 49V74" stroke="#e8e13a" stroke-width="4"/>
+    <path d="M92 44 112 48V76L92 79Z" fill="#e8e13a"/>
+    <path d="M29 55H46" stroke="#e8e13a" stroke-width="3"/>
+    <path d="M29 61H44" stroke="#3c4612" stroke-width="3"/>
+  </g>
+</svg>

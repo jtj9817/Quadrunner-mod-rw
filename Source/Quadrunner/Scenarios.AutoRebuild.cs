@@ -55,7 +55,7 @@ namespace Quadrunner
                     name = dog.Name.ToStringShort;
                     CompRobodog comp = CompRobodog.Of(dog);
                     comp.PickGun(0, QR_DefOf.QR_Gun_LMG);
-                    comp.PickGun(1, QR_DefOf.QR_Gun_Flamethrower);
+                    comp.PickGun(1, QR_DefOf.QR_Gun_Flamethrower); // a stale pre-0012 pick: inert after the update
                     // A lost mechanical leg must be made whole by the reconstruction, not left as a permanent casualty.
                     BodyPartRecord leg = dog.health.hediffSet.GetNotMissingParts()
                         .FirstOrDefault(p => p.def.defName == "MechanicalLeg");
@@ -164,9 +164,10 @@ namespace Quadrunner
                         && !d.health.hediffSet.hediffs.OfType<Hediff_Injury>().Any()
                         && !d.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Any()
                         && comp.PickedGun(0) == QR_DefOf.QR_Gun_LMG
-                        && comp.PickedGun(1) == QR_DefOf.QR_Gun_Flamethrower
+                        && comp.PickedGun(1) == QR_DefOf.QR_Gun_Flamethrower // verbatim preserved, but inert: no slot-2 choices exist
                         && Tiers.Gun(d, 0) == QR_DefOf.QR_Gun_LMG
                         && d.equipment?.Primary?.def == QR_DefOf.QR_Gun_LMG
+                        && d.equipment?.AllEquipmentListForReading.Any(w => w.def == QR_DefOf.QR_Gun_TearGasLauncher) == true
                         && d.health.capacities.CapableOf(PawnCapacityDefOf.Consciousness)
                         && d.health.capacities.CapableOf(PawnCapacityDefOf.Moving);
                 })

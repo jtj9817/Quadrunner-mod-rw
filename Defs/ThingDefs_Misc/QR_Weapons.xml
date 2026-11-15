@@ -2,8 +2,9 @@
 <Defs>
 
   <!-- Combatdog built-in guns: part of the dog, like vanilla mechanoid guns (destroyed when dropped, never traded, never
-       on a raider), picked per slot from the stable's Overview tab (user, 2026-10-20). Tier 4 instead has a fixed paired
-       arsenal and a supplemental automatic smoke launcher (user, 2026-11-03). Stats copy the vanilla gun named here. -->
+       on a raider), picked per slot from the stable's Overview tab (user, 2026-10-20). Tier 3 and Tier 4 also carry an
+       automatic tear gas launcher (user, 2026-11-13); Tier 4 additionally has the fixed paired arsenal and an automatic
+       smoke launcher (user, 2026-11-03). Stats copy the vanilla gun named here. -->
   <ThingDef Name="QR_BuiltInGunBase" ParentName="BaseGun" Abstract="True">
     <destroyOnDrop>true</destroyOnDrop>
     <tradeability>None</tradeability>
@@ -209,8 +210,51 @@
     </verbs>
   </ThingDef>
 
+  <!-- Tier 3's / Tier 4's other supplemental mount (user, 2026-11-13): a built-in tear gas launcher, copied mechanics
+       from Vanilla Weapons Expanded - Non-Lethal's tear gas launcher (Defs, gas cloud, hediff) with our own art. It is
+       equipmentType None so it cannot replace the damaging gun, and its verb is non-primary and non-interrupting; the
+       launch interval is set on the tier, not by the weapon's cycle. -->
+  <ThingDef ParentName="QR_BuiltInGunBase">
+    <defName>QR_Gun_TearGasLauncher</defName>
+    <label>built-in tear gas launcher</label>
+    <description>Hearthline's crowd-management module, revised by the settlement assurance division. A charged cloud of tear gas, sprayed across the strip between the dogs and their assignment. Used politely and at range.\n\nA Tier 3/Tier 4 Combatdog's automatic tear gas launcher: launches tear gas canisters during combat without interrupting the guns. The launch interval is set on the tier, not by the weapon's cycle. Colonists caught in the clouds are blinded; the robots are not.</description>
+    <equipmentType>None</equipmentType>
+    <graphicData>
+      <texPath>Quadrunner/Weapons/TearGasLauncher</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+    </graphicData>
+    <statBases>
+      <MarketValue>500</MarketValue>
+      <Mass>3.2</Mass>
+      <RangedWeapon_Cooldown>4.5</RangedWeapon_Cooldown>
+    </statBases>
+    <weaponClasses>
+      <li>RangedHeavy</li>
+    </weaponClasses>
+    <verbs>
+      <li>
+        <verbClass>Verb_Shoot</verbClass>
+        <hasStandardCommand>false</hasStandardCommand>
+        <isPrimary>false</isPrimary>
+        <nonInterruptingSelfCast>true</nonInterruptingSelfCast>
+        <defaultProjectile>QR_Projectile_TearGas</defaultProjectile>
+        <warmupTime>0</warmupTime>
+        <range>19.9</range>
+        <forcedMissRadius>2.9</forcedMissRadius>
+        <burstShotCount>1</burstShotCount>
+        <soundCast>Shot_IncendiaryLauncher</soundCast>
+        <soundCastTail>GunTail_Medium</soundCastTail>
+        <muzzleFlashScale>12</muzzleFlashScale>
+        <targetParams>
+          <canTargetLocations>true</canTargetLocations>
+        </targetParams>
+      </li>
+    </verbs>
+  </ThingDef>
+
   <!-- Legacy only: Tier 4's former selectable minigun, superseded by the fixed paired arsenal (user, 2026-11-03). The def
        and its art stay so old saves and battle-history IDs resolve; no slot lists it and nothing can select it. -->
+
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_Minigun</defName>
     <label>built-in minigun</label>
@@ -250,8 +294,10 @@
     </verbs>
   </ThingDef>
 
-  <!-- Tier 3's second slot. Core has no flamethrower (design), and the Core assembly's spray verbs spawn DLC defs, so it
-       is a short-range gun firing burning blobs: Flame damage sets what it hits alight. -->
+  <!-- Legacy only: Tier 3's former second slot (user, 2026-11-13). Removed from the slot list in favour of the automatic tear
+       gas launcher; the def and its art stay so old saves and battle-history IDs resolve and the loader can drop stale
+       mounts. Core has no flamethrower (design), and the Core assembly's spray verbs spawn DLC defs, so it is a
+       short-range gun firing burning blobs: Flame damage sets what it hits alight. -->
   <ThingDef ParentName="QR_BuiltInGunBase">
     <defName>QR_Gun_Flamethrower</defName>
     <label>built-in flamethrower</label>

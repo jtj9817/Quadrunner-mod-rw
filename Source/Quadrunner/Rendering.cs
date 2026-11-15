@@ -45,16 +45,31 @@ namespace Quadrunner
             Vector3 position = parms.matrix.Position() + pose.offset + OffsetFor(node, parms, out _);
             if (CombatTier.Of(dog)?.FixedLoadout == true)
             {
-                // Both paired mounts stay fitted while range chooses which one fires. The compact aft launcher
-                // fires independently, so smoke never replaces a damaging mount or its recoil.
+                // Both paired mounts stay fitted while range chooses which one fires. The compact aft launchers
+                // fire independently, so neither ever replaces a damaging mount or its recoil.
                 Vector3 lateral = new Vector3(0.24f, 0f, 0f).RotatedBy(angle);
                 DrawMount(Tiers.Gun(dog, 0), gun, position - lateral, angle);
                 DrawMount(Tiers.Gun(dog, 1), gun, position + lateral, angle);
-                DrawMount(CombatTier.Of(dog).smokeGun, null,
-                    position + new Vector3(0f, 0.015f, -0.3f).RotatedBy(angle), angle);
+                DrawSupplementals(dog, position, angle);
             }
             else
+            {
                 PawnRenderUtility.DrawEquipmentAiming(gun, position, angle);
+                DrawSupplementals(dog, position, angle);
+            }
+        }
+
+        private static void DrawSupplementals(Pawn dog, Vector3 position, float angle)
+        {
+            CombatTier tier = CombatTier.Of(dog);
+            if (tier == null)
+                return;
+            if (tier.smokeGun != null)
+                DrawMount(tier.smokeGun, null,
+                    position + new Vector3(-0.13f, 0.015f, -0.3f).RotatedBy(angle), angle);
+            if (tier.tearGasGun != null)
+                DrawMount(tier.tearGasGun, null,
+                    position + new Vector3(0.13f, 0.02f, -0.3f).RotatedBy(angle), angle);
         }
 
         private static void DrawMount(ThingDef def, ThingWithComps active, Vector3 at, float angle)

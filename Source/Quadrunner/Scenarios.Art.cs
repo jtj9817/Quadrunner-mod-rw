@@ -113,7 +113,8 @@ namespace Quadrunner
                 });
             }
             foreach (ThingDef gun in new[] { QR_DefOf.QR_Gun_AssaultRifle, QR_DefOf.QR_Gun_LMG,
-                QR_DefOf.QR_Gun_Flamethrower, QR_DefOf.QR_Gun_DualChargeRifle, QR_DefOf.QR_Gun_DualChainShotgun })
+                QR_DefOf.QR_Gun_DualChargeRifle, QR_DefOf.QR_Gun_DualChainShotgun, QR_DefOf.QR_Gun_Flamethrower,
+                QR_DefOf.QR_Gun_TearGasLauncher })
             {
                 CaptureArtwork(s, "art-mounted-" + gun.defName, () =>
                 {
@@ -145,6 +146,7 @@ namespace Quadrunner
                 QR_DefOf.QR_Combatdog.race, QR_DefOf.QR_CombatdogTwo.race, QR_DefOf.QR_CombatdogThree.race,
                 QR_DefOf.QR_CombatdogFour.race, QR_DefOf.QR_RobodogBattery, QR_DefOf.QR_RobodogRepairKit,
                 QR_DefOf.QR_Gun_AssaultRifle, QR_DefOf.QR_Gun_LMG, QR_DefOf.QR_Gun_Flamethrower,
+                QR_DefOf.QR_Gun_TearGasLauncher,
                 QR_DefOf.QR_Gun_DualChargeRifle, QR_DefOf.QR_Gun_DualChainShotgun, QR_DefOf.QR_Gun_SmokeLauncher,
                 DefDatabase<ThingDef>.GetNamed("QR_Bullet_Flame") })
                 CaptureArtwork(s, "art-lore-" + def.defName, () =>

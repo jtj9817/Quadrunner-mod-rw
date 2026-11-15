@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <!-- Copied from Vanilla Weapons Expanded - Non-Lethal tear gas (user, 2026-11-13). Core has no Gas thing category,
+       so the cloud uses ItemsMisc; altitude Layer Gas is a plain enum and fine. The cloud is a spawned thing, not the
+       map-grid BlindSmoke the smoke launcher uses -->
+  <ThingDef Name="QR_BaseGas" Abstract="True">
+    <thingClass>Gas</thingClass>
+    <label>gas</label>
+    <category>Item</category>
+    <altitudeLayer>Gas</altitudeLayer>
+    <useHitPoints>false</useHitPoints>
+    <tickerType>Normal</tickerType>
+    <graphicData>
+      <graphicClass>Graphic_Gas</graphicClass>
+      <shaderType>Transparent</shaderType>
+    </graphicData>
+  </ThingDef>
+
+  <ThingDef ParentName="QR_BaseGas">
+    <defName>QR_TearGasCloud</defName>
+    <label>tear gas</label>
+    <description>A yellowish cloud of tear gas canisters splitting the air. Anything organic that breathes near it will be bleeding from the eyes and nose shortly. The robots do not comment on the chemistry.</description>
+    <graphicData>
+      <texPath>Quadrunner/Gas/TearGasCloud</texPath>
+      <drawSize>2.6</drawSize>
+      <color>(0.96,0.89,0.21,1)</color>
+    </graphicData>
+    <gas>
+      <expireSeconds>
+        <min>20</min>
+        <max>30</max>
+      </expireSeconds>
+      <rotationSpeed>20</rotationSpeed>
+    </gas>
+    <thingClass>Quadrunner.Gas_TearGas</thingClass>
+  </ThingDef>
+
+  <!-- The launcher's shell: 0-damage, spawns QR_TearGasCloud in every walkable cell of the radius (vanilla spawn rules,
+       one spawn per affected cell). Numbers copied from VWE_TearGasGrenade/its launcher (speed 10, radius 3.9, arc 2,
+       2.9-cell forced miss spread, 20-30 s cloud). The supplemental role drops warmup/cooldown, like the smoke launcher;
+       rate is the tier's tearGasInterval XML. -->
+  <ThingDef ParentName="BaseBullet">
+    <defName>QR_Projectile_TearGas</defName>
+    <label>tear gas shell</label>
+    <description>A wide-bore canister loaded with tear gas precursor powder. Impact spreads the cloud through the fight; the aim is the kilometer of air between the dogs and the enemy, deliberately. It does not wound; victims are simply unable to see.</description>
+    <thingClass>Projectile_Explosive</thingClass>
+    <graphicData>
+      <texPath>Things/Projectile/LauncherShot</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <shaderType>TransparentPostLight</shaderType>
+      <color>(0.96,0.89,0.21,1)</color>
+    </graphicData>
+    <projectile>
+      <damageDef>QR_TearGasDamage</damageDef>
+      <speed>10</speed>
+      <explosionRadius>3.9</explosionRadius>
+      <flyOverhead>false</flyOverhead>
+      <soundExplode>DispensePaste</soundExplode>
+      <postExplosionSpawnThingDef>QR_TearGasCloud</postExplosionSpawnThingDef>
+      <postExplosionSpawnChance>1</postExplosionSpawnChance>
+      <postExplosionSpawnThingCount>1</postExplosionSpawnThingCount>
+      <arcHeightFactor>2</arcHeightFactor>
+      <shadowSize>0.5</shadowSize>
+      <applyDamageToExplosionCellsNeighbors>true</applyDamageToExplosionCellsNeighbors>
+      <explosionDelay>100</explosionDelay>
+    </projectile>
+  </ThingDef>
+
+</Defs>
