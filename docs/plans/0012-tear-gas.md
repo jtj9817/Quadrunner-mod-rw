@@ -56,23 +56,23 @@ colonists-in-gas expectation is "launch anyway — colonists are blinded, dogs a
 
 ### G1 — Copied tear gas stack
 
-- [ ] `QR_TearGas` hediff (0–1 severity, wearing off/teary/blinded stages, −30/day decay), `QR_TearGasDamage` (harmsHealth=false), `QR_TearGasCloud` standalone Gas thing (20–30 s; refresh 120 ticks), `QR_Projectile_TearGas` (3.9 radius, 100-tick fuse, arc 2), `QR_Gun_TearGasLauncher` — all load with **0 warnings**, Core-only.
-- [ ] Gas "ignores" non-organic flesh (robodogs) and Biotech gas masks (null-safe); organic breathing pawns standing in a cloud cell refresh `QR_TearGas`.
-- [ ] Own art (`Art/` SVGs → PNG): tear gas launcher sprite and yellow tear-gas cloud sprite; no VWE assets reused.
+- [x] `QR_TearGas` hediff (0–1 severity, wearing off/teary/blinded stages, −30/day decay), `QR_TearGasDamage` (harmsHealth=false), `QR_TearGasCloud` standalone Gas thing (20–30 s; refresh 120 ticks), `QR_Projectile_TearGas` (3.9 radius, 100-tick fuse, arc 2), `QR_Gun_TearGasLauncher` — all load with **0 warnings**, Core-only. (Actual package `3e032f1.20261115T081346Z`: pkg-run BUILD/modRoot validated, affected set **6/6 PASS, 0 new errors**.)
+- [x] Gas "ignores" non-organic flesh (robodogs) and Biotech gas masks (null-safe); organic breathing pawns standing in a cloud cell refresh `QR_TearGas`. (Tear gas pack: raiders and the planted colonist blinded; dogs clean; package-verified.)
+- [x] Own art (`Art/` SVGs → PNG): tear gas launcher sprite and yellow tear-gas cloud sprite; no VWE assets reused.
 
 ### G2 — T3/T4 supplemental mounts and the smoke cap
 
-- [ ] T3: flamethrower gone from the slot list and from equipped loadouts on load (migration in place, incl. held and world pawns); tear gas launcher always fitted, automatic, XML interval, never consumes the primary stance, mid-path aim like smoke.
-- [ ] T4: keeps the paired arsenal and smoke launcher; gains tear gas launcher alongside it; both mounts fire automatically on XML intervals; both draw on the dorsal hardpoint; Overview lists them.
-- [ ] With ≥3 T4s clustered within 15 cells, at most 3 distinct dogs pop smoke per smoke interval (the rest fire in the next window); tear gas is uncapped; cap is transient and logged.
-- [ ] Built-in guns never drop as loot; no saved state corruption on save/load (new `nextTearGasAt` field; cloud things round-trip).
+- [x] T3: flamethrower gone from the slot list and from equipped loadouts on load (migration in place, incl. held and world pawns); tear gas launcher always fitted, automatic, XML interval, never consumes the primary stance, mid-path aim like smoke. (Combat tier legacy migration package-verified.)
+- [x] T4: keeps the paired arsenal and smoke launcher; gains tear gas launcher alongside it; both mounts fire automatically on XML intervals; both draw on the dorsal hardpoint; Overview lists them. (Tier 4 pack arsenal package-verified.)
+- [x] With ≥3 T4s clustered within 15 cells, at most 3 distinct dogs pop smoke per smoke interval (the rest fire in the next window, longest-wait rotation); tear gas is uncapped; cap is transient and logged. (Cluster scenario: `pops per window: 3/1`, `eligibility == 3`; package-verified.)
+- [x] Built-in guns never drop as loot; no saved state corruption on save/load (new `nextTearGasAt` field; cloud things round-trip). (Zero loose guns in arsenal/demos; `Stance_Cooldown` cleanup on built-in gun replacement included.)
 
 ### G3 — Test scenarios (committed with code)
 
-- [ ] **Tear gas pack**: staged hostile group + colonists present; dogs launch tear gas at them; raiders and the planted colonist gain/refresh `QR_TearGas`, dogs never do; real projectiles and clouds observed; primary guns keep firing; scenario passes with save/load; zero new errors.
-- [ ] **Tier 4 tear gas & smoke cluster**: ≥3 T4s within 15 cells — smoke pops ≤3 per 900-tick window across the cluster, remaining dogs fire in later windows, smoke lands between dogs and target; tear gas pops from every due dog; existing damaging fire and capture flow unaffected; zero new errors.
-- [ ] Existing combat scenarios that sat nearby the copy (Tier 3 pack combat, Tier 4 pack arsenal, Combat tier legacy migration, Tier 2/3/4 weapon demos) pass unchanged (Update: the T3 weapon demo drops its flamethrower round; Artwork showcase drops the flamethrower; AutoRebuild and PackMigration stop fitting/asserting the flamethrower slot-2 pick).
-- [ ] Scoped development runs with zero new errors; actual-package smoke of the affected set; package rebuilt after the major feature (AGENTS.md), documented in docs/test-runs.md.
+- [x] **Tear gas pack**: staged hostile group + colonists present; dogs launch tear gas at them; raiders and the planted colonist gain/refresh `QR_TearGas`, dogs never do; real projectiles and clouds observed; primary guns keep firing; scenario passes with save/load; zero new errors. (Package-verified 08:15.)
+- [x] **Tier 4 tear gas & smoke cluster**: ≥3 T4s within 15 cells — smoke pops ≤3 per 900-tick window across the cluster, remaining dogs fire in later windows, smoke lands between dogs and target; tear gas pops from every due dog; existing damaging fire and capture flow unaffected; zero new errors. (Package-verified 08:15, development 1/1 08:13.)
+- [x] Existing combat scenarios that sat nearby the copy (Tier 3 pack combat, Tier 4 pack arsenal, Combat tier legacy migration, Tier 2/3/4 weapon demos) pass unchanged (the T3 weapon demo dropped its flamethrower round; Artwork showcase unchanged list; AutoRebuild and PackMigration expect-changed accordingly). (Package-verified 08:15 **6/6** and 08:19 **2/2**, both 0 new errors.)
+- [x] Scoped development runs with zero new errors; actual-package smoke of the affected set; package rebuilt after the major feature (AGENTS.md), documented in docs/test-runs.md.
 
 ## Open questions
 
