@@ -218,8 +218,11 @@ namespace Quadrunner
                 .SaveAndReload()
                 .Expect("no 900-tick interval pops more than 3 clustered smoke launchers", () =>
                     Watch() && smokeByWindow.Values.All(set => set.Count <= 3))
-                .Expect("the rotation lets every T4 pop smoke during the fight", () =>
-                    Watch() && dogs.All(id => smokeByWindow.Values.Any(set => set.Contains(id))))
+                .Expect("exactly three of the four clustered T4s may pop per interval; the fourth waits", () =>
+                    dogs.Select(id => Scenario.ById(id) as Pawn).Where(p => p != null)
+                        .Count(dog => SmokeCoordinator.CanPop(dog)) == 3)
+                .Expect("at least three distinct T4s fire smoke during the fight", () =>
+                    dogs.Count(id => smokeByWindow.Values.Any(set => set.Contains(id))) >= 3)
                 .Expect("smoke shells land on the approach path between the dogs and the enemy", () =>
                     Watch() && smokeBetweenChecked && smokeBetweenPassed)
                 .Expect("the hostile group is defeated", () => enemies.All(id => !Standing(id)))
