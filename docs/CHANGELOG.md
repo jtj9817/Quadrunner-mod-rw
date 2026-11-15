@@ -9,7 +9,28 @@ place on load.
 
 ## [Unreleased]
 
+### Added
+- Tier 3 and Tier 4 Combatdogs carry a built-in **tear gas launcher** (user, 2026-11-13), a copy of
+  Vanilla Weapons Expanded — Non-Lethal's tear gas stack on our own defs and art: organic, breathing,
+  gas-mask-free pawns standing in a blooming cloud cell gain their `QR_TearGas` hediff refreshed every two
+  seconds (three stages: wearing off → teary → blinded); the robodogs are immune. The launcher is an
+  XML-interval supplemental mount that never interrupts or replaces the primary gun, and it shells the
+  midpoint between dog and target. Tier 4 fires it alongside its smoke launcher; the smoke shell too now lands
+  on the same strip. If three or more Tier 4s stand within 15 cells of each other, at most three of them pop
+  smoke per 900-tick interval; the rest fire on the next window (rotation). Tear gas is never capped.
+- Test scenarios **Tear gas pack** and **Tier 4 tear gas and smoke cluster**.
+- Package `3e032f1.20261115T081346Z`.
+
+### Changed
+- Tier 3's slot-2 flamethrower is retired; its Def and art remain for old saves. On load the game removes an
+  equipped flamethrower without replacement, and legacy picks naming it are inert (package-verified in Combat
+  tier legacy migration).
+- Smoke shells now land between the dogs and the target (the approach path — "pop in the radius between them")
+  instead of on the target.
+
 ### Fixed
+- A downed/built-in gun's surviving `Stance_Cooldown` no longer references its verb after the gun leaves the dog,
+  so saves/loads no longer hit "referenced but not deep-saved".
 - Robodogs no longer walk into known traps (spike traps, IEDs, and Vanilla Furniture
   Expanded - Security's razor wire). In peacetime their paths, work dispatch and survey
   route around traps, and work whose only route crosses one (hauling, cleaning, rescue,

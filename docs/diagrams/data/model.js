@@ -5,7 +5,7 @@ window.SYSTEM_MODEL = {
   "version": "1.0.0",
   "description": "A RimWorld 1.6 mod: stable-built robot dogs that haul, clean, build, ride, rescue and fight, coordinated map-wide by one dispatcher per map. Requirements are taken from the plan acceptance boxes; every verification names the scenario or tool that proved it.",
   "source_of_truth": "docs/diagrams/model.json",
-  "generated": "2026-11-07"
+  "generated": "2026-11-15"
  },
  "nodes": [
   {
@@ -503,7 +503,7 @@ window.SYSTEM_MODEL = {
    "level": 2,
    "kind": "service",
    "parent": "sub.render",
-   "description": "Gait worker swings four legs from distance walked along the facing (stops with the dog); pose worker adds pounce/recoil/brace/scoop; mount layer draws carried pawns, paired T4 guns and the smoke launcher; BodyAngle postfix lays a carried patient along the back.",
+   "description": "Gait worker swings four legs from distance walked along the facing (stops with the dog); pose worker adds pounce/recoil/brace/scoop; mount layer draws carried pawns, paired T4 guns and the automatic supplemental mounts (smoke and tear gas launchers, aft); BodyAngle postfix lays a carried patient along the back.",
    "evidence": [
     "Source/Quadrunner/Rendering.cs:116",
     "Source/Quadrunner/Rendering.cs:294",
@@ -882,7 +882,7 @@ window.SYSTEM_MODEL = {
    "to": "comp.fabrication",
    "label": "arsenals + loadout migration",
    "kind": "data",
-   "mechanism": "Tier XML names the guns; T4's fixed slots are paired charge rifles and 20.9-cell chain shotguns plus an independent smoke launcher; MigrateLoadout fits missing modern equipment on legacy dogs in place through each pawn's normal post-load traversal."
+   "mechanism": "Tier XML names the guns; T3 slot 1 (assault rifle / LMG) plus a built-in tear gas launcher, T4 fixed paired charge rifles and 20.9-cell chain shotguns plus automatic smoke and tear gas supplemental mounts that shell the midpoint between dog and target; MigrateLoadout fits missing modern equipment on legacy dogs in place through each pawn's normal post-load traversal and drops equipped flamethrowers."
   },
   {
    "id": "e.drafting.game",
@@ -1442,7 +1442,7 @@ window.SYSTEM_MODEL = {
    "id": "REQ-CBT-004",
    "level": 1,
    "parent": "REQ-SYS-002",
-   "text": "Tiers 1\u20134 are ordered from the Overview tab and rebuild the dog keeping name, seniority and identity; built-in weapons are never dropped; Tier 4 carries paired charge rifles plus paired 20.9-cell chain shotguns firing two independent shots per burst, with an automatically launching smoke launcher; legacy T3/T4 dogs are migrated in place on load.",
+   "text": "Tiers 1\u20134 are ordered from the Overview tab and rebuild the dog keeping name, seniority and identity; built-in weapons are never dropped; Tier 4 carries paired charge rifles plus paired 20.9-cell chain shotguns firing two independent shots per burst, with automatically launching smoke and tear gas supplemental mounts; Tier 3 replaces its flamethrower with an automatic tear gas launcher; legacy T3/T4 dogs are migrated in place on load.",
    "allocated_to": [
     "comp.fabrication",
     "comp.tiers"
