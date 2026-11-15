@@ -88,7 +88,8 @@ namespace Quadrunner
                 // A cooldown/burst stance references this verb; once destroyed it can't be resolved on load,
                 // producing orphan references ("not deep-saved"). End the busy stance with the weapon.
                 dog.equipment.DestroyEquipment(held);
-                dog.stances?.CancelBusyStanceHard();
+                if (dog.Spawned) // loaded pawns (PostLoadInit) have no job/stance to cancel yet
+                    dog.stances?.CancelBusyStanceHard();
             }
             if (gun != null)
                 dog.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(gun));
