@@ -4,6 +4,7 @@ using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using Verse.AI.Group;
 
 namespace Quadrunner
 {
@@ -113,6 +114,75 @@ namespace Quadrunner
                 .Expect("the primary guns keep firing alongside the launcher after the reload", () =>
                     Watch() && primaryFired)
                 .Summary(() => $"tear shell launched: {tearShell}; max cloud cells: {gasCellsSeen}; blinded raiders: {blindedRaiders.Count}/{enemies.Length}; colonist blinded: {colonistBlinded}")
+                .Start();
+        }
+
+        /// <summary>An awake Lancer mechanoid hostile to the player, holding its spawn cell like the raider fixture.</summary>
+        private static Pawn SpawnMech(Scenario s, IntVec3 cell)
+        {
+            Faction mechs = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Mechanoid);
+            if (mechs == null)
+                throw new InvalidOperationException("no mechanoid faction on this map");
+            Pawn mech = SpawnPawn(s, DefDatabase<PawnKindDef>.GetNamed("Mech_Lancer"), mechs, cell);
+            LordMaker.MakeNewLord(mechs, new LordJob_DefendPoint(mech.Position, wanderRadius: 2f,
+                defendRadius: 3f, addFleeToil: false), Find.CurrentMap, new[] { mech });
+            return mech;
+        }
+
+        /// <summary>
+        /// Mechanoids (non-organic flesh) are immune to tear gas: two T3s fight a staged mechanoid group with their
+        /// primary guns, and no tear gas shell is launched at them.
+        /// </summary>
+        private static void TearGasVsMechanoids()
+        {
+            var s = new Scenario("Tear gas vs mechanoids", 40000);
+            string stableId = null;
+            string[] dogs = new string[2], mechs = new string[2];
+            bool tearShell = false, primaryFired = false;
+            int watchStart = 0;
+            CellRect pad = default;
+            bool Watch()
+            {
+                foreach (Projectile shot in Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Projectile).OfType<Projectile>())
+                {
+                    if (shot.Launcher is not Pawn launcher || !dogs.Contains(launcher.ThingID))
+                        continue;
+                    if (shot.EquipmentDef == QR_DefOf.QR_Gun_TearGasLauncher)
+                        tearShell = true;
+                    else
+                        primaryFired = true;
+                }
+                return true;
+            }
+            s.Do("two T3s, a staged mechanoid group, colonists drafted but present", () =>
+                {
+                    DraftColonists(s);
+                    Map map = Find.CurrentMap;
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    pad = SurveyFindRect(map, 42, 25, 90f, s);
+                    foreach (IntVec3 cell in pad) map.fogGrid.Unfog(cell);
+                    PackCleanup(s, pad);
+                    CleanTearGas(s, pad);
+                    IntVec3 at = new IntVec3(pad.minX + 5, 0, pad.minZ + 10);
+                    dogs[0] = PackDog(s, stable, QR_DefOf.QR_CombatdogThree, at).ThingID;
+                    dogs[1] = PackDog(s, stable, QR_DefOf.QR_CombatdogThree, at + new IntVec3(0, 0, 4)).ThingID;
+                    for (int i = 0; i < mechs.Length; i++)
+                        mechs[i] = SpawnMech(s, at + new IntVec3(8 + 2 * i, 0, 2 * i)).ThingID;
+                    Raid.Recheck(map);
+                    Net().Tick(force: true);
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Normal;
+                    watchStart = Find.TickManager.TicksGame;
+                })
+                .Expect("both T3s carry the tear gas launcher beside the primary", () =>
+                    dogs.All(id => Scenario.ById(id) is Pawn dog
+                        && dog.equipment.AllEquipmentListForReading.Any(w => w.def == QR_DefOf.QR_Gun_TearGasLauncher)))
+                .Expect("battle is joined for two full tear gas windows, primary guns firing on the mechs", () =>
+                    Watch() && primaryFired && Find.TickManager.TicksGame - watchStart >= 2 * GasWindow)
+                .SaveAndReload()
+                .Expect("no tear gas shell is launched at the mechanoids", () => Watch() && !tearShell)
+                .Expect("the primary guns keep firing across the reload", () => Watch() && primaryFired)
+                .Summary(() => $"tear gas shells seen: {tearShell}; primary guns fired: {primaryFired}")
                 .Start();
         }
 

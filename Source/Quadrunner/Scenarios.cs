@@ -119,6 +119,7 @@ namespace Quadrunner
             ("Tier 3 pack combat", Tier3PackCombat),
             ("Tier 4 pack arsenal", Tier4PackArsenal),
             ("Tear gas pack", TearGasPack),
+            ("Tear gas vs mechanoids", TearGasVsMechanoids),
             ("Tier 4 tear gas and smoke cluster", Tier4TearGasSmokeCluster),
             ("Pack target handoff", PackTargetHandoff),
             ("Pack nearest member", PackNearestMember),
