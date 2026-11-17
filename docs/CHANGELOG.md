@@ -18,7 +18,7 @@ place on load.
   midpoint between dog and target. Tier 4 fires it alongside its smoke launcher; the smoke shell too now lands
   on the same strip. If three or more Tier 4s stand within 15 cells of each other, at most three of them pop
   smoke per 900-tick interval; the rest fire on the next window (rotation). Tear gas is never capped.
-- Test scenarios **Tear gas pack** and **Tier 4 tear gas and smoke cluster**.
+- Test scenarios **Tear gas pack**, **Tier 4 tear gas and smoke cluster** and **Tear gas vs mechanoids**.
 - Package `3e032f1.20261115T081346Z`.
 
 ### Changed
@@ -29,6 +29,9 @@ place on load.
   instead of on the target.
 
 ### Fixed
+- Combatdogs no longer launch tear gas shells at mechanoids: tear gas only blinds organic, breathing pawns and
+  mechanoids (non-organic flesh) are immune. Fire is withheld when the attack target is not organic flesh; organic
+  targets (and smoke) are unchanged. New scenario **Tear gas vs mechanoids** proves it against a staged Lancer group.
 - A downed/built-in gun's surviving `Stance_Cooldown` no longer references its verb after the gun leaves the dog,
   so saves/loads no longer hit "referenced but not deep-saved".
 - Robodogs no longer walk into known traps (spike traps, IEDs, and Vanilla Furniture
