@@ -1,8 +1,8 @@
 # Changelog
 
-All notable, player-facing changes to Quadrunner. The mod is not versioned by
-tags; each shipped package is identified by the build id in
-`dist/Quadrunner/BUILD` and by its verification row in
+All notable, player-facing changes to Quadrunner. The first tagged release is `v0.1.0` (2026-11-17);
+tagged releases ship a `Quadrunner.zip` asset built from `dist/Quadrunner`. Each shipped package is
+still identified by the build id in its `BUILD` file and by its verification row in
 [docs/test-runs.md](test-runs.md). Saved-game identity is stable
 (`josh9817.quadrunner`); every save-format change below migrates old saves in
 place on load.
