@@ -19,7 +19,7 @@ place on load.
   on the same strip. If three or more Tier 4s stand within 15 cells of each other, at most three of them pop
   smoke per 900-tick interval; the rest fire on the next window (rotation). Tear gas is never capped.
 - Test scenarios **Tear gas pack**, **Tier 4 tear gas and smoke cluster** and **Tear gas vs mechanoids**.
-- Package `3e032f1.20261115T081346Z`.
+- Package `3e032f1.20261115T081346Z`, superseded by `0a45a2a.20261117T101407Z` (tear gas vs mechanoids fix).
 
 ### Changed
 - Tier 3's slot-2 flamethrower is retired; its Def and art remain for old saves. On load the game removes an
