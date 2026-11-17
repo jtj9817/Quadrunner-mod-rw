@@ -170,7 +170,9 @@ namespace Quadrunner
             Arm(dog, GunFor(dog, target));
             IntVec3 screen = ScreenCell(dog, target);
             FireSupplemental(dog, tier.smokeGun, tier.smokeInterval, ref nextSmokeAt, screen, isSmoke: true);
-            FireSupplemental(dog, tier.tearGasGun, tier.tearGasInterval, ref nextTearGasAt, screen, isSmoke: false);
+            // Tear gas only blinds organic, breathing pawns; mechanoids are immune, so don't waste the shell (user, 2026-11-17).
+            if (target.RaceProps.IsFlesh)
+                FireSupplemental(dog, tier.tearGasGun, tier.tearGasInterval, ref nextTearGasAt, screen, isSmoke: false);
         }
 
         private static void FireSupplemental(Pawn dog, ThingDef gun, int interval, ref int nextAt, IntVec3 screen, bool isSmoke)
