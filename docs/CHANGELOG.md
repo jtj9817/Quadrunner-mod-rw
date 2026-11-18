@@ -18,10 +18,11 @@ place on load.
   midpoint between dog and target. Tier 4 fires it alongside its smoke launcher; the smoke shell too now lands
   on the same strip. If three or more Tier 4s stand within 15 cells of each other, at most three of them pop
   smoke per 900-tick interval; the rest fire on the next window (rotation). Tear gas is never capped.
-- Test scenarios **Tear gas pack**, **Tier 4 tear gas and smoke cluster** and **Tear gas vs mechanoids**.
+- Test scenarios **Tear gas pack**, **Tier 4 tear gas and smoke cluster**, **Tear gas vs mechanoids** and **Insectoid finish-off**.
 - Package `3e032f1.20261115T081346Z`, superseded by `0a45a2a.20261117T101407Z` (tear gas vs mechanoids fix) and `9112303.20261118T035105Z` (Smokepop-based tear gas particle effects).
 
 ### Changed
+- Combatdogs (tiers 1–4) no longer carry downed insectoids (`RaceProps.Insect`) to prisoner beds or empty rooms: they finish standing enemies first, then finish off downed insectoids in melee (`AttackMelee` with `killIncappedTarget`). Other downed hostiles keep the existing prisoner-bed / empty-room capture path. New scenario **Insectoid finish-off** proves standing-first priority, all four tiers finishing in melee across save/load, and clean docking.
 - Tear gas launcher particle and cloud effects now use vanilla Smokepop Pack's smoke effect (`Things/Gas/GasCloudThickA`, `BlastExtinguisher`, and `Smoke` wisps) as the base instead of the VWE-style cloud sprite, transitioning from musk green at the fresh center to light yellow toward the edges and as the cloud dissipates.
 - Tier 3's slot-2 flamethrower is retired; its Def and art remain for old saves. On load the game removes an
   equipped flamethrower without replacement, and legacy picks naming it are inert (package-verified in Combat
