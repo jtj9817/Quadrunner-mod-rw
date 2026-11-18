@@ -106,10 +106,13 @@ namespace Quadrunner
                     found = r;
                     return true;
                 }, MaxRegions);
-            if (found == null || !found.TryFindRandomCellInRegion(
-                    c => c.Standable(pawn.Map) && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly), out IntVec3 cell))
+            if (found == null)
                 return IntVec3.Invalid;
-            return cell;
+            bool Reachable(IntVec3 c) => c.Standable(pawn.Map) && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly);
+            if (found.TryFindRandomCellInRegion(c => c.GetEdifice(pawn.Map) == null && Reachable(c), out IntVec3 cell)
+                || found.TryFindRandomCellInRegion(Reachable, out cell))
+                return cell;
+            return IntVec3.Invalid;
         }
     }
 }

@@ -9,10 +9,10 @@ namespace Quadrunner
     /// <summary>
     /// Combatdogs fight the dog network's war queue: vanilla AttackMelee on a standing target (it ends when the
     /// target goes down), and a downed one captured: vanilla Capture to a free prisoner bed, else carried to the
-    /// nearest empty room that isn't a bedroom, barracks or prison (<see cref="JobDriver_CarryToRoom"/>) and left
-    /// there, except downed insectoids which are finished off in melee; the dead drop out of the queue. Hostiles a
-    /// Combatdog sees within its engage range join it (<see cref="Spot"/>), as do attackers that hit one of the
-    /// player's dogs (<see cref="DogNetwork.Ping"/>).
+    /// nearest designated prison room — falling back to an empty room that isn't a bedroom or barracks when no
+    /// prison room exists (<see cref="JobDriver_CarryToRoom"/>) — and left there, except downed insectoids which
+    /// are finished off in melee; the dead drop out of the queue. Hostiles a Combatdog sees within its engage range
+    /// join it (<see cref="Spot"/>), as do attackers that hit one of the player's dogs (<see cref="DogNetwork.Ping"/>).
     /// With nothing assigned while a raid is on or targets remain, it walks its stable's patrol waypoints in order,
     /// in a loop — the coordinator stable's without one of its own, and without any stable it guards the
     /// coordinator's position, itself included (guarding then means holding its ground, never chasing its own moving
@@ -159,21 +159,38 @@ namespace Quadrunner
                     return capture;
                 }
             }
+            if (PrisonRoom(target.GetRoom()))
+            {
+                QR.Log($"{dog}: {target} lies downed in a prison room already; released from the network's war queue");
+                network.Release(target);
+                return null;
+            }
+            IntVec3 prisonCell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), PrisonRoom);
+            if (prisonCell.IsValid)
+                return CarryToRoomJob(dog, target, prisonCell);
             if (EmptyRoom(target.GetRoom()))
             {
                 QR.Log($"{dog}: {target} lies downed in an empty room already; released from the network's war queue");
                 network.Release(target);
                 return null;
             }
-            IntVec3 cell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), EmptyRoom);
-            if (!cell.IsValid)
-                return null;
+            IntVec3 emptyCell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), EmptyRoom);
+            return emptyCell.IsValid ? CarryToRoomJob(dog, target, emptyCell) : null;
+        }
+
+        private static Job CarryToRoomJob(Pawn dog, Pawn target, IntVec3 cell)
+        {
             if (TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out _))
                 return null;
             Job carry = JobMaker.MakeJob(QR_DefOf.QR_CarryToRoom, target, cell);
             carry.count = 1;
             return carry;
         }
+
+        /// <summary>Indoors, not a doorway, and designated for prisoners.</summary>
+        public static bool PrisonRoom(Room room) =>
+            room != null && !room.PsychologicallyOutdoors && !room.IsDoorway && !room.TouchesMapEdge
+            && (room.IsPrisonCell || room.Role == RoomRoleDefOf.PrisonCell || room.Role == RoomRoleDefOf.PrisonBarracks);
 
         /// <summary>Indoors, not a bedroom, barracks or prison, and no colonist in it (agent default, 2026-10-20).</summary>
         public static bool EmptyRoom(Room room) =>
@@ -280,8 +297,8 @@ namespace Quadrunner
     }
 
     /// <summary>
-    /// Carries a downed hostile (A) to a cell (B) in an empty room and leaves it there downed, not as a prisoner; it
-    /// then leaves the network's war queue.
+    /// Carries a downed hostile (A) to a cell (B) in a prison or empty room and leaves it there downed, not as a
+    /// prisoner; it then leaves the network's war queue.
     /// </summary>
     public class JobDriver_CarryToRoom : JobDriver
     {
