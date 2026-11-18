@@ -113,6 +113,7 @@ namespace Quadrunner
             ("Rider pose", RiderPose),
             ("Ping chain", PingChain),
             ("Combatdog sweep", CombatdogSweep),
+            ("Insectoid finish-off", InsectoidFinishOff),
             ("Low-battery retreat", LowBatteryRetreat),
             ("Drafted priority target", DraftedPriorityTarget),
             ("Tier upgrade", TierUpgrade),

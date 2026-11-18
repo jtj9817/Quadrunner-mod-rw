@@ -31,6 +31,16 @@ namespace Quadrunner
             return raider;
         }
 
+        private static Pawn SpawnInsect(Scenario s, IntVec3 cell)
+        {
+            Faction insects = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Insect)
+                ?? throw new InvalidOperationException("no insect faction on this map");
+            Pawn bug = SpawnPawn(s, DefDatabase<PawnKindDef>.GetNamed("Spelopede"), insects, cell);
+            LordMaker.MakeNewLord(insects, new LordJob_DefendPoint(bug.Position, wanderRadius: 2f, defendRadius: 3f,
+                addFleeToil: false), Find.CurrentMap, new[] { bug });
+            return bug;
+        }
+
         /// <summary><paramref name="attacker"/> hits <paramref name="dog"/> for 1 blunt damage: a ping.</summary>
         private static void Hit(Pawn dog, Pawn attacker) =>
             dog.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 1f, instigator: attacker));
@@ -465,6 +475,162 @@ namespace Quadrunner
                     Down(nearId) && Stable().Docked.Contains(Combatdog()))
                 .Summary(() => $"near {Fate(nearId)}, far {Fate(farId)}; Combatdog " + (Combatdog() == null ? "gone"
                     : $"drafted {Combatdog().Drafted}, {Combatdog().CurJob?.ToStringSafe()}, battery {CompRobodog.Of(Combatdog()).Battery:P0}"))
+                .Start();
+        }
+
+        /// <summary>
+        /// Downed insectoids are never carried to prisoner beds or empty rooms: Combatdogs (tiers 1–4) finish
+        /// standing threats first, then finish off downed insectoids in melee across save/load and dock.
+        /// </summary>
+        private static void InsectoidFinishOff()
+        {
+            var s = new Scenario("Insectoid finish-off", 30000);
+            string stableId = null, phase1StandingId = null, phase1DownedId = null, packStandingId = null;
+            string[] dogs = new string[4], packDownedIds = new string[4];
+            var allBugIds = new HashSet<string>();
+            var finishedTiers = new HashSet<string>();
+            TestRoom emptyRoom = null;
+            CellRect pad = default;
+            IntVec3 origin = IntVec3.Invalid;
+            string badJob = null;
+            Building_Stable Stable() => Scenario.ById(stableId) as Building_Stable;
+            Pawn D(int i) => Scenario.ById(dogs[i]) as Pawn;
+            Pawn Bug(string id) => Scenario.ById(id) as Pawn
+                ?? Find.CurrentMap?.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>()
+                    .Select(c => c.InnerPawn).FirstOrDefault(p => p?.ThingID == id);
+            bool Dead(string id) => Bug(id) is Pawn p && p.Dead;
+            string BugFate(string id) => !(Bug(id) is Pawn p) ? "gone" : p.Dead ? "dead"
+                : $"{(p.Downed ? "downed" : "standing")} at {p.PositionHeld}";
+            bool CheckBadJob()
+            {
+                if (badJob != null)
+                    throw new InvalidOperationException(badJob);
+                return true;
+            }
+            Pawn MakeBug(IntVec3 cell)
+            {
+                Pawn bug = SpawnInsect(s, cell);
+                allBugIds.Add(bug.ThingID);
+                return bug;
+            }
+            s.OnFinish(() =>
+            {
+                Map map = Find.CurrentMap;
+                if (map == null)
+                    return;
+                foreach (Corpse corpse in map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>()
+                             .Where(c => c.InnerPawn != null && allBugIds.Contains(c.InnerPawn.ThingID)).ToList())
+                    corpse.Destroy();
+            });
+            s.Do("a stable with an empty room and a T1 Combatdog facing a closer downed insectoid and a farther standing one", () =>
+                {
+                    DraftColonists(s);
+                    Map map = Find.CurrentMap;
+                    Building_Stable stable = SpawnStable(s, powered: true);
+                    stableId = stable.ThingID;
+                    emptyRoom = BuildRoom(s, ClearRect(map, stable.InteractionCell, 5, 1, 10f, 22f), batteryPct: -1f);
+                    pad = SurveyFindRect(map, 48, 24, 90f, s);
+                    foreach (IntVec3 cell in pad) map.fogGrid.Unfog(cell);
+                    PackCleanup(s, pad);
+                    origin = new IntVec3(pad.minX + 6, 0, pad.minZ + 12);
+                    dogs[0] = PackDog(s, stable, QR_DefOf.QR_Combatdog, origin).ThingID;
+                    Pawn downedBug = MakeBug(origin + new IntVec3(5, 0, 0));
+                    Pawn standingBug = MakeBug(origin + new IntVec3(12, 0, 0));
+                    phase1DownedId = downedBug.ThingID;
+                    phase1StandingId = standingBug.ThingID;
+                    DownBleeding(s, downedBug, 0.1f);
+                    ObservePackJobs(s, (dog, job) =>
+                    {
+                        if (!dogs.Contains(dog.ThingID))
+                            return;
+                        if (job.def == QR_DefOf.QR_CarryToRoom || job.def == JobDefOf.Capture)
+                        {
+                            badJob ??= $"{dog.def.defName} attempted {job.def.defName} on {job.targetA.Thing}";
+                            return;
+                        }
+                        if (!(job.targetA.Thing is Pawn target) || !allBugIds.Contains(target.ThingID))
+                            return;
+                        if (job.def == JobDefOf.AttackStatic && target.Downed)
+                        {
+                            badJob ??= $"{dog.def.defName} fired {job.def.defName} at downed insectoid {target}";
+                            return;
+                        }
+                        if (job.def == JobDefOf.AttackMelee && target.Downed)
+                        {
+                            if (!job.killIncappedTarget)
+                            {
+                                badJob ??= $"{dog.def.defName} ran AttackMelee on downed {target} without killIncappedTarget";
+                                return;
+                            }
+                            if (target.ThingID == phase1DownedId && Standing(phase1StandingId))
+                            {
+                                badJob ??= $"{dog.def.defName} targeted downed insectoid {target} while {phase1StandingId} stood";
+                                return;
+                            }
+                            finishedTiers.Add(dog.def.defName);
+                        }
+                    });
+                    Net().Report(NetworkTaskKind.Combat, downedBug);
+                    Net().Report(NetworkTaskKind.Combat, standingBug);
+                    Raid.Recheck(map);
+                    Net().Tick(force: true);
+                })
+                .Expect("the T1 Combatdog engages the standing insectoid before the closer downed one", () =>
+                    CheckBadJob() && Attacking(D(0), Bug(phase1StandingId)))
+                .Expect("both Phase 1 insectoids are killed in melee (never carried to the empty room)", () =>
+                {
+                    CheckBadJob();
+                    if (allBugIds.Any(id => Bug(id) is Pawn b && b.Spawned && emptyRoom.Contains(b.Position)))
+                        throw new InvalidOperationException("an insectoid was carried into the empty room");
+                    return Dead(phase1StandingId) && Dead(phase1DownedId)
+                        && finishedTiers.Contains(QR_DefOf.QR_Combatdog.defName);
+                })
+                .Do("deploy T1–T4 together beside one standing insectoid and four downed ones", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    Building_Stable stable = Stable();
+                    foreach (Hediff_Injury injury in D(0).health.hediffSet.hediffs.OfType<Hediff_Injury>().ToList())
+                        D(0).health.RemoveHediff(injury);
+                    if (!D(0).Spawned)
+                        stable.TryUndock(D(0));
+                    Teleport(D(0), origin);
+                    D(0).jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                    dogs[1] = PackDog(s, stable, QR_DefOf.QR_CombatdogTwo, origin + new IntVec3(0, 0, 2)).ThingID;
+                    dogs[2] = PackDog(s, stable, QR_DefOf.QR_CombatdogThree, origin + new IntVec3(0, 0, 4)).ThingID;
+                    dogs[3] = PackDog(s, stable, QR_DefOf.QR_CombatdogFour, origin + new IntVec3(0, 0, 6)).ThingID;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Pawn bug = MakeBug(origin + new IntVec3(6, 0, i * 2));
+                        packDownedIds[i] = bug.ThingID;
+                        DownBleeding(s, bug, 0.1f);
+                        Net().Report(NetworkTaskKind.Combat, bug);
+                    }
+                    Pawn standing = MakeBug(origin + new IntVec3(18, 0, 3));
+                    packStandingId = standing.ThingID;
+                    Net().Report(NetworkTaskKind.Combat, standing);
+                    Raid.Recheck(map);
+                    Net().Tick(force: true);
+                })
+                .Expect("the mixed pack focuses the standing insectoid first without splitting off for downed ones", () =>
+                    CheckBadJob() && dogs.Select((_, i) => D(i)).All(d => PackAttacks(d, Bug(packStandingId)) || PackPursues(d, Bug(packStandingId))))
+                .Expect("the standing insectoid falls and melee finish-offs begin", () =>
+                    CheckBadJob() && !Standing(packStandingId) && dogs.Select((_, i) => D(i)).Any(d =>
+                        d.CurJobDef == JobDefOf.AttackMelee && d.CurJob.killIncappedTarget
+                        && d.CurJob.targetA.Thing is Pawn p && allBugIds.Contains(p.ThingID)))
+                .SaveAndReload()
+                .Expect("all four tiers finish off the downed insectoids in melee, all are dead, and all dogs dock", () =>
+                {
+                    CheckBadJob();
+                    if (allBugIds.Any(id => Bug(id) is Pawn b && b.Spawned && emptyRoom.Contains(b.Position)))
+                        throw new InvalidOperationException("an insectoid was carried into the empty room after reload");
+                    return Dead(packStandingId) && packDownedIds.All(Dead) && Net().WarQueue.Count == 0
+                        && dogs.Select((_, i) => D(i)).All(d => Stable().Docked.Contains(d))
+                        && finishedTiers.Contains(QR_DefOf.QR_CombatdogTwo.defName)
+                        && finishedTiers.Contains(QR_DefOf.QR_CombatdogThree.defName)
+                        && finishedTiers.Contains(QR_DefOf.QR_CombatdogFour.defName);
+                })
+                .Summary(() => $"finished tiers: {string.Join(", ", finishedTiers.OrderBy(x => x))}; phase1 {BugFate(phase1StandingId)}, {BugFate(phase1DownedId)}; "
+                    + $"pack {BugFate(packStandingId)} / {string.Join(", ", packDownedIds.Select(BugFate))}")
                 .Start();
         }
     }
