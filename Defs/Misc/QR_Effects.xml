@@ -71,4 +71,19 @@
     </children>
   </EffecterDef>
 
+  <!-- Initial detonation puff for the tear gas launcher: uses the Smokepop Pack cloud texture (GasCloudThickA) tinted
+       per-instance from musk green to light yellow by DamageWorker_TearGas. -->
+  <FleckDef ParentName="FleckBase_Thrown">
+    <defName>QR_TearGasPuff</defName>
+    <altitudeLayer>MoteOverhead</altitudeLayer>
+    <fadeInTime>0.12</fadeInTime>
+    <solidTime>0.35</solidTime>
+    <fadeOutTime>1.35</fadeOutTime>
+    <growthRate>0.55</growthRate>
+    <graphicData>
+      <texPath>Things/Gas/GasCloudThickA</texPath>
+      <renderInstanced>true</renderInstanced>
+    </graphicData>
+  </FleckDef>
+
 </Defs>

@@ -20,11 +20,12 @@
   <ThingDef ParentName="QR_BaseGas">
     <defName>QR_TearGasCloud</defName>
     <label>tear gas</label>
-    <description>A yellowish cloud of tear gas canisters splitting the air. Anything organic that breathes near it will be bleeding from the eyes and nose shortly. The robots do not comment on the chemistry.</description>
+    <description>A thick musk-green-to-yellow cloud of tear gas hanging in the air. Anything organic that breathes near it will be bleeding from the eyes and nose shortly. The robots do not comment on the chemistry.</description>
     <graphicData>
-      <texPath>Quadrunner/Gas/TearGasCloud</texPath>
-      <drawSize>2.6</drawSize>
-      <color>(0.96,0.89,0.21,1)</color>
+      <texPath>Things/Gas/GasCloudThickA</texPath>
+      <graphicClass>Quadrunner.Graphic_TearGas</graphicClass>
+      <drawSize>2.2</drawSize>
+      <color>(1,1,1,1)</color>
     </graphicData>
     <gas>
       <expireSeconds>
@@ -49,7 +50,7 @@
       <texPath>Things/Projectile/LauncherShot</texPath>
       <graphicClass>Graphic_Single</graphicClass>
       <shaderType>TransparentPostLight</shaderType>
-      <color>(0.96,0.89,0.21,1)</color>
+      <color>(0.42,0.56,0.31,1)</color>
     </graphicData>
     <projectile>
       <damageDef>QR_TearGasDamage</damageDef>

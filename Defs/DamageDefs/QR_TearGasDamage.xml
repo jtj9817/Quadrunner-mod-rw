@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Defs>
-  <!-- Modeled on vanilla "Smoke" (harmsHealth=false, defaultDamage=0): the damaging part of the copied VWE tear gas
-       stack is the cloud, never the blast. Can't injure, can't kill. combatlog uses Extinguish (like VWE). -->
+  <!-- Modeled on vanilla "Smoke" (harmsHealth=false, defaultDamage=0): uses Smokepop Pack's BlastExtinguisher burst and
+       Smoke wisps tinted from musk green (center) to light yellow (edge). Can't injure, can't kill. -->
   <DamageDef>
     <defName>QR_TearGasDamage</defName>
     <label>tear gas</label>
+    <workerClass>Quadrunner.DamageWorker_TearGas</workerClass>
     <canInterruptJobs>false</canInterruptJobs>
     <makesBlood>false</makesBlood>
     <defaultDamage>0</defaultDamage>
     <explosionCellFleck>BlastExtinguisher</explosionCellFleck>
-    <explosionColorEdge>(134,144,22,0.05)</explosionColorEdge>
+    <explosionColorCenter>(0.30, 0.43, 0.24, 0.95)</explosionColorCenter>
+    <explosionColorEdge>(0.95, 0.92, 0.56, 0.05)</explosionColorEdge>
     <soundExplosion>Explosion_Stun</soundExplosion>
     <harmsHealth>false</harmsHealth>
     <combatLogRules>Damage_Extinguish</combatLogRules>
