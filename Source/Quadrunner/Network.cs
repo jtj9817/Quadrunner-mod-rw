@@ -490,6 +490,7 @@ namespace Quadrunner
                 // then unavailable to ordinary tasks, while a keeper left out for a just-downed target can still take
                 // its normal capture order.
                 packs.Refresh();
+                ReleaseDownedInsectoidsForStandingThreats();
                 ordered.Clear(); ordered.AddRange(State.war);
                 ordered.Sort(taskComparison);
                 if (AssignAll(ordered, hasPatient))
@@ -529,15 +530,48 @@ namespace Quadrunner
             }
             int kind = Rank(a).CompareTo(Rank(b));
             if (kind != 0) return kind;
-            // A downed enemy is one ordinary capture trip, not a focus-fire target: dispatch it before standing fights
-            // so a pack's keeper can take the capture while the rest of the pack moves on.
+            // Capturable downed enemies stay ahead of standing fights so a pack's keeper can carry them off while the
+            // pack keeps fighting; downed insectoids wait behind standing threats so Combatdogs finish threats first.
             if (a.kind == NetworkTaskKind.Combat && b.kind == NetworkTaskKind.Combat)
             {
-                bool x = a.Target(Map) is Pawn left && left.Downed;
-                bool y = b.Target(Map) is Pawn right && right.Downed;
-                if (x != y) return x ? -1 : 1;
+                int order = CombatOrder(a).CompareTo(CombatOrder(b));
+                if (order != 0) return order;
             }
             return a.id.CompareTo(b.id);
+        }
+
+        private int CombatOrder(NetworkTask task)
+        {
+            if (!(task.Target(Map) is Pawn p) || !p.Downed) return 1;
+            return p.RaceProps.Insect ? 2 : 0;
+        }
+
+        private bool HasUnassignedStandingCombat(Pawn dog, Pawn exclude)
+        {
+            foreach (NetworkTask task in State.war)
+            {
+                if (task.kind != NetworkTaskKind.Combat || task.assigneeId != null || Now < task.retryAt) continue;
+                if (task.Target(Map) is Pawn enemy && enemy != exclude && enemy.Spawned && !enemy.Dead
+                    && !enemy.Downed && !enemy.IsPrisonerOfColony && enemy.HostileTo(Faction.OfPlayer)
+                    && dog.CanReach(enemy, PathEndMode.Touch, Danger.Deadly))
+                    return true;
+            }
+            return false;
+        }
+
+        private void ReleaseDownedInsectoidsForStandingThreats()
+        {
+            foreach (NetworkTask task in State.war)
+            {
+                if (task.kind != NetworkTaskKind.Combat || task.assigneeId == null) continue;
+                if (!(task.Target(Map) is Pawn p) || !p.Downed || !p.RaceProps.Insect) continue;
+                if (!dogById.TryGetValue(task.assigneeId, out Pawn dog) || !Active(dog)) continue;
+                if (!HasUnassignedStandingCombat(dog, p)) continue;
+                if (dog.CurJobDef == JobDefOf.AttackMelee && dog.CurJob.targetA.Thing == p)
+                    dog.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                Reset(task);
+                assignments.Remove(dog.ThingID);
+            }
         }
 
         /// <summary>
@@ -1079,23 +1113,37 @@ namespace Quadrunner
                     if (dog.CurJob?.loadID == task.jobId
                         && (dog.CurJobDef == JobDefOf.Capture || dog.CurJobDef == QR_DefOf.QR_CarryToRoom))
                         return dog.CurJob;
-                    Job next = JobFor(dog, task, Map);
-                    if (next != null)
+                    if (task.kind == NetworkTaskKind.Combat && task.Target(Map) is Pawn insect && insect.Downed
+                        && insect.RaceProps.Insect && HasUnassignedStandingCombat(dog, insect))
                     {
-                        if (task.kind == NetworkTaskKind.Fire) CompRobodog.Of(dog).fireStandbyUntil = 0;
-                        if (dog.CurJob?.loadID == task.jobId && next.def == dog.CurJobDef
-                            && dog.jobs.curDriver.IsContinuation(next))
+                        Reset(task);
+                        assignments.Remove(dog.ThingID);
+                        nextTick = 0;
+                    }
+                    else
+                    {
+                        Job next = JobFor(dog, task, Map);
+                        if (next != null)
                         {
-                            JobMaker.ReturnToPool(next);
-                            return dog.CurJob;
+                            if (task.kind == NetworkTaskKind.Fire) CompRobodog.Of(dog).fireStandbyUntil = 0;
+                            if (dog.CurJob?.loadID == task.jobId && next.def == dog.CurJobDef
+                                && dog.CurJob.killIncappedTarget == next.killIncappedTarget
+                                && dog.jobs.curDriver.IsContinuation(next))
+                            {
+                                JobMaker.ReturnToPool(next);
+                                return dog.CurJob;
+                            }
+                            task.jobId = next.loadID; task.phase = NetworkTaskPhase.Assigned; task.progressAt = Now;
+                            return next;
                         }
-                        task.jobId = next.loadID; task.phase = NetworkTaskPhase.Assigned; task.progressAt = Now;
-                        return next;
                     }
                 }
                 else if (dog.CurJob?.loadID == task.jobId) return dog.CurJob;
-                Reset(task);
-                assignments.Remove(dog.ThingID);
+                if (assignments.ContainsKey(dog.ThingID))
+                {
+                    Reset(task);
+                    assignments.Remove(dog.ThingID);
+                }
             }
             Job fireOrder = TakeFireOrder(dog, refresh: true);
             if (fireOrder != null) return fireOrder;

@@ -10,8 +10,9 @@ namespace Quadrunner
     /// Combatdogs fight the dog network's war queue: vanilla AttackMelee on a standing target (it ends when the
     /// target goes down), and a downed one captured: vanilla Capture to a free prisoner bed, else carried to the
     /// nearest empty room that isn't a bedroom, barracks or prison (<see cref="JobDriver_CarryToRoom"/>) and left
-    /// there; the dead drop out of the queue. Hostiles a Combatdog sees within its engage range join it
-    /// (<see cref="Spot"/>), as do attackers that hit one of the player's dogs (<see cref="DogNetwork.Ping"/>).
+    /// there, except downed insectoids which are finished off in melee; the dead drop out of the queue. Hostiles a
+    /// Combatdog sees within its engage range join it (<see cref="Spot"/>), as do attackers that hit one of the
+    /// player's dogs (<see cref="DogNetwork.Ping"/>).
     /// With nothing assigned while a raid is on or targets remain, it walks its stable's patrol waypoints in order,
     /// in a loop — the coordinator stable's without one of its own, and without any stable it guards the
     /// coordinator's position, itself included (guarding then means holding its ground, never chasing its own moving
@@ -39,9 +40,10 @@ namespace Quadrunner
         }
 
         /// <summary>
-        /// That one target only — the network picks which, never this. A standing one is attacked, a downed one
-        /// captured. Done with it — dead, gone from the map, a prisoner, or no longer hostile — it leaves the war
-        /// queue; one carried by someone else stays queued but is not ours to take now. Works without a stable.
+        /// That one target only — the network picks which, never this. A standing one is attacked, a downed insectoid
+        /// finished off in melee, and any other downed target captured. Done with it — dead, gone from the map, a
+        /// prisoner, or no longer hostile — it leaves the war queue; one carried by someone else stays queued but is
+        /// not ours to take now. Works without a stable.
         /// </summary>
         public static Job JobFor(Pawn dog, Pawn target)
         {
@@ -52,7 +54,9 @@ namespace Quadrunner
                 network?.Release(target);
                 return null;
             }
-            return target.Downed ? CaptureJob(dog, network, target) : AttackJob(dog, target);
+            if (target.Downed)
+                return target.RaceProps.Insect ? FinishOffJob(dog, target) : CaptureJob(dog, network, target);
+            return AttackJob(dog, target);
         }
 
         /// <summary>
@@ -120,6 +124,20 @@ namespace Quadrunner
             // simply ends and the next think request issues a fresh one.
             if (job.def != JobDefOf.Wait)
                 job.checkOverrideOnExpire = true;
+            return job;
+        }
+
+        /// <summary>Downed insectoids are never carried or captured: finish them off in melee across all tiers.</summary>
+        private static Job FinishOffJob(Pawn dog, Pawn target)
+        {
+            if (!dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
+                return null;
+            if (TrapAvoidance.RouteEntersTrap(dog, target, PathEndMode.Touch, out _))
+                return null;
+            Job job = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+            job.killIncappedTarget = true;
+            job.expiryInterval = RecheckTicks;
+            job.checkOverrideOnExpire = true;
             return job;
         }
 

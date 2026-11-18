@@ -298,7 +298,7 @@ namespace Quadrunner
 
         private bool DownedEnemy(Pawn pawn) =>
             pawn != null && pawn.Spawned && pawn.Map == network.Map && !pawn.Dead && pawn.Downed
-            && !(pawn.ParentHolder is Pawn_CarryTracker) && !pawn.IsPrisonerOfColony
+            && !pawn.RaceProps.Insect && !(pawn.ParentHolder is Pawn_CarryTracker) && !pawn.IsPrisonerOfColony
             && pawn.HostileTo(Faction.OfPlayer);
     }
 }
