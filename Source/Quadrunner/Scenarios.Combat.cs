@@ -170,37 +170,38 @@ namespace Quadrunner
 
         /// <summary>
         /// Captures: four raiders hit a Quadrunner; three go down, one dies. The Combatdog takes one downed raider to the
-        /// only prisoner bed and carries the other two to the nearest empty room, past a nearer bedroom, leaving them
-        /// downed and not prisoners; the dead one is skipped. Reload while it carries one. Then the patrol: three
-        /// waypoints, a raider walled in out of sight keeps the raid on. After waypoint 1 a fresh revealed raider
-        /// appears beyond waypoint 2; its colony alert preempts the patrol. The dog handles it, then resumes the
-        /// route (reload in between); with the walled-in raider dead it docks.
+        /// only prisoner bed and carries the other two to the designated prison room, past a nearer bedroom and a nearer
+        /// empty room, leaving them downed and not prisoners; the dead one is skipped. Reload while it carries one. With
+        /// the prison bed already occupied (no bed free for any new hostile), another downed raider right beside the
+        /// empty room is also carried to the prison room across save/load. Then the patrol: three waypoints, a raider
+        /// walled in out of sight keeps the raid on. After waypoint 1 a fresh revealed raider appears beyond waypoint 2;
+        /// its colony alert preempts the patrol. The dog handles it, then resumes the route (reload in between); with
+        /// the walled-in raider dead it docks.
         /// </summary>
         private static void CombatdogSweep()
         {
             var s = new Scenario("Combatdog sweep", 30000);
-            string stableId = null, combatId = null, deadId = null, walledId = null, roamerId = null;
+            string stableId = null, combatId = null, deadId = null, overflowId = null, walledId = null, roamerId = null;
             var downIds = new List<string>();
-            TestRoom emptyRoom = null, bedroom = null;
+            TestRoom prisonRoom = null, emptyRoom = null, bedroom = null;
             Building_Stable Stable() => (Building_Stable)Scenario.ById(stableId);
             Pawn Combatdog() => (Pawn)Scenario.ById(combatId);
             Pawn ById(string id) => (Pawn)Scenario.ById(id);
             List<Pawn> Down() => downIds.Select(id => (Pawn)Scenario.ById(id)).ToList();
             bool InRoom(Pawn p, TestRoom room) => p != null && p.Spawned && room.Contains(p.Position);
-            s.Do("a stable with a docked Combatdog and a one-bed prison cell; a field 20–30 cells out, a bedroom near it and an empty room farther; a Quadrunner and four unarmed raiders in the field", () =>
+            s.Do("a stable with a docked Combatdog and a one-bed prison cell; a farther field with a nearer bedroom and a nearer empty room; a Quadrunner and four unarmed raiders in the field", () =>
                 {
                     Map map = Find.CurrentMap;
                     DraftColonists(s);
                     Building_Stable stable = SpawnStable(s, powered: true);
                     stableId = stable.ThingID;
                     combatId = s.Track(stable.AddNewDog(QR_DefOf.QR_Combatdog)).ThingID;
-                    RoomWithBeds(s, ClearRect(map, stable.InteractionCell, 5, 1, 6f, 16f), 1, prisoners: true);
-                    IntVec3 field = OpenCell(map, stable.InteractionCell, 20f, 30f);
-                    // Place the excluded bedroom first; the usable room must be farther, not squeeze the bedroom
-                    // into whatever narrow annulus remains after a random-map room placement.
-                    bedroom = RoomWithBeds(s, ClearRect(map, field, 5, 1, 5f, 35f), 1, prisoners: false);
-                    float emptyMin = bedroom.rect.CenterCell.DistanceTo(field) + 10f;
-                    emptyRoom = BuildRoom(s, ClearRect(map, field, 5, 1, emptyMin, emptyMin + 35f), batteryPct: -1f);
+                    prisonRoom = RoomWithBeds(s, ClearRect(map, stable.InteractionCell, 5, 1, 6f, 16f), 1, prisoners: true);
+                    IntVec3 field = OpenCell(map, stable.InteractionCell, 32f, 46f,
+                        c => c.DistanceTo(prisonRoom.rect.CenterCell) >= 30f);
+                    float maxNear = prisonRoom.rect.CenterCell.DistanceTo(field) - 4f;
+                    bedroom = RoomWithBeds(s, ClearRect(map, field, 5, 1, 5f, maxNear), 1, prisoners: false);
+                    emptyRoom = BuildRoom(s, ClearRect(map, field, 5, 1, 5f, maxNear), batteryPct: -1f);
                     Pawn quad = DogOut(s, stable, field);
                     var raiders = new List<Pawn>();
                     for (int i = 0; i < 4; i++)
@@ -217,25 +218,49 @@ namespace Quadrunner
                     if (raiders.Take(3).Any(r => !DogNetwork.For(map).Queued(r)))
                         throw new InvalidOperationException("the pings didn't queue the raiders");
                 })
-                .Expect("the bedroom is a bedroom, the empty room qualifies", () =>
+                .Expect("the prison room, bedroom and empty room all qualify as staged", () =>
                 {
-                    Room b = Find.CurrentMap.regionGrid.GetValidRegionAt(bedroom.rect.CenterCell)?.Room;
-                    Room e = Find.CurrentMap.regionGrid.GetValidRegionAt(emptyRoom.rect.CenterCell)?.Room;
-                    if (b?.Role != RoomRoleDefOf.Bedroom || !Combat.EmptyRoom(e))
-                        throw new InvalidOperationException($"bedroom role {b?.Role?.defName}, empty room qualifies {Combat.EmptyRoom(e)}");
+                    Map map = Find.CurrentMap;
+                    Room pr = map.regionGrid.GetValidRegionAt(prisonRoom.rect.CenterCell)?.Room;
+                    Room b = map.regionGrid.GetValidRegionAt(bedroom.rect.CenterCell)?.Room;
+                    Room e = map.regionGrid.GetValidRegionAt(emptyRoom.rect.CenterCell)?.Room;
+                    if (!Combat.PrisonRoom(pr) || b?.Role != RoomRoleDefOf.Bedroom || !Combat.EmptyRoom(e))
+                        throw new InvalidOperationException(
+                            $"prison qualifies {Combat.PrisonRoom(pr)}, bedroom role {b?.Role?.defName}, empty qualifies {Combat.EmptyRoom(e)}");
                     return true;
                 })
                 .Expect("the Combatdog carries a downed raider", () =>
                     Combatdog().carryTracker?.CarriedThing is Pawn p && downIds.Contains(p.ThingID))
                 .SaveAndReload()
-                .Expect("one raider a prisoner in the prison bed, two left downed in the empty room", () =>
-                    Down().Count(p => p.IsPrisonerOfColony && p.InBed()) == 1
-                    && Down().Count(p => InRoom(p, emptyRoom) && p.Downed && !p.IsPrisonerOfColony) == 2)
-                .Expect("none in the bedroom; the Combatdog docks with an empty queue", () =>
+                .Expect("one raider a prisoner in the prison bed, two left downed in the prison room", () =>
+                    Down().Count(p => p.IsPrisonerOfColony && p.InBed() && InRoom(p, prisonRoom)) == 1
+                    && Down().Count(p => InRoom(p, prisonRoom) && p.Downed && !p.IsPrisonerOfColony) == 2)
+                .Expect("none in the bedroom or empty room; the Combatdog docks with an empty queue", () =>
                 {
-                    if (Down().Any(p => InRoom(p, bedroom)))
-                        throw new InvalidOperationException("a raider was left in the bedroom");
+                    if (Down().Any(p => InRoom(p, bedroom) || InRoom(p, emptyRoom)))
+                        throw new InvalidOperationException("a raider was left in the bedroom or empty room");
                     return Stable().Docked.Contains(Combatdog()) && Net().WarQueue.Count == 0;
+                })
+                .Do("with the prison bed already occupied, another downed raider appears right beside the empty room", () =>
+                {
+                    Map map = Find.CurrentMap;
+                    Pawn overflow = SpawnRaider(s, OpenCell(map, emptyRoom.Outside, 0f, 3f));
+                    overflowId = overflow.ThingID;
+                    DownBleeding(s, overflow, 1f);
+                    Net().Report(NetworkTaskKind.Combat, overflow);
+                    Raid.Recheck(map);
+                    Net().Tick(force: true);
+                })
+                .Expect("the Combatdog carries the overflow raider via QR_CarryToRoom toward the prison room", () =>
+                    Combatdog().CurJobDef == QR_DefOf.QR_CarryToRoom && Combatdog().carryTracker?.CarriedThing == ById(overflowId))
+                .SaveAndReload()
+                .Expect("with no free bed for any new hostile, the overflow raider is left downed in the prison room (not the empty room) and the dog docks", () =>
+                {
+                    Pawn overflow = ById(overflowId);
+                    if (InRoom(overflow, emptyRoom) || InRoom(overflow, bedroom))
+                        throw new InvalidOperationException("the overflow raider was left in the empty room or bedroom");
+                    return InRoom(overflow, prisonRoom) && overflow.Downed && !overflow.IsPrisonerOfColony
+                        && Stable().Docked.Contains(Combatdog()) && Net().WarQueue.Count == 0;
                 })
                 .Do("three patrol waypoints and an unreachable raider keep a war patrol active", () =>
                 {
@@ -268,7 +293,13 @@ namespace Quadrunner
                 .Expect("the new war assignment preempts the patrol", () =>
                     Attacking(Combatdog(), ById(roamerId)) || Net().Queued(ById(roamerId)) && ById(roamerId).Downed)
                 .Expect("the raider dead or down and dealt with", () =>
-                    !(ById(roamerId) is Pawn p) || p.Dead || p.Downed && !Net().Queued(p))
+                {
+                    if (!(ById(roamerId) is Pawn p) || p.Dead)
+                        return true;
+                    if (InRoom(p, emptyRoom) || InRoom(p, bedroom))
+                        throw new InvalidOperationException("the roamer was left in the empty room or bedroom");
+                    return p.Downed && !Net().Queued(p) && InRoom(p, prisonRoom);
+                })
                 .SaveAndReload()
                 .Expect("the raid still on, it walks waypoints 2, 3 and 1 again", () =>
                 {
@@ -284,7 +315,7 @@ namespace Quadrunner
                     Raid.Recheck(Find.CurrentMap);
                 })
                 .Expect("the Combatdog docks", () => Stable().Docked.Contains(Combatdog()))
-                .Summary(() => "raiders " + string.Join(", ", downIds.Select(Fate)) + $"; dead one {Fate(deadId)}; "
+                .Summary(() => "raiders " + string.Join(", ", downIds.Select(Fate)) + $"; overflow {Fate(overflowId)}; dead one {Fate(deadId)}; "
                     + $"roamer {Fate(roamerId)}, walled-in {Fate(walledId)}; waypoints reached {CompRobodog.Of(Combatdog())?.waypointsReached}")
                 .Start();
         }
