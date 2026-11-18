@@ -18,8 +18,8 @@ namespace Quadrunner
     {
         public const int RefreshTicks = 120;
 
-        internal static readonly Color MuskGreen = new Color(0.30f, 0.43f, 0.24f);
-        internal static readonly Color LightYellow = new Color(0.95f, 0.92f, 0.56f);
+        internal static readonly Color MuskGreen = new Color(0.32f, 0.54f, 0.28f);
+        internal static readonly Color LightYellow = new Color(0.98f, 0.95f, 0.58f);
 
         private int spawnTick;
         private float edgeFactor;
@@ -50,11 +50,11 @@ namespace Quadrunner
             int now = Find.TickManager.TicksGame;
             int total = Math.Max(1, destroyTick - spawnTick);
             float ageFrac = Mathf.Clamp01((float)(now - spawnTick) / total);
-            float colorT = Mathf.Clamp01(edgeFactor * 0.45f + ageFrac * 0.70f);
+            float colorT = Mathf.Clamp01(edgeFactor * 0.60f + ageFrac * 0.65f);
             Color c = Color.Lerp(MuskGreen, LightYellow, colorT);
             float fadeIn = Mathf.Clamp01((now - spawnTick) / 15f);
             float fadeOut = Mathf.Clamp01((destroyTick - now) / 180f);
-            c.a = 0.58f * (1f - 0.25f * edgeFactor) * fadeIn * fadeOut;
+            c.a = 0.55f * (1f - 0.22f * edgeFactor) * fadeIn * fadeOut;
             return c;
         }
 

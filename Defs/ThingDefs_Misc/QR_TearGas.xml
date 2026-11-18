@@ -24,6 +24,7 @@
     <graphicData>
       <texPath>Things/Gas/GasCloudThickA</texPath>
       <graphicClass>Quadrunner.Graphic_TearGas</graphicClass>
+      <shaderType>TransparentPostLight</shaderType>
       <drawSize>2.2</drawSize>
       <color>(1,1,1,1)</color>
     </graphicData>
