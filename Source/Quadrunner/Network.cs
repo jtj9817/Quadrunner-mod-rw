@@ -190,6 +190,7 @@ namespace Quadrunner
                 TrapAvoidance.Forget(gone.Map);
             }
             networks.Clear();
+            SmokeCoordinator.ClearAll();
         }
         public static bool IsWorker(Pawn dog) => RobodogWork.Of(dog) is RobodogWork w && !w.rescue && !w.combat;
 
