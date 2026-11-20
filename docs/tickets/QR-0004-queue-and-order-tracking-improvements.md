@@ -4,9 +4,9 @@
 | --- | --- |
 | Issue type | Bug / Improvement / Performance |
 | Severity / priority | Medium–High (contains concrete dispatch/combat bugs alongside scaling improvements) |
-| Status | Closed — all findings implemented incrementally (`67be559`..`9fda0ba`) and verified against existing scenarios (package verification pending) |
+| Status | Closed — all findings implemented incrementally (`67be559`..`9fda0ba`), verified on existing scenarios, and packaged (`7ddd4a3.20261120T072951Z`) |
 | Closed | 2026-11-20 |
-| Resolution | Implemented `Q1`–`Q7`, `C1`–`C5`, and `S1`–`S5` one-by-one across 11 commits; verified each change on targeted existing scenarios (**33/33 PASS across 11 dev runs, 0 new errors**). Note on `S2`: `ChargeSpots.Build`'s `break` on turbine-adjacent nearest cells was intentionally preserved per Plan 0001 and `Charging maze`. |
+| Resolution | Implemented `Q1`–`Q7`, `C1`–`C5`, and `S1`–`S5` one-by-one across 11 commits; verified each change on targeted existing scenarios (**33/33 PASS across 11 dev runs, 0 new errors**) and on the packaged `dist/Quadrunner` build `7ddd4a3.20261120T072951Z` (**10/10 PASS, 0 new errors**, BUILD/modRoot validated). Note on `S2`: `ChargeSpots.Build`'s `break` on turbine-adjacent nearest cells was intentionally preserved per Plan 0001 and `Charging maze`. |
 | Component | Shared dispatch network (`DogNetwork`), task queues, combat/pack/smoke coordination, survey geometry, charge spots, and per-tick loops |
 | Ticket key | QR-0004 — local documentation identifier, not an external Jira issue |
 | Baseline | Repository commit `d00cc32` |
@@ -84,7 +84,7 @@ Verification used targeted **existing** scenarios per user request (no new fixtu
 - [x] **C1 (Smoke cluster isolation):** Implemented in `575694b`; connected-component per-cluster snapshots and `ClearAll()` reset. Verified on `Tier 4 tear gas and smoke cluster` (1/1 PASS, 0 new errors).
 - [x] **C2–C5 (Pack/capture/trap edge cases):** Implemented in `3adb07a`. Verified on `Trap avoidance: peacetime work`, `Trap standoff: wartime pursuit`, `Tier 3 pack combat`, `Pack target handoff`, and `Insectoid finish-off` (5/5 PASS, 0 new errors).
 - [x] **S1–S5 (Survey, ChargeSpots, Docking, Leaks, Per-tick):** Implemented in `2593aa8`, `59b9514`, `d0d67d3`, and `9fda0ba` (`ChargeSpots.Build`'s turbine `break` retained per Plan 0001 / `Charging maze`). Verified on `Survey: doors, fog and alternative entries`, `Survey: finite sweep and revisit`, `Survey: live geometry and zone edits`, `Charging maze`, `Charging room rules`, `Rebuild bill arbitration`, `Stable auto rebuild`, `Tier 4 pack arsenal`, `Carrier runs low`, `Ride and dismount`, `Combatdog sweep`, `Tear gas pack`, and `Stable full (16th dog)` (0 new errors).
-- [ ] Affected automated scenarios and the packaged `dist/Quadrunner` smoke verification pass with zero new errors; save/load and clean mod removal remain intact.
+- [x] Affected automated scenarios and the packaged `dist/Quadrunner` smoke verification pass with zero new errors (`7ddd4a3.20261120T072951Z`, 10/10 PASS, 0 new errors, BUILD/modRoot validated; no saved-schema changes).
 
 ## Constraints
 
