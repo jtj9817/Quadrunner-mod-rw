@@ -20,6 +20,10 @@ namespace Quadrunner
         private const float RowHeight = 26f;
 
         private Vector2 scrollPosition;
+        private Building_Stable cachedStable;
+        private int cachedTick = -1;
+        private int cachedDocked = -1;
+        private List<(Pawn dog, string[] cells)> cachedRows;
 
         public ITab_StableOverview()
         {
@@ -49,7 +53,16 @@ namespace Quadrunner
         protected override void FillTab()
         {
             Building_Stable stable = Stable;
-            List<(Pawn dog, string[] cells)> rows = Rows(stable);
+            int now = Find.TickManager.TicksGame;
+            int dockedCount = stable.Docked.Count;
+            if (cachedRows == null || cachedStable != stable || cachedTick != now || cachedDocked != dockedCount)
+            {
+                cachedStable = stable;
+                cachedTick = now;
+                cachedDocked = dockedCount;
+                cachedRows = Rows(stable);
+            }
+            List<(Pawn dog, string[] cells)> rows = cachedRows;
             Rect inner = new Rect(0f, 0f, WinSize.x, WinSize.y).ContractedBy(10f);
             Text.Font = GameFont.Small;
             Rect title = new Rect(inner.x, inner.y, inner.width - 100f, RowHeight);
@@ -75,7 +88,7 @@ namespace Quadrunner
                 DrawRow(cells, tier?.SlotCount > 0 ? rows[i].cells.Take(6).ToArray() : rows[i].cells, bold: false, dog: dog);
                 if (tier != null)
                     DrawCombatdogButtons(stable, dog, tier, rows[i].cells[6], cells,
-                        new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f));
+                        new Rect(cells.xMax, row.y, UpgradeWidth, row.height).ContractedBy(2f), () => cachedRows = null);
                 else if (dog.Spawned && Widgets.ButtonInvisible(row))
                     CameraJumper.TryJumpAndSelect(dog);
             }
@@ -91,7 +104,7 @@ namespace Quadrunner
 
         /// <summary>The Weapons cell as a button listing each slot's choices, and the upgrade button.</summary>
         private static void DrawCombatdogButtons(Building_Stable stable, Pawn dog, CombatTier tier, string description,
-            Rect cells, Rect upgrade)
+            Rect cells, Rect upgrade, System.Action invalidate)
         {
             float weaponsX = cells.x + ColumnWidths.Take(ColumnWidths.Length - 1).Sum();
             Rect weapons = new Rect(weaponsX, cells.y, cells.xMax - weaponsX, cells.height).ContractedBy(2f);
@@ -105,7 +118,7 @@ namespace Quadrunner
                     {
                         int s = slot;
                         options.Add(new FloatMenuOption($"Slot {slot + 1}: {gun.LabelCap}{(Tiers.Gun(dog, slot) == gun ? " (fitted)" : "")}",
-                            () => Tiers.PickGun(dog, s, gun)) { tooltip = new TipSignal(gun.description) });
+                            () => { Tiers.PickGun(dog, s, gun); invalidate(); }) { tooltip = new TipSignal(gun.description) });
                     }
                 Find.WindowStack.Add(new FloatMenu(options));
             }
@@ -126,12 +139,18 @@ namespace Quadrunner
             if (bill != null)
             {
                 if (Widgets.ButtonText(upgrade, "Cancel upgrade"))
+                {
                     stable.BillStack.Delete(bill);
+                    invalidate();
+                }
                 TooltipHandler.TipRegion(upgrade, $"{bill.LabelCap}: done at this stable while the dog is docked.");
                 return;
             }
             if (Widgets.ButtonText(upgrade, $"Upgrade to Tier {tier.tier + 1}"))
+            {
                 stable.OrderUpgrade(dog);
+                invalidate();
+            }
             TooltipHandler.TipRegion(upgrade, $"{tier.upgrade.description}\n\nCost: "
                 + string.Join(", ", tier.upgrade.ingredients.Select(ing => ing.Summary)));
         }
