@@ -30,6 +30,8 @@ namespace Quadrunner
         internal int lastActivityTick = -1;
         private Thing target;
 
+        internal bool HasCachedTarget => target != null;
+
         public Thing Target(Map map)
         {
             if (target == null && targetId != null)
@@ -103,6 +105,12 @@ namespace Quadrunner
         private readonly List<Pawn> dogs = new List<Pawn>();
         private readonly Dictionary<string, Pawn> dogById = new Dictionary<string, Pawn>();
         private readonly Dictionary<string, NetworkTask> assignments = new Dictionary<string, NetworkTask>();
+        private readonly Dictionary<(NetworkTaskKind kind, string targetId), NetworkTask> taskIndex =
+            new Dictionary<(NetworkTaskKind, string), NetworkTask>();
+        private readonly Dictionary<string, NetworkTask> normalByTarget = new Dictionary<string, NetworkTask>();
+        private readonly Dictionary<string, NetworkTask> warByTarget = new Dictionary<string, NetworkTask>();
+        private readonly HashSet<Thing> haulableSet = new HashSet<Thing>();
+        private int indexedNormalCount = -1, indexedWarCount = -1;
         private readonly Dictionary<string, DogReport> reports = new Dictionary<string, DogReport>();
         private readonly List<NetworkTask> ordered = new List<NetworkTask>();
         private readonly List<string> goneReports = new List<string>();
@@ -275,6 +283,7 @@ namespace Quadrunner
                 state.normal.Clear(); state.war.Clear();
                 state.warActive = false;
                 assignments.Clear(); reports.Clear(); Survey.Clear();
+                ClearTaskIndexes();
                 return;
             }
             Store(elected, state);
@@ -289,19 +298,118 @@ namespace Quadrunner
             nextTick = 0;
         }
 
+        private void ClearTaskIndexes()
+        {
+            taskIndex.Clear();
+            normalByTarget.Clear();
+            warByTarget.Clear();
+            indexedNormalCount = -1;
+            indexedWarCount = -1;
+        }
+
+        private void EnsureTaskIndexes()
+        {
+            NetworkState current = State;
+            if (current == null) return;
+            if (indexedNormalCount == current.normal.Count && indexedWarCount == current.war.Count) return;
+            RebuildTaskIndexes();
+        }
+
+        private void RebuildTaskIndexes()
+        {
+            taskIndex.Clear();
+            normalByTarget.Clear();
+            warByTarget.Clear();
+            if (state == null)
+            {
+                indexedNormalCount = indexedWarCount = -1;
+                return;
+            }
+            for (int i = 0; i < state.normal.Count; i++)
+            {
+                NetworkTask task = state.normal[i];
+                if (task.targetId == null) continue;
+                taskIndex[(task.kind, task.targetId)] = task;
+                normalByTarget[task.targetId] = task;
+            }
+            for (int i = 0; i < state.war.Count; i++)
+            {
+                NetworkTask task = state.war[i];
+                if (task.targetId == null) continue;
+                taskIndex[(task.kind, task.targetId)] = task;
+                warByTarget[task.targetId] = task;
+            }
+            indexedNormalCount = state.normal.Count;
+            indexedWarCount = state.war.Count;
+        }
+
+        private void ResolveMissingTargets()
+        {
+            if (state == null) return;
+            HashSet<string> needed = null;
+            for (int i = 0; i < state.normal.Count; i++)
+                if (!state.normal[i].HasCachedTarget && state.normal[i].targetId != null)
+                    (needed ??= new HashSet<string>()).Add(state.normal[i].targetId);
+            for (int i = 0; i < state.war.Count; i++)
+                if (!state.war[i].HasCachedTarget && state.war[i].targetId != null)
+                    (needed ??= new HashSet<string>()).Add(state.war[i].targetId);
+            if (needed == null) return;
+            var found = new Dictionary<string, Thing>(needed.Count);
+            List<Thing> allThings = Map.listerThings.AllThings;
+            for (int i = 0; i < allThings.Count && found.Count < needed.Count; i++)
+            {
+                Thing thing = allThings[i];
+                string id = thing.ThingID;
+                if (needed.Contains(id) && !found.ContainsKey(id))
+                    found[id] = thing;
+            }
+            if (found.Count < needed.Count)
+            {
+                List<Pawn> allPawns = Map.mapPawns.AllPawns;
+                for (int i = 0; i < allPawns.Count && found.Count < needed.Count; i++)
+                {
+                    Pawn pawn = allPawns[i];
+                    string id = pawn.ThingID;
+                    if (needed.Contains(id) && !found.ContainsKey(id))
+                        found[id] = pawn;
+                }
+            }
+            for (int i = 0; i < state.normal.Count; i++)
+            {
+                NetworkTask task = state.normal[i];
+                if (!task.HasCachedTarget && task.targetId != null && found.TryGetValue(task.targetId, out Thing thing))
+                    task.SetTarget(thing, task.targetId);
+            }
+            for (int i = 0; i < state.war.Count; i++)
+            {
+                NetworkTask task = state.war[i];
+                if (!task.HasCachedTarget && task.targetId != null && found.TryGetValue(task.targetId, out Thing thing))
+                    task.SetTarget(thing, task.targetId);
+            }
+        }
+
+        internal bool TryGetNormalTask(string targetId, out NetworkTask task)
+        {
+            EnsureTaskIndexes();
+            return normalByTarget.TryGetValue(targetId, out task);
+        }
+
         public bool Report(NetworkTaskKind kind, Thing target, WorkGiverDef giver = null)
         {
             if (target == null || target.Destroyed || target.MapHeld != Map || target.PositionHeld.Fogged(Map)) return false;
             if (State == null || coordinator == null) return false;
-            List<NetworkTask> queue = kind == NetworkTaskKind.Combat || kind == NetworkTaskKind.Rescue || kind == NetworkTaskKind.Fire
-                ? State.war : State.normal;
+            EnsureTaskIndexes();
             // ThingID constructs a string; do not rebuild it for every queued task or again on insertion.
             string targetId = target.ThingID;
-            foreach (NetworkTask task in queue)
-                if (task.kind == kind && task.targetId == targetId) return false;
+            if (taskIndex.ContainsKey((kind, targetId))) return false;
+            bool isWar = kind == NetworkTaskKind.Combat || kind == NetworkTaskKind.Rescue || kind == NetworkTaskKind.Fire;
+            List<NetworkTask> queue = isWar ? State.war : State.normal;
             var added = new NetworkTask { id = State.nextId++, kind = kind, giver = giver, reportedAt = Now };
             added.SetTarget(target, targetId);
             queue.Add(added);
+            taskIndex[(kind, targetId)] = added;
+            if (isWar) { warByTarget[targetId] = added; indexedWarCount = State.war.Count; }
+            else { normalByTarget[targetId] = added; indexedNormalCount = State.normal.Count; }
             QR.Log($"network discovered #{added.id} {kind}: {target}");
             return true;
         }
@@ -309,20 +417,26 @@ namespace Quadrunner
         public bool Queued(Thing target)
         {
             if (target == null) return false;
-            foreach (NetworkTask task in State.war) if (task.targetId == target.ThingID) return true;
-            return false;
+            EnsureTaskIndexes();
+            return warByTarget.ContainsKey(target.ThingID);
         }
 
         public void Release(Thing target)
         {
             if (target == null) return;
+            EnsureTaskIndexes();
+            string targetId = target.ThingID;
+            if (!warByTarget.ContainsKey(targetId)) return;
+            bool removed = false;
             for (int i = State.war.Count - 1; i >= 0; i--)
-                if (State.war[i].targetId == target.ThingID)
+                if (State.war[i].targetId == targetId)
                 {
                     NetworkTask task = State.war[i];
                     if (task.assigneeId != null) assignments.Remove(task.assigneeId);
                     State.war.RemoveAt(i);
+                    removed = true;
                 }
+            if (removed) RebuildTaskIndexes();
         }
 
         /// <summary>
@@ -361,12 +475,14 @@ namespace Quadrunner
             if (State == null || coordinator == null)
                 return false;
             bool dead = wreck != null;
+            string dogId = dog.ThingID;
+            string wreckId = dead ? wreck.ThingID : null;
             NetworkTask existing = null, staleRetrieve = null;
             foreach (NetworkTask task in State.normal)
             {
-                if (task.kind == NetworkTaskKind.Recover && task.casualtyId == dog.ThingID)
+                if (task.kind == NetworkTaskKind.Recover && task.casualtyId == dogId)
                     existing = existing ?? task;
-                else if (task.kind == NetworkTaskKind.Retrieve && task.targetId == dog.ThingID)
+                else if (task.kind == NetworkTaskKind.Retrieve && task.targetId == dogId)
                     staleRetrieve = task;
             }
             // Older saves may hold an ordinary retrieval for this Combatdog; it becomes the central order in place,
@@ -375,33 +491,37 @@ namespace Quadrunner
             {
                 existing = staleRetrieve;
                 existing.kind = NetworkTaskKind.Recover;
-                existing.casualtyId = dog.ThingID;
+                existing.casualtyId = dogId;
+                RebuildTaskIndexes();
             }
             else if (staleRetrieve != null)
             {
                 if (staleRetrieve.assigneeId != null) assignments.Remove(staleRetrieve.assigneeId);
                 State.normal.Remove(staleRetrieve);
+                RebuildTaskIndexes();
             }
             if (existing == null)
             {
                 var added = new NetworkTask
                 {
-                    id = State.nextId++, kind = NetworkTaskKind.Recover, casualtyId = dog.ThingID,
+                    id = State.nextId++, kind = NetworkTaskKind.Recover, casualtyId = dogId,
                     casualtyDead = dead, reportedAt = Now,
                     lastKnown = dead ? wreck.PositionHeld : dog.PositionHeld,
                 };
                 Thing target = dead ? (Thing)wreck : dog;
-                added.SetTarget(target, target.ThingID);
+                added.SetTarget(target, dead ? wreckId : dogId);
                 State.normal.Add(added);
+                RebuildTaskIndexes();
                 QR.Log($"network casualty #{added.id}: {dog} {(dead ? "wreck" : "downed")} at {added.lastKnown}");
                 return true;
             }
             if (existing.casualtyDead)
             {
-                if (dead && existing.targetId != wreck.ThingID && existing.assigneeId == null)
+                if (dead && existing.targetId != wreckId && existing.assigneeId == null)
                 {
                     existing.lastKnown = wreck.PositionHeld;
-                    existing.SetTarget(wreck, wreck.ThingID);
+                    existing.SetTarget(wreck, wreckId);
+                    RebuildTaskIndexes();
                     return true;
                 }
                 return false;
@@ -410,7 +530,8 @@ namespace Quadrunner
             {
                 existing.casualtyDead = true;
                 existing.lastKnown = wreck.PositionHeld;
-                existing.SetTarget(wreck, wreck.ThingID);
+                existing.SetTarget(wreck, wreckId);
+                RebuildTaskIndexes();
                 QR.Log($"network casualty #{existing.id}: {dog} died; tracking its wreck");
                 return true;
             }
@@ -418,7 +539,7 @@ namespace Quadrunner
             if (existing.assigneeId == null)
             {
                 existing.lastKnown = dog.PositionHeld;
-                existing.SetTarget(dog, dog.ThingID);
+                existing.SetTarget(dog, dogId);
             }
             return false;
         }
@@ -454,10 +575,19 @@ namespace Quadrunner
                 if (force || Now >= nextScan)
                 {
                     nextScan = Now + Tuning.scanInterval;
+                    ICollection<Thing> rawHaulables = Map.listerHaulables.ThingsPotentiallyNeedingHauling();
+                    HashSet<Thing> haulables = rawHaulables as HashSet<Thing>;
+                    if (haulables == null)
+                    {
+                        haulableSet.Clear();
+                        foreach (Thing t in rawHaulables)
+                            haulableSet.Add(t);
+                        haulables = haulableSet;
+                    }
                     foreach (Pawn dog in dogs)
                         if (Active(dog))
                         {
-                            DogWork.ReportLocal(dog, this);
+                            DogWork.ReportLocal(dog, this, haulables);
                             if (RobodogWork.Of(dog).combat) Combat.Spot(dog, this);
                         }
                     // A casualty reports itself: this is independent of every worker's scan radius and stays in the
@@ -632,7 +762,7 @@ namespace Quadrunner
                         if (c.ThingCountNeeded(cost.thingDef) > 0) return false;
                     return true;
                 case NetworkTaskKind.Retrieve: return !(target is Pawn down) || down.Faction != Faction.OfPlayer || !Retrieval.Casualty(down);
-                case NetworkTaskKind.Rescue: return !(target is Pawn patient) || !Rescue.Patients(Map).Contains(patient);
+                case NetworkTaskKind.Rescue: return !(target is Pawn patient) || !Rescue.IsPatient(patient);
                 case NetworkTaskKind.Combat:
                     return !(target is Pawn hostile) || hostile.Dead || hostile.IsPrisonerOfColony || !hostile.HostileTo(Faction.OfPlayer);
                 case NetworkTaskKind.Clean: return !Map.areaManager.Home[target.Position];
@@ -666,6 +796,8 @@ namespace Quadrunner
 
         private Pawn FindPawn(string id)
         {
+            if (id != null && dogById.TryGetValue(id, out Pawn known))
+                return known;
             foreach (Pawn pawn in Map.mapPawns.AllPawns)
                 if (pawn.ThingID == id)
                     return pawn;
@@ -744,6 +876,8 @@ namespace Quadrunner
 
         private void RebuildAssignments()
         {
+            ResolveMissingTargets();
+            RebuildTaskIndexes();
             assignments.Clear();
             foreach (NetworkTask task in state.normal)
                 if (task.assigneeId != null) assignments[task.assigneeId] = task;

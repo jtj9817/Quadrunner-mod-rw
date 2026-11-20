@@ -83,7 +83,10 @@ namespace Quadrunner
         /// forbidden targets and reservations are left to assignment (<see cref="JobFor"/>), so a report never hides
         /// work another dog could do, and the network deduplicates (<see cref="DogNetwork.Report"/>).
         /// </summary>
-        public static void ReportLocal(Pawn observer, DogNetwork network)
+        public static void ReportLocal(Pawn observer, DogNetwork network) =>
+            ReportLocal(observer, network, null);
+
+        internal static void ReportLocal(Pawn observer, DogNetwork network, HashSet<Thing> haulableSet)
         {
             if (observer == null || !observer.Spawned || network?.Map != observer.Map)
                 return;
@@ -94,7 +97,8 @@ namespace Quadrunner
             long started = survey.Measure ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
             long bytes = survey.Measure && Survey.AllocatedBytes != null ? Survey.AllocatedBytes() : 0;
             Map map = observer.Map;
-            ICollection<Thing> haulables = map.listerHaulables.ThingsPotentiallyNeedingHauling();
+            ICollection<Thing> haulables = (ICollection<Thing>)haulableSet
+                ?? map.listerHaulables.ThingsPotentiallyNeedingHauling();
             foreach (IntVec3 cell in GenRadial.RadialCellsAround(observer.Position, work.scanRadius, useCenter: true))
             {
                 if (!cell.InBounds(map) || map.fogGrid.IsFogged(cell))
@@ -237,11 +241,16 @@ namespace Quadrunner
             DogNetwork network = DogNetwork.For(dog.Map);
             RobodogWork work = RobodogWork.Utility;
             Thing target = task.Target(dog.Map);
-            queue.RemoveAll(queued => queued.HasThing && queued.Thing != target
-                && (queued.Thing.Position.DistanceTo(target.Position) > work.scanRadius
-                    || !network.State.normal.Any(t => t.targetId == queued.Thing.ThingID)
-                    || network.State.normal.Any(t => t.targetId == queued.Thing.ThingID
-                        && t.assigneeId != null && t.assigneeId != dog.ThingID)));
+            string dogId = dog.ThingID;
+            queue.RemoveAll(queued =>
+            {
+                if (!queued.HasThing || queued.Thing == target)
+                    return false;
+                if (queued.Thing.Position.DistanceTo(target.Position) > work.scanRadius)
+                    return true;
+                return !network.TryGetNormalTask(queued.Thing.ThingID, out NetworkTask found)
+                    || found.assigneeId != null && found.assigneeId != dogId;
+            });
         }
 
         /// <summary>How a dog would have to reach a task's target, for ranking routes to it.</summary>

@@ -29,9 +29,13 @@ namespace Quadrunner
         }
 
         /// <summary>Downed, out of bed, and ours to rescue (vanilla's float menu also skips "no medical care").</summary>
+        public static bool IsPatient(Pawn p) =>
+            p != null && p.Spawned && !p.Dead && p.Downed && Rank(p) >= 0
+            && HealthAIUtility.WantsToBeRescued(p)
+            && HealthAIUtility.ShouldEverReceiveMedicalCareFromPlayer(p);
+
         public static IEnumerable<Pawn> Patients(Map map) =>
-            map.mapPawns.SpawnedDownedPawns.Where(p => Rank(p) >= 0 && HealthAIUtility.WantsToBeRescued(p)
-                && HealthAIUtility.ShouldEverReceiveMedicalCareFromPlayer(p));
+            map.mapPawns.SpawnedDownedPawns.Where(IsPatient);
         public static bool AnyPatient(Map map) => Patients(map).Any();
 
         public static Building_Bed BedFor(Pawn patient, Pawn rescuer) =>
