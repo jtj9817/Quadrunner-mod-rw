@@ -693,8 +693,9 @@ namespace Quadrunner
 
         private int CombatOrder(NetworkTask task)
         {
-            if (!(task.Target(Map) is Pawn p) || !p.Downed) return 1;
-            return p.RaceProps.Insect ? 2 : 0;
+            if (!(task.Target(Map) is Pawn p)) return 1;
+            if (!p.Downed) return packs.IsTargeted(p) ? 2 : 1;
+            return p.RaceProps.Insect ? 3 : 0;
         }
 
         private bool HasUnassignedStandingCombat(Pawn dog, Pawn exclude)
@@ -1203,6 +1204,15 @@ namespace Quadrunner
                     && TrapAvoidance.PathEntersTrap(path, dog))
                     route = float.MaxValue;
             }
+            if (route < float.MaxValue && task.kind != NetworkTaskKind.Combat
+                && candidate.targetB.IsValid && candidate.def != JobDefOf.BeatFire)
+            {
+                PathEndMode dropMode = candidate.def == QR_DefOf.QR_CarryToStable
+                    ? PathEndMode.InteractionCell
+                    : candidate.targetB.HasThing ? PathEndMode.Touch : PathEndMode.ClosestTouch;
+                if (TrapAvoidance.RouteEntersTrapFrom(dog, destination.Cell, candidate.targetB, dropMode, out _))
+                    route = float.MaxValue;
+            }
             if (route == float.MaxValue)
             {
                 JobMaker.ReturnToPool(candidate);
@@ -1348,8 +1358,15 @@ namespace Quadrunner
                     {
                         PairCandidate pair = pairCandidates[p];
                         if (pair.bound > bestCost) break;
+                        if (!bandTasks.Contains(pair.task)) continue;
                         Job candidate = EvaluateCandidate(pair.dog, pair.task, pair.target, hasPatient, passDoors, out float route);
-                        if (candidate == null) continue;
+                        if (candidate == null)
+                        {
+                            // CaptureJob may release a downed target already in a prison/empty room; stop probing it.
+                            if (pair.task.kind == NetworkTaskKind.Combat && !Queued(pair.target))
+                                bandTasks.Remove(pair.task);
+                            continue;
+                        }
                         bool better = route < bestCost
                             || route == bestCost && bestTask != null && (pair.task.id < bestTask.id
                                 || pair.task.id == bestTask.id && pair.dog.thingIDNumber < bestDog.thingIDNumber);

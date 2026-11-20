@@ -53,7 +53,19 @@ namespace Quadrunner
             holdCell = IntVec3.Invalid;
             if (dog == null || !dog.Spawned || OnTrap(dog))
                 return false;
-            using (PawnPath path = dog.Map.pathFinder.FindPathNow(dog.Position, dest,
+            return RouteEntersTrapFrom(dog, dog.Position, dest, mode, out holdCell);
+        }
+
+        /// <summary>
+        /// Checks whether the route from <paramref name="start"/> to <paramref name="dest"/> enters a known trap
+        /// (excluding <paramref name="start"/> itself so a pawn can always step off a trap).
+        /// </summary>
+        public static bool RouteEntersTrapFrom(Pawn dog, IntVec3 start, LocalTargetInfo dest, PathEndMode mode, out IntVec3 holdCell)
+        {
+            holdCell = IntVec3.Invalid;
+            if (dog == null || !dog.Spawned || !start.IsValid || !dest.IsValid)
+                return false;
+            using (PawnPath path = dog.Map.pathFinder.FindPathNow(start, dest,
                        TraverseParms.For(dog, Danger.Deadly), peMode: mode))
             {
                 if (!path.Found)

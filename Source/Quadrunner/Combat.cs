@@ -141,6 +141,31 @@ namespace Quadrunner
             return job;
         }
 
+        /// <summary>Whether <paramref name="dog"/> has a usable, trap-free capture destination for <paramref name="target"/>.</summary>
+        internal static bool CanPotentiallyCapture(Pawn dog, Pawn target)
+        {
+            if (dog == null || target == null || !target.Spawned || !target.Downed
+                || TrapAvoidance.RouteEntersTrap(dog, target, PathEndMode.ClosestTouch, out _))
+                return false;
+            if (target.RaceProps.Humanlike && target.guest != null)
+            {
+                Building_Bed bed = RestUtility.FindBedFor(target, dog, checkSocialProperness: false,
+                    ignoreOtherReservations: false, GuestStatus.Prisoner);
+                if (bed != null && !TrapAvoidance.RouteEntersTrapFrom(dog, target.Position, bed, PathEndMode.ClosestTouch, out _))
+                    return true;
+            }
+            if (PrisonRoom(target.GetRoom()))
+                return false;
+            IntVec3 prisonCell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), PrisonRoom);
+            if (prisonCell.IsValid)
+                return !TrapAvoidance.RouteEntersTrapFrom(dog, target.Position, prisonCell, PathEndMode.OnCell, out _);
+            if (EmptyRoom(target.GetRoom()))
+                return false;
+            IntVec3 emptyCell = JobGiver_WaitInRoom.CellInNearestRoom(dog, target.GetRegion(), EmptyRoom);
+            return emptyCell.IsValid
+                && !TrapAvoidance.RouteEntersTrapFrom(dog, target.Position, emptyCell, PathEndMode.OnCell, out _);
+        }
+
         private static Job CaptureJob(Pawn dog, DogNetwork network, Pawn target)
         {
             if (!dog.CanReserveAndReach(target, PathEndMode.ClosestTouch, Danger.Deadly))
@@ -152,7 +177,7 @@ namespace Quadrunner
             {
                 Building_Bed bed = RestUtility.FindBedFor(target, dog, checkSocialProperness: false,
                     ignoreOtherReservations: false, GuestStatus.Prisoner);
-                if (bed != null && !TrapAvoidance.RouteEntersTrap(dog, bed, PathEndMode.ClosestTouch, out _))
+                if (bed != null && !TrapAvoidance.RouteEntersTrapFrom(dog, target.Position, bed, PathEndMode.ClosestTouch, out _))
                 {
                     Job capture = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
                     capture.count = 1;
@@ -180,7 +205,7 @@ namespace Quadrunner
 
         private static Job CarryToRoomJob(Pawn dog, Pawn target, IntVec3 cell)
         {
-            if (TrapAvoidance.RouteEntersTrap(dog, cell, PathEndMode.OnCell, out _))
+            if (TrapAvoidance.RouteEntersTrapFrom(dog, target.Position, cell, PathEndMode.OnCell, out _))
                 return null;
             Job carry = JobMaker.MakeJob(QR_DefOf.QR_CarryToRoom, target, cell);
             carry.count = 1;

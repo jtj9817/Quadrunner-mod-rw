@@ -18,6 +18,7 @@ namespace Quadrunner
         private readonly DogNetwork network;
         private readonly Dictionary<Pawn, Pawn> targets = new Dictionary<Pawn, Pawn>();
         private readonly Dictionary<Pawn, Pawn> previousTargets = new Dictionary<Pawn, Pawn>();
+        private readonly HashSet<Pawn> targetedEnemies = new HashSet<Pawn>();
         private readonly HashSet<Pawn> enemySet = new HashSet<Pawn>();
         private readonly List<Pawn> leaders = new List<Pawn>();
         private readonly List<Pawn> enemies = new List<Pawn>();
@@ -47,6 +48,9 @@ namespace Quadrunner
         /// <summary>Whether the scheduler has given this dog a pack target this refresh.</summary>
         public bool Has(Pawn dog) => dog != null && targets.ContainsKey(dog);
 
+        /// <summary>Whether any pack is currently focusing <paramref name="enemy"/> this refresh.</summary>
+        public bool IsTargeted(Pawn enemy) => enemy != null && targetedEnemies.Contains(enemy);
+
         /// <summary>Recomputes packs after reconciliation, or selection-only when an attack ends between ticks.</summary>
         public void Refresh(bool issueOrders = true)
         {
@@ -64,6 +68,7 @@ namespace Quadrunner
             foreach (KeyValuePair<Pawn, Pawn> pair in targets)
                 previousTargets[pair.Key] = pair.Value;
             targets.Clear();
+            targetedEnemies.Clear();
             reserved.Clear();
 
             if (network == null || !network.War)
@@ -129,6 +134,7 @@ namespace Quadrunner
                     if (!dog.CanReach(target, PathEndMode.Touch, Danger.Deadly))
                         continue;
                     targets[dog] = target;
+                    targetedEnemies.Add(target);
                     if (!issueOrders)
                         continue;
                     network.ReleaseForPack(dog);
@@ -197,7 +203,8 @@ namespace Quadrunner
             foreach (Pawn dog in network.Dogs)
             {
                 if (reserved.Contains(dog) || !CanFight(dog) || (CombatTier.Of(dog)?.packRange ?? 0f) > 0f
-                    || !dog.CanReserveAndReach(downed, PathEndMode.ClosestTouch, Danger.Deadly))
+                    || !dog.CanReserveAndReach(downed, PathEndMode.ClosestTouch, Danger.Deadly)
+                    || !Combat.CanPotentiallyCapture(dog, downed))
                     continue;
                 int distance = (dog.Position - downed.Position).LengthHorizontalSquared;
                 bool better = best == null || distance < bestDistance
