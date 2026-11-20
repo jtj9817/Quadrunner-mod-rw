@@ -32,6 +32,13 @@ place on load.
   instead of on the target.
 
 ### Fixed
+- **Queue tracking, order assignment, and runtime algorithms (`QR-0004`, package `7ddd4a3.20261120T072951Z`):**
+  - Queued work no longer enters 120-tick retry backoff merely because all capable dogs are busy, and dogs finishing a job immediately claim the next due order at the job boundary instead of walking off to survey or dock between consecutive tasks.
+  - Equal-priority tasks (hauling, equal-urgency rescues, solo combat) now match nearest `(dog, task)` pairs with Chebyshev lower-bound pruning rather than strict oldest-ID order, eliminating cross-map crisscrossing while preserving strict priority tiers.
+  - Stationary combat (`AttackStatic`/`AttackMelee`), firefighting, and water-hose jobs running past 2,500 ticks no longer trip `Reconcile`'s stall timeout mid-action.
+  - Separate Tier 4 Combatdog squads fighting >15 cells apart on the same map now receive independent 3-pop smoke windows instead of sharing one map-wide slot, and `SmokeCoordinator` resets cleanly on map/save cleanup.
+  - Pack capture keepers no longer pull T1/T2 Combatdogs off active combat when no usable prison/empty room or trap-free path exists; solo Combatdogs prefer unengaged standing hostiles over pack-focused ones; carry/drop-off trap checks now cover delivery legs from the pickup cell; and `CellInNearestRoom` continues searching past blocked regions.
+  - Late-game CPU and allocation improvements: O(1) queue deduplication and `HashSet` haulable lookup, single-pass post-load target resolution, reserved hose/haul skipping with capped exponential backoff, per-area `Survey` candidate invalidation (moving chunks no longer wipes every room/zone), event-driven `ChargeSpots` with lazy BFS filtering, zero-allocation stable healing/battery draw, and per-tick `ITab_StableOverview` caching.
 - Combatdogs no longer launch tear gas shells at mechanoids: tear gas only blinds organic, breathing pawns and
   mechanoids (non-organic flesh) are immune. Fire is withheld when the attack target is not organic flesh; organic
   targets (and smoke) are unchanged. New scenario **Tear gas vs mechanoids** proves it against a staged Lancer group.
