@@ -463,7 +463,10 @@ namespace Quadrunner
                 {
                     NetworkTask task = tasks[i];
                     if (task.kind == NetworkTaskKind.Rescue && task.assigneeId == null)
+                    {
                         task.retryAt = 0;
+                        task.failCount = 0;
+                    }
                 }
             }
             network.Tick(force);

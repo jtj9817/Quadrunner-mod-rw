@@ -19,6 +19,19 @@ namespace Quadrunner
         /// <summary>Vanilla's own fresh-filth gate (<c>WorkGiver_CleanFilth</c>); the hose keeps cleaning rules.</summary>
         internal const int MinTicksSinceThickened = 600;
 
+        // Reusable scratch buffers for PriorityTasks and PatchCells to avoid per-dispatch allocations.
+        private static readonly Dictionary<int, Filth> priorityTargets = new Dictionary<int, Filth>();
+        private static readonly HashSet<IntVec3> primaryTiles = new HashSet<IntVec3>();
+        private static readonly HashSet<IntVec3> animalTiles = new HashSet<IntVec3>();
+        private static readonly HashSet<IntVec3> primaryPatches = new HashSet<IntVec3>();
+        private static readonly HashSet<IntVec3> animalPatches = new HashSet<IntVec3>();
+        private static readonly HashSet<IntVec3> primaryChecked = new HashSet<IntVec3>();
+        private static readonly HashSet<IntVec3> animalChecked = new HashSet<IntVec3>();
+        private static readonly Queue<IntVec3> bfsOpen = new Queue<IntVec3>();
+        private static readonly HashSet<IntVec3> bfsSeen = new HashSet<IntVec3>();
+        private static readonly List<IntVec3> priorityPatch = new List<IntVec3>();
+        private static readonly List<IntVec3> jobPatch = new List<IntVec3>();
+
         /// <summary>
         /// One hose job for <paramref name="target"/>'s patch, or null when the patch is too small (normal cleaning
         /// then handles it) or the target is not a hose filth. Only discovered network Clean targets that are
@@ -32,15 +45,17 @@ namespace Quadrunner
                 || !(target is Filth first) || !StillEligible(first, dog) || !Mature(first))
                 return null;
             bool animal = IsAnimal(first);
-            List<IntVec3> patch = PatchCells(dog.Map, first.Position, work, animal);
+            PatchCells(dog.Map, first.Position, work, animal, jobPatch);
             int minimum = MinTiles(work);
+            if (jobPatch.Count < minimum)
+                return null;
             HashSet<string> discovered = Discovered(DogNetwork.For(dog.Map), dog);
             if (discovered.Count == 0)
                 return null;
-            List<Filth> targets = new List<Filth>(patch.Count);
+            List<Filth> targets = new List<Filth>(jobPatch.Count);
             if (Queueable(first, dog, discovered))
                 targets.Add(first);
-            foreach (IntVec3 cell in patch
+            foreach (IntVec3 cell in jobPatch
                          .OrderBy(c => (c - first.Position).LengthHorizontalSquared)
                          .ThenBy(c => c.x).ThenBy(c => c.z))
                 foreach (Thing thing in cell.GetThingList(dog.Map))
@@ -70,31 +85,46 @@ namespace Quadrunner
             RobodogWork work = RobodogWork.Utility;
             if (work == null || work.hoseFilth.NullOrEmpty())
                 return;
-            var targets = new Dictionary<int, Filth>();
-            var primaryTiles = new HashSet<IntVec3>();
-            var animalTiles = new HashSet<IntVec3>();
-            foreach (NetworkTask task in queue)
+            priorityTargets.Clear();
+            primaryTiles.Clear();
+            animalTiles.Clear();
+            for (int i = 0; i < queue.Count; i++)
+            {
+                NetworkTask task = queue[i];
                 if (task.kind == NetworkTaskKind.Clean && task.assigneeId == null && task.Target(map) is Filth filth
-                    && Sprayable(filth, work) && !filth.Position.Fogged(map) && map.areaManager.Home[filth.Position])
+                    && Sprayable(filth, work) && !filth.Position.Fogged(map) && map.areaManager.Home[filth.Position]
+                    && !map.reservationManager.IsReserved(filth))
                 {
-                    targets[task.id] = filth;
+                    priorityTargets[task.id] = filth;
                     (IsAnimal(filth) ? animalTiles : primaryTiles).Add(filth.Position);
                 }
+            }
             int minimum = MinTiles(work);
-            var primaryPatches = new HashSet<IntVec3>();
-            var animalPatches = new HashSet<IntVec3>();
-            foreach (Filth filth in targets.Values)
+            if (primaryTiles.Count < minimum && animalTiles.Count < minimum)
+                return;
+            primaryPatches.Clear();
+            animalPatches.Clear();
+            primaryChecked.Clear();
+            animalChecked.Clear();
+            foreach (Filth filth in priorityTargets.Values)
             {
                 bool animal = IsAnimal(filth);
                 HashSet<IntVec3> tiles = animal ? animalTiles : primaryTiles;
                 HashSet<IntVec3> qualifying = animal ? animalPatches : primaryPatches;
-                if (tiles.Count < minimum || qualifying.Contains(filth.Position))
+                HashSet<IntVec3> checkedSet = animal ? animalChecked : primaryChecked;
+                if (tiles.Count < minimum || qualifying.Contains(filth.Position) || checkedSet.Contains(filth.Position))
                     continue;
-                List<IntVec3> patch = PatchCells(map, filth.Position, work, animal);
-                if (patch.Count(tiles.Contains) >= minimum)
-                    qualifying.UnionWith(patch);
+                PatchCells(map, filth.Position, work, animal, priorityPatch);
+                int discoveredCount = 0;
+                for (int i = 0; i < priorityPatch.Count; i++)
+                    if (tiles.Contains(priorityPatch[i]))
+                        discoveredCount++;
+                if (discoveredCount >= minimum)
+                    qualifying.UnionWith(priorityPatch);
+                else if (priorityPatch.Count < minimum)
+                    checkedSet.UnionWith(priorityPatch);
             }
-            foreach (KeyValuePair<int, Filth> task in targets)
+            foreach (KeyValuePair<int, Filth> task in priorityTargets)
             {
                 bool animal = IsAnimal(task.Value);
                 if ((animal ? animalPatches : primaryPatches).Contains(task.Value.Position))
@@ -173,34 +203,34 @@ namespace Quadrunner
         /// The search is bounded by <see cref="RobodogWork.hosePatchRadius"/> and <see cref="RobodogWork.hoseMaxTiles"/> so a
         /// pathological map-wide spill cannot turn every dispatch into a whole-map walk.
         /// </summary>
-        private static List<IntVec3> PatchCells(Map map, IntVec3 origin, RobodogWork work, bool animal)
+        private static void PatchCells(Map map, IntVec3 origin, RobodogWork work, bool animal, List<IntVec3> patch)
         {
-            List<IntVec3> patch = new List<IntVec3>();
+            patch.Clear();
             if (!Affected(map, origin, work, animal))
-                return patch;
+                return;
             int cap = work.hoseMaxTiles > 0 ? work.hoseMaxTiles : 256;
             float radius = work.hosePatchRadius > 0 ? work.hosePatchRadius : 12f;
-            Queue<IntVec3> open = new Queue<IntVec3>();
-            HashSet<IntVec3> seen = new HashSet<IntVec3> { origin };
-            open.Enqueue(origin);
-            while (open.Count > 0 && patch.Count < cap)
+            bfsOpen.Clear();
+            bfsSeen.Clear();
+            bfsSeen.Add(origin);
+            bfsOpen.Enqueue(origin);
+            while (bfsOpen.Count > 0 && patch.Count < cap)
             {
-                IntVec3 cell = open.Dequeue();
+                IntVec3 cell = bfsOpen.Dequeue();
                 patch.Add(cell);
                 foreach (IntVec3 offset in GenAdj.AdjacentCells)
                 {
                     if (patch.Count >= cap)
                         break;
                     IntVec3 neighbour = cell + offset;
-                    if (!neighbour.InBounds(map) || seen.Contains(neighbour)
+                    if (!neighbour.InBounds(map) || bfsSeen.Contains(neighbour)
                         || !neighbour.InHorDistOf(origin, radius))
                         continue;
-                    seen.Add(neighbour);
+                    bfsSeen.Add(neighbour);
                     if (Affected(map, neighbour, work, animal))
-                        open.Enqueue(neighbour);
+                        bfsOpen.Enqueue(neighbour);
                 }
             }
-            return patch;
         }
 
         private static bool Affected(Map map, IntVec3 cell, RobodogWork work, bool animal)

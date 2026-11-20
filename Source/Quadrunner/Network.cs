@@ -28,6 +28,7 @@ namespace Quadrunner
         public float routeCost;
         public int toilIndex = -1, toilTicks;
         internal int lastActivityTick = -1;
+        internal int failCount;
         private Thing target;
 
         internal bool HasCachedTarget => target != null;
@@ -1115,8 +1116,16 @@ namespace Quadrunner
             task.assigneeId = dog.ThingID; task.jobId = job.loadID;
             task.phase = NetworkTaskPhase.Assigned; task.reportedAt = task.progressAt = Now;
             task.lastPosition = dog.Position; task.routeCost = cost;
+            task.failCount = 0;
             assignments[task.assigneeId] = task;
             QR.Log($"network assigned #{task.id} {task.kind} to {dog}; path {cost:F0}, job {task.jobId}");
+        }
+
+        private static int BackoffTicks(NetworkTask task)
+        {
+            int shift = task.failCount < 3 ? task.failCount : 3;
+            task.failCount++;
+            return Tuning.scanInterval << shift;
         }
 
         private bool AssignAll(List<NetworkTask> tasks, bool hasPatient)
@@ -1127,6 +1136,8 @@ namespace Quadrunner
                 if (task.kind == NetworkTaskKind.Fire || task.assigneeId != null || Now < task.retryAt) continue;
                 Thing target = task.Target(Map);
                 if (target == null || !target.Spawned
+                    || (task.kind == NetworkTaskKind.Haul || task.kind == NetworkTaskKind.Clean)
+                        && Map.reservationManager.IsReserved(target)
                     || task.kind == NetworkTaskKind.Rescue && !Rescue.CanPotentiallyRescue(target as Pawn)
                     || task.kind == NetworkTaskKind.Recover && !Retrieval.CanPotentiallyRecover(task, Map)
                     || task.kind == NetworkTaskKind.Retrieve && !Retrieval.CanPotentiallyRetrieve(target as Pawn, Map))
@@ -1225,7 +1236,9 @@ namespace Quadrunner
                 {
                     // Only back off if an idle dog actually tried and failed, or no capable dog is working at all
                     // (e.g., all medics charging). Waiting behind a busy dog must not stall the remaining backlog.
-                    if (triedAnyDog || !anyBusyCapable)
+                    if (triedAnyDog)
+                        task.retryAt = Now + BackoffTicks(task);
+                    else if (!anyBusyCapable)
                         task.retryAt = Now + Tuning.scanInterval;
                     continue;
                 }
