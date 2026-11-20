@@ -79,10 +79,10 @@ namespace Quadrunner
         {
             if (dog.equipment == null)
                 return;
-            EnsureSupplementals(dog);
             ThingWithComps held = dog.equipment.Primary;
             if (held?.def == gun)
                 return;
+            EnsureSupplementals(dog);
             if (held != null)
             {
                 // A cooldown/burst stance references this verb; once destroyed it can't be resolved on load,

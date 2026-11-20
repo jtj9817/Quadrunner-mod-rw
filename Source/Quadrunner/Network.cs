@@ -204,6 +204,7 @@ namespace Quadrunner
             {
                 networks[gone].Survey.Dispose();
                 TrapAvoidance.Forget(gone);
+                ChargeSpots.Forget(gone);
                 networks.Remove(gone);
             }
             networks[map] = network = new DogNetwork(map);

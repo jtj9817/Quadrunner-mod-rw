@@ -32,44 +32,78 @@ namespace Quadrunner
 
         private class Cache
         {
+            public MapEvents events;
             public int builtAt;
-            public int signature;
+            public bool dirty = true;
             public List<ChargeSpot> spots;
+
+            public void MarkDirty(Building _) => dirty = true;
+            public void MarkDirty() => dirty = true;
+            public void MarkDirtyCell(IntVec3 _) => dirty = true;
+
+            public void Subscribe(Map map)
+            {
+                events = map.events;
+                events.BuildingSpawned += MarkDirty;
+                events.BuildingDespawned += MarkDirty;
+                events.RegionsRoomsChanged += MarkDirty;
+                events.RoofChanged += MarkDirtyCell;
+            }
+
+            public void Unsubscribe()
+            {
+                if (events == null) return;
+                events.BuildingSpawned -= MarkDirty;
+                events.BuildingDespawned -= MarkDirty;
+                events.RegionsRoomsChanged -= MarkDirty;
+                events.RoofChanged -= MarkDirtyCell;
+                events = null;
+            }
         }
 
         private static readonly Dictionary<Map, Cache> caches = new Dictionary<Map, Cache>();
 
-        public static void ClearAll() => caches.Clear();
+        public static void ClearAll()
+        {
+            foreach (Cache cache in caches.Values)
+                cache.Unsubscribe();
+            caches.Clear();
+        }
+
+        public static void Forget(Map map)
+        {
+            if (map == null || !caches.TryGetValue(map, out Cache cache))
+                return;
+            cache.Unsubscribe();
+            caches.Remove(map);
+        }
 
         /// <summary>Every spot that passes the cached rules, rebuilt first if stale.</summary>
         public static List<ChargeSpot> All(Map map)
         {
             int now = Find.TickManager.TicksGame;
-            int signature = Signature(map);
-            if (!caches.TryGetValue(map, out Cache cache) || cache.signature != signature || now - cache.builtAt >= MaxAge
-                || now < cache.builtAt)
+            if (!caches.TryGetValue(map, out Cache cache))
             {
                 foreach (Map gone in caches.Keys.Where(m => !Find.Maps.Contains(m)).ToList())
-                    caches.Remove(gone);
-                cache = caches[map] = new Cache { builtAt = now, signature = signature, spots = Build(map) };
+                    Forget(gone);
+                cache = new Cache();
+                cache.Subscribe(map);
+                caches[map] = cache;
+            }
+            if (cache.dirty || cache.spots == null || now - cache.builtAt >= MaxAge || now < cache.builtAt)
+            {
+                cache.builtAt = now;
+                cache.dirty = false;
+                cache.spots = Build(map);
                 QR.Log($"charge spots rebuilt on {map}: {cache.spots.Count}");
             }
             return cache.spots;
         }
 
-        /// <summary>Changes whenever a colony building is built, removed, moved or rotated.</summary>
-        private static int Signature(Map map)
-        {
-            int hash = 17;
-            foreach (Building b in map.listerBuildings.allBuildingsColonist)
-                hash = hash * 31 + (b.def.shortHash ^ b.Position.GetHashCode() ^ (b.Rotation.AsInt << 28));
-            return hash;
-        }
-
         private static List<ChargeSpot> Build(Map map)
         {
-            HashSet<IntVec3> turbineZone = TurbineZone(map);
             int distance = QuadrunnerMod.Settings.turbineDistance;
+            HashSet<IntVec3> turbineBuffer = TurbineBuffer(map, distance);
             var spots = new List<ChargeSpot>();
             var taken = new HashSet<IntVec3>();
             foreach (Building b in map.listerBuildings.allBuildingsColonist)
@@ -78,12 +112,12 @@ namespace Quadrunner
                     continue;
                 foreach (Room room in RoomsOf(b.Position, map).Where(RoomQualifies))
                 {
-                    // The nearest free cell of that room to the conduit, if it isn't too close to a turbine.
+                    // The nearest free cell of that room to the conduit, dropped if too close to a turbine.
                     foreach (IntVec3 c in GenRadial.RadialCellsAround(b.Position, SearchRadius, useCenter: true))
                     {
                         if (!c.InBounds(map) || c.GetRoom(map) != room || !FreeCell(c, map) || taken.Contains(c))
                             continue;
-                        if (!NearTurbine(c, turbineZone, distance))
+                        if (!turbineBuffer.Contains(c))
                         {
                             taken.Add(c);
                             spots.Add(new ChargeSpot { cell = c, conduit = b });
@@ -118,8 +152,8 @@ namespace Quadrunner
 
         private static bool FreeCell(IntVec3 c, Map map) => c.Standable(map) && c.GetEdifice(map) == null;
 
-        /// <summary>Each colony wind turbine's cells and the clear area it needs.</summary>
-        private static HashSet<IntVec3> TurbineZone(Map map)
+        /// <summary>Each colony wind turbine's cells and clear area, pre-expanded by <paramref name="distance"/>.</summary>
+        private static HashSet<IntVec3> TurbineBuffer(Map map, int distance)
         {
             var zone = new HashSet<IntVec3>();
             foreach (Building b in map.listerBuildings.allBuildingsColonist)
@@ -129,11 +163,19 @@ namespace Quadrunner
                 zone.AddRange(b.OccupiedRect().Cells);
                 zone.AddRange(WindTurbineUtility.CalculateWindCells(b.Position, b.Rotation, b.def.size));
             }
-            return zone;
+            if (zone.Count == 0 || distance <= 0)
+                return zone;
+            var buffer = new HashSet<IntVec3>(zone);
+            int radialCount = GenRadial.NumCellsInRadius(distance);
+            foreach (IntVec3 cell in zone)
+                for (int i = 0; i < radialCount; i++)
+                {
+                    IntVec3 c = cell + GenRadial.RadialPattern[i];
+                    if (c.InBounds(map))
+                        buffer.Add(c);
+                }
+            return buffer;
         }
-
-        private static bool NearTurbine(IntVec3 c, HashSet<IntVec3> zone, int distance) =>
-            zone.Count > 0 && (zone.Contains(c) || GenRadial.RadialCellsAround(c, distance, useCenter: true).Any(zone.Contains));
 
         /// <summary>The rules that can change without a building changing, plus the cached ones re-checked.</summary>
         public static bool UsableBy(ChargeSpot spot, Pawn dog, out string why)
@@ -161,11 +203,15 @@ namespace Quadrunner
         public static ChargeSpot Best(Pawn dog)
         {
             Map map = dog.Map;
+            List<ChargeSpot> all = All(map);
+            if (all.Count == 0)
+                return null;
             var byRegion = new Dictionary<Region, List<ChargeSpot>>();
-            foreach (ChargeSpot spot in All(map))
+            for (int i = 0; i < all.Count; i++)
             {
+                ChargeSpot spot = all[i];
                 Region region = spot.cell.GetRegion(map);
-                if (region == null || !UsableBy(spot, dog, out _))
+                if (region == null)
                     continue;
                 if (!byRegion.TryGetValue(region, out List<ChargeSpot> list))
                     byRegion[region] = list = new List<ChargeSpot>();
@@ -173,16 +219,31 @@ namespace Quadrunner
             }
             if (byRegion.Count == 0)
                 return null;
-            var found = new List<ChargeSpot>();
+            var found = new List<ChargeSpot>(Candidates);
             TraverseParms parms = TraverseParms.For(dog);
             RegionTraverser.BreadthFirstTraverse(dog.Position, map, (from, to) => to.Allows(parms, isDestination: false),
                 r =>
                 {
                     if (byRegion.TryGetValue(r, out List<ChargeSpot> list))
-                        found.AddRange(list);
+                    {
+                        for (int i = 0; i < list.Count; i++)
+                            if (UsableBy(list[i], dog, out _))
+                                found.Add(list[i]);
+                    }
                     return found.Count >= Candidates;
                 });
-            return found.OrderBy(s => Score(s, dog)).FirstOrDefault();
+            ChargeSpot best = null;
+            float bestScore = float.MaxValue;
+            for (int i = 0; i < found.Count; i++)
+            {
+                float s = Score(found[i], dog);
+                if (s < bestScore)
+                {
+                    bestScore = s;
+                    best = found[i];
+                }
+            }
+            return best;
         }
 
         /// <summary>Lower is better: distance first, then dogs already charging in the room, then stored energy.</summary>

@@ -488,13 +488,20 @@ namespace Quadrunner
             TickRebuild();
             if (docked.Count == 0 || !CanCharge)
                 return;
-            foreach (Pawn dog in docked.InnerListForReading)
+            IReadOnlyList<Pawn> list = docked.InnerListForReading;
+            for (int i = 0; i < list.Count; i++)
             {
+                Pawn dog = list[i];
                 CompRobodog comp = CompRobodog.Of(dog);
                 if (comp != null && comp.Battery < 1f)
                     comp.Charge(comp.Props.stableChargePerTick);
-                Hediff_Injury injury = dog.health.hediffSet.hediffs.OfType<Hediff_Injury>().FirstOrDefault();
-                injury?.Heal(Props.repairPerTick);
+                List<Hediff> hediffs = dog.health.hediffSet.hediffs;
+                for (int h = 0; h < hediffs.Count; h++)
+                    if (hediffs[h] is Hediff_Injury injury)
+                    {
+                        injury.Heal(Props.repairPerTick);
+                        break;
+                    }
             }
         }
 
@@ -525,6 +532,9 @@ namespace Quadrunner
             }
             if (!rebuildPaid)
             {
+                // 25 divides ManualRebuildPending's 250-tick arbitration interval cleanly.
+                if (!this.IsHashIntervalTick(25))
+                    return;
                 // An active manual bill gets first choice; a reserved wreck cannot be rebuilt by both paths.
                 if (Map.reservationManager.IsReserved(wreck) || ManualRebuildPending(recipe))
                     return;

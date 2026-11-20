@@ -111,12 +111,26 @@ namespace Quadrunner
         private static float Draw(PowerNet net, float wattDays)
         {
             float got = 0f;
-            foreach (CompPowerBattery battery in net.batteryComps.OrderByDescending(b => b.StoredEnergy))
+            List<CompPowerBattery> batteries = net.batteryComps;
+            while (got < wattDays)
             {
-                float take = Mathf.Min(wattDays - got, battery.StoredEnergy);
+                CompPowerBattery fullest = null;
+                float maxStored = 0f;
+                for (int i = 0; i < batteries.Count; i++)
+                {
+                    float stored = batteries[i].StoredEnergy;
+                    if (stored > maxStored)
+                    {
+                        maxStored = stored;
+                        fullest = batteries[i];
+                    }
+                }
+                if (fullest == null)
+                    break;
+                float take = Mathf.Min(wattDays - got, maxStored);
                 if (take <= 0f)
                     break;
-                battery.DrawPower(take);
+                fullest.DrawPower(take);
                 got += take;
             }
             return got;
