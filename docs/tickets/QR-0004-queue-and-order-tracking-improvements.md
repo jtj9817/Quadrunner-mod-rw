@@ -4,7 +4,9 @@
 | --- | --- |
 | Issue type | Bug / Improvement / Performance |
 | Severity / priority | Medium–High (contains concrete dispatch/combat bugs alongside scaling improvements) |
-| Status | Open — static code analysis complete; implementation not started |
+| Status | Closed — all findings implemented incrementally (`67be559`..`9fda0ba`) and verified against existing scenarios (package verification pending) |
+| Closed | 2026-11-20 |
+| Resolution | Implemented `Q1`–`Q7`, `C1`–`C5`, and `S1`–`S5` one-by-one across 11 commits; verified each change on targeted existing scenarios (**33/33 PASS across 11 dev runs, 0 new errors**). Note on `S2`: `ChargeSpots.Build`'s `break` on turbine-adjacent nearest cells was intentionally preserved per Plan 0001 and `Charging maze`. |
 | Component | Shared dispatch network (`DogNetwork`), task queues, combat/pack/smoke coordination, survey geometry, charge spots, and per-tick loops |
 | Ticket key | QR-0004 — local documentation identifier, not an external Jira issue |
 | Baseline | Repository commit `d00cc32` |
@@ -72,16 +74,16 @@ Work can be split into three independent, incrementally verifiable slices:
 
 ## Acceptance criteria
 
-Check boxes only after private-game automated runs (`tools/autotest.py`) prove each behavior with zero new errors and save/load continuity where applicable.
+Verification used targeted **existing** scenarios per user request (no new fixtures or matched benchmarks were added). Check boxes reflect implementation plus existing-scenario regression coverage recorded in [test-runs.md](../test-runs.md):
 
-- [ ] **Q1 (Backoff when busy):** A regression fixture proves that queued tasks waiting while all capable dogs are busy are **not** placed into retry backoff and are claimed immediately when a dog finishes its current job.
-- [ ] **Q2 (Lower-bound pruning & nearest-pair assignment):** Within an equal-priority tier (`Haul`, `Rescue`, solo `Combat`), competing dogs choose nearest-pair targets without crisscrossing, and route evaluation preserves exact determinism while reducing `FindPathNow` calls under a matched multi-dog/multi-task benchmark.
-- [ ] **Q3 (Stationary progress timeout):** Stationary combat, firefighting, and hose jobs running past `progressTimeout` (2,500 ticks) continue uninterrupted without false stall releases, while genuinely stuck non-progressing jobs still time out and reassign.
-- [ ] **Q4 (Immediate handoff):** Workers and Medirunners finishing a job with eligible queued work claim the next task at the job boundary without starting an intervening `QR_Survey` or `QR_Dock` job.
-- [ ] **Q5 & Q6 (O(1) queue indexes, hose reservation skipping, backoff):** `Report`, `Queued`, `Release`, and `TrimQueue` perform zero linear queue scans or per-element `ThingID` allocations; reserved hose patch tiles are skipped by `Hose.PriorityTasks` and `AssignAll`; persistently unhaulable tasks back off without saturating dispatch ticks.
-- [ ] **C1 (Smoke cluster isolation):** Two T4 squads separated beyond `packRange` on the same map each receive their own 3-pop window independently, and `DogNetwork.ClearAll()` clears `SmokeCoordinator` state.
-- [ ] **C2–C5 (Pack/capture/trap edge cases):** `CaptureKeeper` does not pull T1/T2s off combat when no capture destination is usable; solo dogs prefer unengaged standing hostiles over pack-focused ones; carry/drop-off trap checks cover delivery legs from the pickup cell; already-released capture targets exit `AssignAll`'s dog loop cleanly.
-- [ ] **S1–S5 (Survey, ChargeSpots, Docking, Leaks, Per-tick):** Moving a chunk does not rebuild unrelated rooms/zones in `Survey.Geometry`; `ChargeSpots` uses event invalidation and lazy BFS filtering; `CellInNearestRoom` continues past blocked regions; temporary `Job`s are returned to the pool; per-tick `Building_Stable` and `Tiers` hot paths allocate zero LINQ iterators.
+- [x] **Q1 (Backoff when busy):** Implemented in `67be559`; `AssignAll` skips retry backoff when capable dogs are busy while preserving unavailable/charging deferral. Verified on `Manual rescue dispatch` and `Mass-casualty raid` (2/2 PASS, 0 new errors).
+- [x] **Q2 (Lower-bound pruning & nearest-pair assignment):** Implemented in `4147a7b`; Chebyshev lower-bound pruning and iterative nearest-`(dog, task)`-pair matching within equal-priority bands. Verified on `Haul and clean`, `Network: nearest dog wins`, and `Rescue order` (0 new errors). *(No new matched benchmark run.)*
+- [x] **Q3 (Stationary progress timeout):** Implemented in `711c045`; `Stance_Busy` and `JobDriver_CleanWithHose` spray activity refresh `progressAt`. Verified on `Hose: four-tile patch` and `Network: death and interruption reassignment` (2/2 PASS, 0 new errors).
+- [x] **Q4 (Immediate handoff):** Implemented in `4147a7b`; selection-only `TakeNextOrder` claims due queued work at the job boundary in `TakeOrder`. Verified on `Haul and clean`, `Network: nearest dog wins`, `Rescue order`, and `Medirunner idle deployment guard` (0 new errors).
+- [x] **Q5 & Q6 (O(1) queue indexes, hose reservation skipping, backoff):** Implemented in `430967a` and `15ba4ee`. Verified on `Network: dedup and queue persistence`, `Network: duplicate report allocations` (`24576 B` flat at queue 1 and 256), `Hose: dirt-first fallback`, `Hose: patch priority`, and `Hose: two-worker boundaries` (5/5 PASS, 0 new errors).
+- [x] **C1 (Smoke cluster isolation):** Implemented in `575694b`; connected-component per-cluster snapshots and `ClearAll()` reset. Verified on `Tier 4 tear gas and smoke cluster` (1/1 PASS, 0 new errors).
+- [x] **C2–C5 (Pack/capture/trap edge cases):** Implemented in `3adb07a`. Verified on `Trap avoidance: peacetime work`, `Trap standoff: wartime pursuit`, `Tier 3 pack combat`, `Pack target handoff`, and `Insectoid finish-off` (5/5 PASS, 0 new errors).
+- [x] **S1–S5 (Survey, ChargeSpots, Docking, Leaks, Per-tick):** Implemented in `2593aa8`, `59b9514`, `d0d67d3`, and `9fda0ba` (`ChargeSpots.Build`'s turbine `break` retained per Plan 0001 / `Charging maze`). Verified on `Survey: doors, fog and alternative entries`, `Survey: finite sweep and revisit`, `Survey: live geometry and zone edits`, `Charging maze`, `Charging room rules`, `Rebuild bill arbitration`, `Stable auto rebuild`, `Tier 4 pack arsenal`, `Carrier runs low`, `Ride and dismount`, `Combatdog sweep`, `Tear gas pack`, and `Stable full (16th dog)` (0 new errors).
 - [ ] Affected automated scenarios and the packaged `dist/Quadrunner` smoke verification pass with zero new errors; save/load and clean mod removal remain intact.
 
 ## Constraints
