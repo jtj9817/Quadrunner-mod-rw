@@ -20,6 +20,9 @@ namespace Quadrunner
         private readonly List<Area> areas = new List<Area>();
         private readonly Dictionary<(int tile, Region region), IntVec3> tiles = new Dictionary<(int tile, Region region), IntVec3>();
         private readonly HashSet<IntVec3> candidateSet = new HashSet<IntVec3>();
+        private readonly HashSet<Area> dirtyAreas = new HashSet<Area>();
+        private HashSet<IntVec3> doorAdjacent = new HashSet<IntVec3>();
+        private HashSet<IntVec3> nextDoorAdjacent = new HashSet<IntVec3>();
         private bool dirty = true, built;
         private int refreshAt;
         private static readonly IReadOnlyList<IntVec3> noCandidates = Array.Empty<IntVec3>();
@@ -63,7 +66,11 @@ namespace Quadrunner
             int index = map.cellIndices.CellToIndex(cell);
             if (!observed[index]) return;
             observed[index] = false; observedCount--; observationVersion++;
-            if (owners[index] != null) owners[index].remaining++;
+            if (owners[index] != null)
+            {
+                owners[index].remaining++;
+                owners[index].exhausted.Clear();
+            }
         }
 
         public SurveyCategory CategoryAt(IntVec3 cell)
@@ -135,6 +142,18 @@ namespace Quadrunner
                 }
             }
             bool changed = !built;
+            dirtyAreas.Clear();
+            nextDoorAdjacent.Clear();
+            foreach (Region region in map.regionGrid.AllRegions)
+            {
+                if (!region.IsDoorway) continue;
+                foreach (IntVec3 doorCell in region.Cells)
+                    foreach (IntVec3 offset in GenAdj.CardinalDirections)
+                    {
+                        IntVec3 adj = doorCell + offset;
+                        if (adj.InBounds(map)) nextDoorAdjacent.Add(adj);
+                    }
+            }
             Area fallbackHome = null, fallbackOutside = null;
             for (int i = 0; i < nextOwners.Length; i++)
             {
@@ -145,12 +164,34 @@ namespace Quadrunner
                         ? fallbackHome ?? (fallbackHome = GetArea(homeKey, SurveyCategory.Home))
                         : fallbackOutside ?? (fallbackOutside = GetArea(outsideKey, SurveyCategory.Outside));
                 bool canStand = visible && cell.Standable(map);
-                if (owners[i] != nextOwners[i] || standable[i] != canStand) changed = true;
+                if (owners[i] != nextOwners[i] || standable[i] != canStand)
+                {
+                    changed = true;
+                    if (owners[i] != null) dirtyAreas.Add(owners[i]);
+                    if (nextOwners[i] != null) dirtyAreas.Add(nextOwners[i]);
+                }
                 standable[i] = canStand;
                 // A newly opened/revealed cell has not been seen in its current accessible form. Initial construction
                 // is different: scans may legitimately precede the first geometry query and must be retained.
                 if (built && owners[i] == null && nextOwners[i] != null) Forget(cell);
             }
+            foreach (IntVec3 adj in doorAdjacent)
+                if (!nextDoorAdjacent.Contains(adj))
+                {
+                    int idx = map.cellIndices.CellToIndex(adj);
+                    changed = true;
+                    if (owners[idx] != null) dirtyAreas.Add(owners[idx]);
+                    if (nextOwners[idx] != null) dirtyAreas.Add(nextOwners[idx]);
+                }
+            foreach (IntVec3 adj in nextDoorAdjacent)
+                if (!doorAdjacent.Contains(adj))
+                {
+                    int idx = map.cellIndices.CellToIndex(adj);
+                    changed = true;
+                    if (owners[idx] != null) dirtyAreas.Add(owners[idx]);
+                    if (nextOwners[idx] != null) dirtyAreas.Add(nextOwners[idx]);
+                }
+            HashSet<IntVec3> prevDoors = doorAdjacent; doorAdjacent = nextDoorAdjacent; nextDoorAdjacent = prevDoors;
             if (changed)
             {
                 if (Measure) GeometryBuilds++;
@@ -158,7 +199,11 @@ namespace Quadrunner
                 Area[] previous = owners; owners = nextOwners; nextOwners = previous;
                 foreach (Area area in areas)
                 {
-                    area.cells.Clear(); area.candidates.Clear(); area.remaining = 0; area.candidatesReady = false;
+                    area.cells.Clear(); area.remaining = 0;
+                    if (!built || dirtyAreas.Contains(area))
+                    {
+                        area.candidates.Clear(); area.exhausted.Clear(); area.candidatesReady = false;
+                    }
                 }
                 for (int i = 0; i < owners.Length; i++)
                 {
@@ -278,11 +323,8 @@ namespace Quadrunner
                     tiles[bucket] = cell;
                 // Actual door-adjacent interior positions are declared alternatives, not just one centroid that could
                 // hide the cheaper entrance on the other side of an irregular room.
-                foreach (IntVec3 offset in GenAdj.CardinalDirections)
-                {
-                    IntVec3 adjacent = cell + offset;
-                    if (adjacent.InBounds(map) && adjacent.GetDoor(map) != null) { candidateSet.Add(cell); break; }
-                }
+                if (doorAdjacent.Contains(cell))
+                    candidateSet.Add(cell);
             }
             foreach (IntVec3 point in tiles.Values) candidateSet.Add(point);
             if (++planStamp == int.MaxValue) { Array.Clear(planned, 0, planned.Length); planStamp = 1; }

@@ -19,6 +19,7 @@ namespace Quadrunner
             internal SurveyCategory category;
             internal readonly List<int> cells = new List<int>();
             internal readonly List<IntVec3> candidates = new List<IntVec3>();
+            internal readonly HashSet<IntVec3> exhausted = new HashSet<IntVec3>();
             internal int remaining;
             internal bool live, candidatesReady;
         }
@@ -50,6 +51,7 @@ namespace Quadrunner
                 : a.area.cells[0].CompareTo(b.area.cells[0]);
         private static readonly Comparison<IntVec3> cellComparison = (a, b) =>
             a.z != b.z ? a.z.CompareTo(b.z) : a.x.CompareTo(b.x);
+        private static readonly IComparer<IntVec3> cellComparer = Comparer<IntVec3>.Create(cellComparison);
         private readonly bool[] observed;
         private int observedCount, observationVersion;
         private int sweep = 1, revision;
@@ -134,7 +136,7 @@ namespace Quadrunner
                 if (e.area?.live == true && e.area.remaining > 0)
                 {
                     EnsureCandidates(e.area);
-                    if (e.goal.IsValid && e.area.candidates.Contains(e.goal) && !e.rejected.Contains(e.goal)
+                    if (e.goal.IsValid && e.area.candidates.BinarySearch(e.goal, cellComparer) >= 0 && !e.rejected.Contains(e.goal)
                         && Useful(e.area, e.goal) && !Taken(dog, e.goal))
                     {
                         Job continued = RouteJob(dog, e, e.area, e.goal);
@@ -255,7 +257,7 @@ namespace Quadrunner
 
         private bool Useful(Area area, IntVec3 point)
         {
-            if (area.remaining == 0) return false;
+            if (area.remaining == 0 || area.exhausted.Contains(point)) return false;
             int count = GenRadial.NumCellsInRadius(Tuning.scanRadius);
             for (int n = 0; n < count; n++)
             {
@@ -264,6 +266,7 @@ namespace Quadrunner
                 int index = map.cellIndices.CellToIndex(cell);
                 if (owners[index] == area && !observed[index]) return true;
             }
+            area.exhausted.Add(point);
             return false;
         }
 
@@ -304,7 +307,12 @@ namespace Quadrunner
             if (++sweep == int.MaxValue) sweep = 1;
             Array.Clear(observed, 0, observed.Length);
             observedCount = 0; observationVersion++;
-            foreach (Area area in areas) if (area.live) area.remaining = area.cells.Count;
+            foreach (Area area in areas)
+                if (area.live)
+                {
+                    area.remaining = area.cells.Count;
+                    area.exhausted.Clear();
+                }
             foreach (Explorer e in explorers.Values) { e.area = null; e.goal = IntVec3.Invalid; e.jobId = -1; }
         }
 
@@ -314,6 +322,7 @@ namespace Quadrunner
             explorers.Clear(); dirty = true; built = false;
             retiredObservers.Clear();
             byKey.Clear(); areas.Clear(); choices.Clear(); tiles.Clear(); candidateSet.Clear();
+            dirtyAreas.Clear(); doorAdjacent.Clear(); nextDoorAdjacent.Clear();
             Array.Clear(owners, 0, owners.Length);
             Array.Clear(nextOwners, 0, nextOwners.Length);
         }
@@ -361,7 +370,7 @@ namespace Quadrunner
             if (e.checkedObservation != observationVersion || e.checkedRevision != revision)
             {
                 EnsureCandidates(e.area);
-                e.goalUseful = e.area.candidates.Contains(e.goal) && Useful(e.area, e.goal);
+                e.goalUseful = e.area.candidates.BinarySearch(e.goal, cellComparer) >= 0 && Useful(e.area, e.goal);
                 e.checkedObservation = observationVersion; e.checkedRevision = revision;
             }
             return e.goalUseful;
