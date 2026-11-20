@@ -9,6 +9,24 @@ place on load.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-20
+
+### Changed
+- Combatdogs (tiers 1–4) now carry downed hostile pawns without a free prisoner bed (including when all prison beds are full or none are free) to the nearest designated **prison room** (`PrisonRoom`: `IsPrisonCell` / `PrisonCell` / `PrisonBarracks`) instead of an empty room, falling back to a qualifying empty room only when no reachable prison room exists. `JobGiver_WaitInRoom.CellInNearestRoom` also prefers open floor cells without edifices before falling back to any standable cell and continues searching past blocked regions.
+- Combatdogs (tiers 1–4) no longer carry downed insectoids (`RaceProps.Insect`) to prisoner beds or empty rooms: they finish standing enemies first, then finish off downed insectoids in melee (`AttackMelee` with `killIncappedTarget`). Other downed hostiles keep the prisoner-bed / prison-room / empty-room capture path.
+- Tear gas launcher particle and cloud effects now use vanilla Smokepop Pack's smoke effect (`Things/Gas/GasCloudThickA`, `BlastExtinguisher`, and `Smoke` wisps) as the base instead of the VWE-style cloud sprite, transitioning from musk green at the fresh center to light yellow toward the edges and as the cloud dissipates.
+
+### Fixed
+- **Queue tracking, order assignment, and runtime algorithms (`QR-0004`):**
+  - Queued work no longer enters 120-tick retry backoff merely because all capable dogs are busy, and dogs finishing a job immediately claim the next due order at the job boundary instead of walking off to survey or dock between consecutive tasks.
+  - Equal-priority tasks (hauling, equal-urgency rescues, solo combat) now match nearest `(dog, task)` pairs with Chebyshev lower-bound pruning rather than strict oldest-ID order, eliminating cross-map crisscrossing while preserving strict priority tiers.
+  - Stationary combat (`AttackStatic`/`AttackMelee`), firefighting, and water-hose jobs running past 2,500 ticks no longer trip `Reconcile`'s stall timeout mid-action.
+  - Separate Tier 4 Combatdog squads fighting >15 cells apart on the same map now receive independent 3-pop smoke windows instead of sharing one map-wide slot, and `SmokeCoordinator` resets cleanly on map/save cleanup.
+  - Pack capture keepers no longer pull T1/T2 Combatdogs off active combat when no usable prison/empty room or trap-free path exists; solo Combatdogs prefer unengaged standing hostiles over pack-focused ones; and carry/drop-off trap checks now cover delivery legs from the pickup cell.
+  - Late-game CPU and allocation improvements: O(1) queue deduplication and `HashSet` haulable lookup, single-pass post-load target resolution, reserved hose/haul skipping with capped exponential backoff, per-area `Survey` candidate invalidation (moving chunks no longer wipes every room/zone), event-driven `ChargeSpots` with lazy BFS filtering, zero-allocation stable healing/battery draw, and per-tick `ITab_StableOverview` caching.
+
+## [0.1.0] — 2026-11-17
+
 ### Added
 - Tier 3 and Tier 4 Combatdogs carry a built-in **tear gas launcher** (user, 2026-11-13), a copy of
   Vanilla Weapons Expanded — Non-Lethal's tear gas stack on our own defs and art: organic, breathing,
@@ -19,12 +37,9 @@ place on load.
   on the same strip. If three or more Tier 4s stand within 15 cells of each other, at most three of them pop
   smoke per 900-tick interval; the rest fire on the next window (rotation). Tear gas is never capped.
 - Test scenarios **Tear gas pack**, **Tier 4 tear gas and smoke cluster**, **Tear gas vs mechanoids** and **Insectoid finish-off**.
-- Package `3e032f1.20261115T081346Z`, superseded by `0a45a2a.20261117T101407Z` (tear gas vs mechanoids fix) and `9112303.20261118T035105Z` (Smokepop-based tear gas particle effects).
+- Release `v0.1.0` shipped package `0a45a2a.20261117T101407Z`.
 
 ### Changed
-- Combatdogs (tiers 1–4) now carry downed hostile pawns without a free prisoner bed (including when all prison beds are full or none are free) to the nearest designated **prison room** (`PrisonRoom`: `IsPrisonCell` / `PrisonCell` / `PrisonBarracks`) instead of an empty room, falling back to a qualifying empty room only when no reachable prison room exists. `JobGiver_WaitInRoom.CellInNearestRoom` also prefers open floor cells without edifices before falling back to any standable cell. Updated **Combatdog sweep** (`Scenarios.Combat.cs`) verifies 1-bed overflow, a zero-free-beds wave spawned beside an empty room across save/load, and exclusion of bedrooms and empty rooms.
-- Combatdogs (tiers 1–4) no longer carry downed insectoids (`RaceProps.Insect`) to prisoner beds or empty rooms: they finish standing enemies first, then finish off downed insectoids in melee (`AttackMelee` with `killIncappedTarget`). Other downed hostiles keep the existing prisoner-bed / empty-room capture path. New scenario **Insectoid finish-off** proves standing-first priority, all four tiers finishing in melee across save/load, and clean docking.
-- Tear gas launcher particle and cloud effects now use vanilla Smokepop Pack's smoke effect (`Things/Gas/GasCloudThickA`, `BlastExtinguisher`, and `Smoke` wisps) as the base instead of the VWE-style cloud sprite, transitioning from musk green at the fresh center to light yellow toward the edges and as the cloud dissipates.
 - Tier 3's slot-2 flamethrower is retired; its Def and art remain for old saves. On load the game removes an
   equipped flamethrower without replacement, and legacy picks naming it are inert (package-verified in Combat
   tier legacy migration).
@@ -32,13 +47,6 @@ place on load.
   instead of on the target.
 
 ### Fixed
-- **Queue tracking, order assignment, and runtime algorithms (`QR-0004`, package `7ddd4a3.20261120T072951Z`):**
-  - Queued work no longer enters 120-tick retry backoff merely because all capable dogs are busy, and dogs finishing a job immediately claim the next due order at the job boundary instead of walking off to survey or dock between consecutive tasks.
-  - Equal-priority tasks (hauling, equal-urgency rescues, solo combat) now match nearest `(dog, task)` pairs with Chebyshev lower-bound pruning rather than strict oldest-ID order, eliminating cross-map crisscrossing while preserving strict priority tiers.
-  - Stationary combat (`AttackStatic`/`AttackMelee`), firefighting, and water-hose jobs running past 2,500 ticks no longer trip `Reconcile`'s stall timeout mid-action.
-  - Separate Tier 4 Combatdog squads fighting >15 cells apart on the same map now receive independent 3-pop smoke windows instead of sharing one map-wide slot, and `SmokeCoordinator` resets cleanly on map/save cleanup.
-  - Pack capture keepers no longer pull T1/T2 Combatdogs off active combat when no usable prison/empty room or trap-free path exists; solo Combatdogs prefer unengaged standing hostiles over pack-focused ones; carry/drop-off trap checks now cover delivery legs from the pickup cell; and `CellInNearestRoom` continues searching past blocked regions.
-  - Late-game CPU and allocation improvements: O(1) queue deduplication and `HashSet` haulable lookup, single-pass post-load target resolution, reserved hose/haul skipping with capped exponential backoff, per-area `Survey` candidate invalidation (moving chunks no longer wipes every room/zone), event-driven `ChargeSpots` with lazy BFS filtering, zero-allocation stable healing/battery draw, and per-tick `ITab_StableOverview` caching.
 - Combatdogs no longer launch tear gas shells at mechanoids: tear gas only blinds organic, breathing pawns and
   mechanoids (non-organic flesh) are immune. Fire is withheld when the attack target is not organic flesh; organic
   targets (and smoke) are unchanged. New scenario **Tear gas vs mechanoids** proves it against a staged Lancer group.

@@ -2,7 +2,7 @@
 <ModMetaData>
   <name>Quadrunner</name>
   <author>jtj9817</author>
-  <modVersion>0.1.0</modVersion>
+  <modVersion>0.2.0</modVersion>
   <packageId>josh9817.quadrunner</packageId>
   <supportedVersions>
     <li>1.6</li>
