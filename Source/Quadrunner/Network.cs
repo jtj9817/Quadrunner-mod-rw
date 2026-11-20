@@ -27,6 +27,7 @@ namespace Quadrunner
         public bool casualtyDead;
         public float routeCost;
         public int toilIndex = -1, toilTicks;
+        internal int lastActivityTick = -1;
         private Thing target;
 
         public Thing Target(Map map)
@@ -586,6 +587,7 @@ namespace Quadrunner
         {
             task.assigneeId = null; task.jobId = -1; task.phase = NetworkTaskPhase.Queued;
             task.lastPosition = IntVec3.Invalid; task.toilIndex = -1; task.routeCost = 0f;
+            task.lastActivityTick = -1;
         }
 
         private void SuspendNormal()
@@ -707,9 +709,12 @@ namespace Quadrunner
                         else task.phase = NetworkTaskPhase.Working;
                         int toil = dog.jobs.curDriver?.CurToilIndex ?? -1;
                         int ticks = dog.jobs.curDriver?.ticksLeftThisToil ?? 0;
-                        if (dog.Position != task.lastPosition || toil != task.toilIndex || ticks != task.toilTicks)
+                        int activity = ActivityTick(dog);
+                        if (dog.Position != task.lastPosition || toil != task.toilIndex || ticks != task.toilTicks
+                            || activity != task.lastActivityTick)
                         {
                             task.progressAt = Now; task.lastPosition = dog.Position; task.toilIndex = toil; task.toilTicks = ticks;
+                            task.lastActivityTick = activity;
                         }
                         if (Now - task.progressAt <= Tuning.progressTimeout) continue;
                         QR.Log($"network #{task.id}: no progress from {dog}; released for reassignment");
@@ -725,6 +730,15 @@ namespace Quadrunner
                     queue.RemoveAt(i);
                 }
             }
+        }
+
+        private static int ActivityTick(Pawn dog)
+        {
+            if (dog.stances?.curStance is Stance_Busy busy)
+                return busy.startedTick;
+            if (dog.jobs?.curDriver is JobDriver_CleanWithHose hose)
+                return hose.SprayProgressTick;
+            return -1;
         }
 
         private void RebuildAssignments()
@@ -1139,6 +1153,11 @@ namespace Quadrunner
                                 && dog.CurJob.killIncappedTarget == next.killIncappedTarget
                                 && dog.jobs.curDriver.IsContinuation(next))
                             {
+                                if (dog.stances?.curStance is Stance_Busy busy)
+                                {
+                                    task.progressAt = Now;
+                                    task.lastActivityTick = busy.startedTick;
+                                }
                                 JobMaker.ReturnToPool(next);
                                 return dog.CurJob;
                             }

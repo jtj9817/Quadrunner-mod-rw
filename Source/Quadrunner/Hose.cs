@@ -233,6 +233,7 @@ namespace Quadrunner
         private readonly List<Filth> affected = new List<Filth>();
         private readonly HashSet<IntVec3> burstCells = new HashSet<IntVec3>();
         private Effecter sprayBurst;
+        internal int SprayProgressTick = -1;
 
         private Filth Filth => job.GetTarget(FilthInd).Thing as Filth;
 
@@ -324,6 +325,7 @@ namespace Quadrunner
             }
             if (burstCells.Count > 0)
             {
+                SprayProgressTick = Find.TickManager.TicksGame;
                 sprayBurst ??= QR_DefOf.QR_HoseSprayBurst.Spawn();
                 foreach (IntVec3 cell in burstCells)
                     sprayBurst.Trigger(pawn, new TargetInfo(cell, map));
