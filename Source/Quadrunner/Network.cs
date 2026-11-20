@@ -989,10 +989,16 @@ namespace Quadrunner
                 Job selected = null;
                 float cost = float.MaxValue;
                 bool deferred = false;
+                bool triedAnyDog = false;
+                bool anyBusyCapable = false;
                 foreach (Pawn dog in dogs)
                 {
-                    if (!IsAvailable(dog) || assignments.ContainsKey(dog.ThingID) || packs.Has(dog) || !Capable(dog, task, hasPatient)) continue;
+                    if (!Capable(dog, task, hasPatient)) continue;
+                    string dogId = dog.ThingID;
+                    if (assignments.ContainsKey(dogId) || packs.Has(dog)) { anyBusyCapable = true; continue; }
+                    if (!IsAvailable(dog)) continue;
                     if (!PathInputsReady(dog)) { deferred = true; continue; }
+                    triedAnyDog = true;
                     Job candidate = null;
                     float route = float.MaxValue;
                     if (!dog.Spawned)
@@ -1068,7 +1074,10 @@ namespace Quadrunner
                 }
                 if (nearest == null)
                 {
-                    task.retryAt = Now + Tuning.scanInterval;
+                    // Only back off if an idle dog actually tried and failed, or no capable dog is working at all
+                    // (e.g., all medics charging). Waiting behind a busy dog must not stall the remaining backlog.
+                    if (triedAnyDog || !anyBusyCapable)
+                        task.retryAt = Now + Tuning.scanInterval;
                     continue;
                 }
                 if (!nearest.Spawned && CompRobodog.Of(nearest)?.stable?.TryUndock(nearest) != true)
