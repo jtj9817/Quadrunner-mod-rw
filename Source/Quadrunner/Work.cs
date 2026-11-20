@@ -200,8 +200,13 @@ namespace Quadrunner
                 return hose;
             }
             Job job = scanner.JobOnThing(dog, target);
-            if (job == null || !RobodogWork.Utility.jobs.Contains(job.def))
+            if (job == null)
                 return null;
+            if (!RobodogWork.Utility.jobs.Contains(job.def))
+            {
+                JobMaker.ReturnToPool(job);
+                return null;
+            }
             // Only what the network handed out: a job must not opportunistically pick up extra unreported stacks
             // (vanilla sets this for its own haul jobs, HaulAIUtility.HaulToStorageJob).
             job.haulOpportunisticDuplicates = false;

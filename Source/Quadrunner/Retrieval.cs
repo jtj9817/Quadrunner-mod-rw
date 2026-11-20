@@ -42,8 +42,11 @@ namespace Quadrunner
         public static Job CarryJob(Pawn carrier, Pawn takee)
         {
             Building_Stable stable = StableFor(takee, carrier);
-            if (stable == null)
-                return null;
+            return stable == null ? null : CarryJob(takee, stable);
+        }
+
+        private static Job CarryJob(Pawn takee, Building_Stable stable)
+        {
             Job job = JobMaker.MakeJob(QR_DefOf.QR_CarryToStable, takee, stable);
             job.count = 1;
             return job;
@@ -131,11 +134,13 @@ namespace Quadrunner
             if (carrier == null || casualty == null || casualty == carrier || casualty.Dead || !casualty.Spawned
                 || casualty.Map != carrier.Map || RobodogWork.Of(casualty)?.combat != true || !Casualty(casualty)
                 || casualty.IsForbidden(carrier) || !carrier.CanReserve(casualty)
-                || !carrier.CanReach(casualty, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(casualty)
-                || StableFor(casualty, carrier) == null)
+                || !carrier.CanReach(casualty, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(casualty))
+                return null;
+            Building_Stable stable = StableFor(casualty, carrier);
+            if (stable == null)
                 return null;
             Fire fire = FireNear(carrier, casualty);
-            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(carrier, casualty);
+            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(casualty, stable);
         }
 
         /// <summary>The stable that should receive <paramref name="wreck"/>: the dog's own if reachable, else the nearest.</summary>
@@ -188,11 +193,13 @@ namespace Quadrunner
         {
             if (takee == null || takee == dog || takee.Dead || !takee.Spawned || takee.Faction != Faction.OfPlayer
                 || !Casualty(takee) || takee.IsForbidden(dog) || !dog.CanReserve(takee)
-                || !dog.CanReach(takee, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(takee)
-                || StableFor(takee, dog) == null)
+                || !dog.CanReach(takee, PathEndMode.ClosestTouch, Danger.Deadly) || AwaitsFieldFix(takee))
+                return null;
+            Building_Stable stable = StableFor(takee, dog);
+            if (stable == null)
                 return null;
             Fire fire = FireNear(dog, takee);
-            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(dog, takee);
+            return fire != null ? JobMaker.MakeJob(JobDefOf.BeatFire, fire) : CarryJob(takee, stable);
         }
     }
 
@@ -278,7 +285,10 @@ namespace Quadrunner
             checkedBattery = true;
             // The charge search's own choice (full soonest, travel included): the stable means finishing on the way.
             Job charge = JobGiver_SeekCharge.ChargeJob(pawn, comp, out string why);
-            if (charge == null || charge.def == QR_DefOf.QR_Dock)
+            bool stableWins = charge == null || charge.def == QR_DefOf.QR_Dock;
+            if (charge != null)
+                JobMaker.ReturnToPool(charge);
+            if (stableWins)
             {
                 QR.Log($"{pawn} at {comp.Battery:P0} carrying {Cargo}: charging at the stable wins ({why}); finishing");
                 return;

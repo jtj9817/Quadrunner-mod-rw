@@ -91,11 +91,18 @@ namespace Quadrunner
             }
         }
 
-        // Biotech's mask doesn't exist in Core; checked null-safely so a mask from anywhere else still works.
+        // Biotech's mask doesn't exist in Core; checked null-safely and cached once so a mask from anywhere else still works.
+        private static bool gasMaskChecked;
+        private static ThingDef gasMaskDef;
+
         private static bool HasGasMask(Pawn pawn)
         {
-            ThingDef mask = DefDatabase<ThingDef>.GetNamed("Apparel_GasMask", errorOnFail: false);
-            return mask != null && pawn.apparel?.WornApparel != null && pawn.apparel.WornApparel.Any(a => a.def == mask);
+            if (!gasMaskChecked)
+            {
+                gasMaskDef = DefDatabase<ThingDef>.GetNamed("Apparel_GasMask", errorOnFail: false);
+                gasMaskChecked = true;
+            }
+            return gasMaskDef != null && pawn.apparel?.WornApparel != null && pawn.apparel.WornApparel.Any(a => a.def == gasMaskDef);
         }
     }
 
@@ -185,7 +192,15 @@ namespace Quadrunner
             activeMap = explosion.Map;
             activeOrigin = explosion.Position;
             activeRadius = explosion.radius;
-            base.ExplosionAffectCell(explosion, c, damagedThings, ignoredThings, canThrowMotes);
+            try
+            {
+                base.ExplosionAffectCell(explosion, c, damagedThings, ignoredThings, canThrowMotes);
+            }
+            finally
+            {
+                activeMap = null;
+                activeRadius = 0f;
+            }
         }
     }
 }

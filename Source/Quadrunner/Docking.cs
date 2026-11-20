@@ -96,23 +96,23 @@ namespace Quadrunner
         /// </summary>
         public static IntVec3 CellInNearestRoom(Pawn pawn, Region start, Predicate<Room> ok)
         {
-            Region found = null;
+            IntVec3 result = IntVec3.Invalid;
             TraverseParms parms = TraverseParms.For(pawn);
+            bool Reachable(IntVec3 c) => c.Standable(pawn.Map) && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly);
             RegionTraverser.BreadthFirstTraverse(start, (from, to) => to.Allows(parms, isDestination: false),
                 r =>
                 {
                     if (r.IsDoorway || !ok(r.Room))
                         return false;
-                    found = r;
-                    return true;
+                    if (r.TryFindRandomCellInRegion(c => c.GetEdifice(pawn.Map) == null && Reachable(c), out IntVec3 cell)
+                        || r.TryFindRandomCellInRegion(Reachable, out cell))
+                    {
+                        result = cell;
+                        return true;
+                    }
+                    return false;
                 }, MaxRegions);
-            if (found == null)
-                return IntVec3.Invalid;
-            bool Reachable(IntVec3 c) => c.Standable(pawn.Map) && pawn.CanReach(c, PathEndMode.OnCell, Danger.Deadly);
-            if (found.TryFindRandomCellInRegion(c => c.GetEdifice(pawn.Map) == null && Reachable(c), out IntVec3 cell)
-                || found.TryFindRandomCellInRegion(Reachable, out cell))
-                return cell;
-            return IntVec3.Invalid;
+            return result;
         }
     }
 }

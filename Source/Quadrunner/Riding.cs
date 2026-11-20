@@ -110,7 +110,21 @@ namespace Quadrunner
                 return false;
             IntVec3 next = rider.pather.nextCell;
             if (next.GetDoor(map) != null)
-                next += next - rider.Position;
+            {
+                PawnPath path = rider.pather.curPath;
+                if (path != null && path.Found && path.NodesLeftCount > 0)
+                {
+                    IntVec3 first = path.Peek(0);
+                    if (first != next)
+                        next = first;
+                    else if (path.NodesLeftCount >= 2)
+                        next = path.Peek(1);
+                    else
+                        next += next - rider.Position;
+                }
+                else
+                    next += next - rider.Position;
+            }
             return Indoors(next, map);
         }
     }
